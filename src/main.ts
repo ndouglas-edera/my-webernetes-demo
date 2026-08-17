@@ -53,11 +53,11 @@ async function runCluster() {
     // 3. Pause briefly for internal DNS/Endpoint reconciliation
     await new Promise((r) => setTimeout(r, 1000));
 
-    // 4. Send request to NodePort endpoint
-    const res = await cluster.fetch("http://node-1:31000");
-    const text = await res.text();
+    // 4. Safely handle cluster response
+    const res: any = await cluster.fetch("http://node-1:31000");
+    const text = typeof res?.text === "function" ? await res.text() : res?.body || res;
 
-    app.innerText = text;
+    app.innerText = String(text);
   } catch (error: any) {
     app.innerText = `Error: ${error.message}`;
   }
