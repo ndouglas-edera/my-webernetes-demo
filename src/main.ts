@@ -260,10 +260,10 @@ async function initTerminalDemo() {
 Available Commands:
   • ls                                                List files in current directory
   • cat <filename>                                    Print contents of a file
-  • kubectl get [pods|nodes] [-A] [--show-labels]     List resources with filters/labels
+  • kubectl get [pods|nodes] [-A] [--show-labels]     List resources with labels
   • kubectl label node <node-name> <key>=<value>      Add label to a node
   • kubectl apply -f <filename.yaml>                  Apply manifest file
-  • kubectl delete [pod|node] <name>                  Remove resource
+  • kubectl delete [pod|node] <name>                  Remove resources
   • curl <url>                                        Fetch HTTP endpoint
   • clear / history                                   Manage terminal view & history`;
 
@@ -454,8 +454,10 @@ Available Commands:
       }
 
       if (rawCmd.startsWith("kubectl label node ") || rawCmd.startsWith("kubectl label nodes ")) {
-        const targetNode = tokens[2];
-        const labelExpr = tokens[3];
+        const isPlural = tokens[1] === "label" && (tokens[2] === "node" || tokens[2] === "nodes");
+        const nodeOffset = isPlural ? 3 : 2;
+        const targetNode = tokens[nodeOffset];
+        const labelExpr = tokens[nodeOffset + 1];
 
         if (!targetNode || !labelExpr) {
           print("Error: invalid syntax. Usage: kubectl label node <node-name> <key>=<value> or <key>=");
@@ -550,8 +552,8 @@ Available Commands:
 
         let header = "";
         if (allNamespaces) header += "NAMESPACE   ";
-        header += "NAME        READY   STATUS    RESTARTS   AGE   IP            NODE";
-        if (showLabels) header += "         LABELS";
+        header += "NAME        READY   STATUS    RESTARTS   AGE   IP             NODE";
+        if (showLabels) header += "          LABELS";
         header += "\n";
 
         let table = header;
@@ -575,7 +577,7 @@ Available Commands:
         }
 
         let header = "NAME     STATUS   ROLES          AGE   VERSION";
-        if (showLabels) header += "         LABELS";
+        if (showLabels) header += "          LABELS";
         header += "\n";
 
         let table = header;
