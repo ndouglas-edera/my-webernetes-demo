@@ -16,11 +16,14 @@ class WebServerImage extends BaseImage {
 
 interface LocalPod {
   name: string;
+  namespace: string;
   status: string;
   age: string;
   image: string;
   ip: string;
   node: string;
+  labels: Record<string, string>;
+  nodeSelector?: Record<string, string>;
 }
 
 interface LocalNode {
@@ -29,6 +32,7 @@ interface LocalNode {
   role: string;
   age: string;
   version: string;
+  labels: Record<string, string>;
 }
 
 interface ClusterEvent {
@@ -39,8 +43,21 @@ interface ClusterEvent {
   message: string;
 }
 
+const NGINX_YAML_CONTENT = `apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    env: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    imagePullPolicy: IfNotPresent
+  nodeSelector:
+    disktype: ssd`;
+
 async function initTerminalDemo() {
-  // Inject global body styles to eliminate white margins/background
   const styleTag = document.createElement("style");
   styleTag.textContent = `
     html, body {
@@ -58,7 +75,6 @@ async function initTerminalDemo() {
   app.innerHTML = `
     <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; color: #c9d1d9; padding: 24px; min-height: 100vh; background-color: #0d1117;">
       
-      <!-- High-Contrast Header -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #30363d; padding-bottom: 16px;">
         <div>
           <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff;">Webernetes Dashboard & Terminal</h1>
@@ -69,10 +85,7 @@ async function initTerminalDemo() {
         </button>
       </div>
 
-      <!-- Main Layout Grid -->
       <div style="display: flex; gap: 16px; align-items: flex-start;">
-        
-        <!-- Left Area: Cluster Visuals + Terminal -->
         <div style="flex: 1; min-width: 0;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;">
@@ -92,7 +105,6 @@ async function initTerminalDemo() {
             </div>
           </div>
 
-          <!-- Terminal UI -->
           <div style="font-family: monospace; background: #010409; border: 1px solid #30363d; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
             <div id="output" style="white-space: pre-wrap; margin-bottom: 12px; min-height: 240px; max-height: 360px; overflow-y: auto; font-size: 13px;">Initializing Webernetes cluster...</div>
             <div style="display: flex; align-items: center; border-top: 1px solid #30363d; padding-top: 12px;">
@@ -102,17 +114,13 @@ async function initTerminalDemo() {
           </div>
         </div>
 
-        <!-- Right Side Panel: Lifecycle Events -->
         <div id="events-panel" style="width: 340px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; transition: all 0.25s ease-in-out; display: flex; flex-direction: column; height: 600px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #30363d;">
-            <h3 style="margin: 0; font-size: 14px; color: #f0f6fc; display: flex; align-items: center; gap: 6px;">
-              ⚡ Lifecycle Events
-            </h3>
+            <h3 style="margin: 0; font-size: 14px; color: #f0f6fc; display: flex; align-items: center; gap: 6px;">⚡ Lifecycle Events</h3>
             <button id="clear-events-btn" style="background: transparent; border: none; color: #8b949e; font-size: 11px; cursor: pointer;">Clear</button>
           </div>
           <div id="events-stream" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-family: monospace; font-size: 11px;"></div>
         </div>
-
       </div>
     </div>
   `;
@@ -134,14 +142,27 @@ async function initTerminalDemo() {
   const commandHistory: string[] = [];
   let historyIndex = -1;
 
+  const localFiles: Record<string, string> = {
+    "pod-nginx.yaml": NGINX_YAML_CONTENT,
+  };
+
   let pods: LocalPod[] = [
-    { name: "demo-pod", status: "Running", age: "2m", image: "web-server:1.0", ip: "10.244.0.5", node: "node-2" }
+    {
+      name: "demo-pod",
+      namespace: "default",
+      status: "Running",
+      age: "2m",
+      image: "web-server:1.0",
+      ip: "10.244.0.5",
+      node: "node-2",
+      labels: { app: "demo" }
+    }
   ];
 
   let nodes: LocalNode[] = [
-    { name: "node-1", status: "Ready", role: "control-plane", age: "5m", version: "v1.30.0-webernetes" },
-    { name: "node-2", status: "Ready", role: "worker", age: "5m", version: "v1.30.0-webernetes" },
-    { name: "node-3", status: "Ready", role: "worker", age: "5m", version: "v1.30.0-webernetes" }
+    { name: "node-1", status: "Ready", role: "control-plane", age: "5m", version: "v1.30.0-webernetes", labels: { "kubernetes.io/hostname": "node-1" } },
+    { name: "node-2", status: "Ready", role: "worker", age: "5m", version: "v1.30.0-webernetes", labels: { "kubernetes.io/hostname": "node-2" } },
+    { name: "node-3", status: "Ready", role: "worker", age: "5m", version: "v1.30.0-webernetes", labels: { "kubernetes.io/hostname": "node-3" } }
   ];
 
   let clusterEvents: ClusterEvent[] = [];
@@ -170,8 +191,7 @@ async function initTerminalDemo() {
 
   const addEvent = (type: "Normal" | "Warning" | "Info", reason: string, object: string, message: string) => {
     const time = new Date().toLocaleTimeString().split(" ")[0];
-    const ev: ClusterEvent = { time, type, reason, object, message };
-    clusterEvents.unshift(ev);
+    clusterEvents.unshift({ time, type, reason, object, message });
     renderEvents();
   };
 
@@ -212,31 +232,59 @@ async function initTerminalDemo() {
   const helpText = `Webernetes CLI Reference:
 
 Available Commands:
-  • help / kubectl --help                             Show this help message
-  • history                                           Display command history
-  • kubectl get [pods|nodes|events|svc]               List cluster resources
-  • kubectl describe pod <name>                       Display pod details and events
-  • kubectl run <name> --image=<image>                Deploy a new pod
-  • kubectl create node <name> [--role=worker|controlplane]   Provision a new cluster node
-  • kubectl delete pod <name>                         Remove a pod from the cluster
-  • kubectl delete node <name>                        Remove a node from the cluster
-  • curl <url>                                        Fetch endpoint (e.g. http://node-1:31000)
-  • clear                                             Clear terminal screen`;
+  • ls                                                List files in current directory
+  • cat <filename>                                    Print contents of a file
+  • kubectl get [pods|nodes] [-A] [-n ns] [--show-labels] List resources with filters/labels
+  • kubectl label node[s] <node-name> <key>=<value>    Add label to a node
+  • kubectl apply -f <filename.yaml>                  Apply manifest file
+  • kubectl create node <name> [--role=worker|controlplane] Provision new node
+  • kubectl delete [pod|node] <name>                  Remove resource
+  • curl <url>                                        Fetch HTTP endpoint
+  • clear / history                                   Manage terminal view & history`;
+
+  const formatLabels = (labels: Record<string, string>): string => {
+    const entries = Object.entries(labels);
+    if (entries.length === 0) return "<none>";
+    return entries.map(([k, v]) => `${k}=${v}`).join(",");
+  };
+
+  const checkPendingPods = () => {
+    pods.forEach((p) => {
+      if (p.status === "Pending" && p.nodeSelector) {
+        const matchingNode = nodes.find((n) =>
+          Object.entries(p.nodeSelector!).every(([k, v]) => n.labels[k] === v)
+        );
+        if (matchingNode) {
+          p.status = "Running";
+          p.node = matchingNode.name;
+          addEvent("Normal", "Scheduled", `pod/${p.name}`, `Successfully assigned ${p.namespace}/${p.name} to ${matchingNode.name}`);
+          addEvent("Normal", "Started", `pod/${p.name}`, `Started container ${p.name}`);
+        }
+      }
+    });
+  };
 
   const updateDashboard = () => {
     podCount.innerText = `${pods.length} ${pods.length === 1 ? "Pod" : "Pods"}`;
     if (pods.length === 0) {
       podGrid.innerHTML = `<div style="font-size: 12px; color: #8b949e; padding: 6px;">No pods running</div>`;
     } else {
-      podGrid.innerHTML = pods.map((p) => `
-        <div style="background: #0d1117; border: 1px solid #238636; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
-          <div>
-            <div style="font-weight: 600; font-size: 13px; color: #58a6ff;">${p.name}</div>
-            <div style="font-size: 11px; color: #8b949e;">${p.image} · ${p.node}</div>
+      podGrid.innerHTML = pods.map((p) => {
+        const isPending = p.status === "Pending";
+        const badgeColor = isPending ? "#d29922" : "#3fb950";
+        const badgeBg = isPending ? "#bb800922" : "#23863622";
+        const borderColor = isPending ? "#d29922" : "#238636";
+
+        return `
+          <div style="background: #0d1117; border: 1px solid ${borderColor}; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+            <div>
+              <div style="font-weight: 600; font-size: 13px; color: #58a6ff;">${p.name}</div>
+              <div style="font-size: 11px; color: #8b949e;">${p.image} · ${p.node || "unassigned"}</div>
+            </div>
+            <span style="font-size: 10px; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${borderColor}; padding: 2px 6px; border-radius: 4px;">${p.status}</span>
           </div>
-          <span style="font-size: 10px; background: #23863622; color: #3fb950; border: 1px solid #238636; padding: 2px 6px; border-radius: 4px;">${p.status}</span>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     }
 
     nodeCount.innerText = `${nodes.length} ${nodes.length === 1 ? "Node" : "Nodes"}`;
@@ -291,7 +339,7 @@ Available Commands:
     addEvent("Normal", "Scheduled", "pod/demo-pod", "Assigned default/demo-pod to node-2");
     addEvent("Normal", "Started", "pod/demo-pod", "Started container web");
 
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 800));
 
     updateDashboard();
     output.innerText = `Webernetes cluster online!\n\n${helpText}`;
@@ -322,50 +370,139 @@ Available Commands:
 
       if (e.key !== "Enter") return;
 
-      const cmd = input.value.trim();
+      const rawCmd = input.value.trim();
       input.value = "";
       historyIndex = -1;
-      if (!cmd) return;
+      if (!rawCmd) return;
 
-      commandHistory.push(cmd);
-      print(`user@webernetes:~$ ${cmd}`);
+      commandHistory.push(rawCmd);
+      print(`user@webernetes:~$ ${rawCmd}`);
 
-      if (cmd === "clear") {
+      const tokens = rawCmd.split(/\s+/);
+      const mainCmd = tokens[0];
+
+      if (mainCmd === "clear") {
         output.innerText = "";
         return;
       }
 
-      if (cmd === "help" || cmd === "kubectl --help" || cmd === "kubectl -h" || cmd === "kubectl help") {
-        print(helpText);
+      if (mainCmd === "ls") {
+        print(Object.keys(localFiles).join("  "));
+        return;
       }
-      else if (cmd === "history") {
+
+      if (mainCmd === "cat") {
+        const fileName = tokens[1];
+        if (!fileName) {
+          print("cat: missing file operand");
+        } else if (localFiles[fileName]) {
+          print(localFiles[fileName]);
+        } else {
+          print(`cat: ${fileName}: No such file or directory`);
+        }
+        return;
+      }
+
+      if (mainCmd === "help" || rawCmd === "kubectl --help" || rawCmd === "kubectl -h") {
+        print(helpText);
+        return;
+      }
+
+      if (mainCmd === "history") {
         if (commandHistory.length === 0) {
           print("No command history.");
           return;
         }
-        let list = "";
-        commandHistory.forEach((c, idx) => {
-          list += `  ${String(idx + 1).padStart(3, " ")}  ${c}\n`;
-        });
-        print(list.trimEnd());
+        print(commandHistory.map((c, i) => `  ${String(i + 1).padStart(3, " ")}  ${c}`).join("\n"));
+        return;
       }
-      else if (cmd.startsWith("kubectl create node ") || cmd.startsWith("kubectl create nodes ")) {
-        const parts = cmd.split(" ");
-        const name = parts[3];
-        const roleArg = parts.find((p) => p.startsWith("--role="));
-        let role = roleArg ? roleArg.split("=")[1] : "worker";
 
+      if (rawCmd.startsWith("kubectl label node ") || rawCmd.startsWith("kubectl label nodes ")) {
+        const targetNode = tokens[2];
+        const kvPair = tokens[3];
+
+        if (!targetNode || !kvPair || !kvPair.includes("=")) {
+          print("Error: invalid syntax. Usage: kubectl label node <node-name> <key>=<value>");
+          addEvent("Warning", "InvalidSyntax", "label", "Failed label command syntax");
+          return;
+        }
+
+        const nodeObj = nodes.find((n) => n.name === targetNode);
+        if (!nodeObj) {
+          print(`Error from server (NotFound): nodes "${targetNode}" not found`);
+          addEvent("Warning", "NotFound", `node/${targetNode}`, `Label failed: node ${targetNode} not found`);
+          return;
+        }
+
+        const [key, val] = kvPair.split("=");
+        nodeObj.labels[key] = val;
+        addEvent("Normal", "Labeled", `node/${targetNode}`, `Node labeled with ${key}=${val}`);
+        print(`node/${targetNode} labeled`);
+
+        checkPendingPods();
+        updateDashboard();
+        return;
+      }
+
+      if (rawCmd.startsWith("kubectl apply -f")) {
+        const fileName = tokens[tokens.indexOf("-f") + 1];
+        if (!fileName || !localFiles[fileName]) {
+          print(`error: the path "${fileName || ""}" does not exist`);
+          addEvent("Warning", "FileNotFound", "manifest", `Apply failed: file ${fileName} not found`);
+          return;
+        }
+
+        if (fileName === "pod-nginx.yaml") {
+          const podName = "nginx";
+          if (pods.some((p) => p.name === podName)) {
+            print(`pod/${podName} unchanged`);
+            return;
+          }
+
+          const nodeSelector = { disktype: "ssd" };
+          const matchingNode = nodes.find((n) => n.labels.disktype === "ssd");
+
+          const newPod: LocalPod = {
+            name: podName,
+            namespace: "default",
+            status: matchingNode ? "Running" : "Pending",
+            age: "1s",
+            image: "nginx",
+            ip: matchingNode ? `10.244.0.${Math.floor(Math.random() * 200 + 10)}` : "<none>",
+            node: matchingNode ? matchingNode.name : "<none>",
+            labels: { env: "test" },
+            nodeSelector
+          };
+
+          pods.push(newPod);
+          addEvent("Normal", "Created", `pod/${podName}`, "pod/nginx created from manifest");
+
+          if (matchingNode) {
+            addEvent("Normal", "Scheduled", `pod/${podName}`, `Successfully assigned default/${podName} to ${matchingNode.name}`);
+            addEvent("Normal", "Started", `pod/${podName}`, `Started container ${podName}`);
+          } else {
+            addEvent("Warning", "FailedScheduling", `pod/${podName}`, "0/3 nodes are available: 3 node(s) didn't match Pod's node selector");
+          }
+
+          updateDashboard();
+          print(`pod/${podName} created`);
+        }
+        return;
+      }
+
+      if (rawCmd.startsWith("kubectl create node ") || rawCmd.startsWith("kubectl create nodes ")) {
+        const name = tokens[3];
+        const roleArg = tokens.find((p) => p.startsWith("--role="));
+        let role = roleArg ? roleArg.split("=")[1] : "worker";
         if (role === "controlplane") role = "control-plane";
 
         if (!name) {
-          print("Error: node name required. Usage: kubectl create node <name> [--role=worker|control-plane]");
-          addEvent("Warning", "FailedCreate", "node", "Node creation failed: missing node name");
+          print("Error: node name required. Usage: kubectl create node <name> [--role=worker|controlplane]");
           return;
         }
 
         if (nodes.some((n) => n.name === name)) {
           print(`Error from server (AlreadyExists): nodes "${name}" already exists`);
-          addEvent("Warning", "AlreadyExists", `node/${name}`, `Node ${name} already exists in cluster`);
           return;
         }
 
@@ -374,121 +511,121 @@ Available Commands:
           status: "Ready",
           role,
           age: "1s",
-          version: "v1.30.0-webernetes"
+          version: "v1.30.0-webernetes",
+          labels: { "kubernetes.io/hostname": name }
         });
 
-        addEvent("Info", "NodeRegistration", `node/${name}`, `Registering new node with role "${role}"`);
+        addEvent("Info", "NodeRegistration", `node/${name}`, `Registering node with role "${role}"`);
         addEvent("Normal", "NodeReady", `node/${name}`, `Node ${name} status is now Ready`);
 
+        checkPendingPods();
         updateDashboard();
         print(`node/${name} created (${role})`);
+        return;
       }
-      else if (cmd.startsWith("kubectl run ")) {
-        const parts = cmd.split(" ");
-        const name = parts[2];
-        const imageArg = parts.find((p) => p.startsWith("--image="));
-        const image = imageArg ? imageArg.split("=")[1] : "web-server:1.0";
-        const assignedNode = nodes.length > 0 ? nodes[Math.floor(Math.random() * nodes.length)].name : "unassigned";
 
-        if (!name) {
-          print("Error: pod name required. Usage: kubectl run <name> --image=<image>");
-          addEvent("Warning", "FailedCreate", "pod", "Pod creation failed: missing name parameter");
+      if (rawCmd.startsWith("kubectl get pods") || rawCmd.startsWith("kubectl get pod")) {
+        const showLabels = tokens.includes("--show-labels");
+        const allNamespaces = tokens.includes("-A") || tokens.includes("--all-namespaces");
+        
+        let namespaceFilter = "default";
+        const nsIndex = tokens.indexOf("-n");
+        if (nsIndex !== -1 && tokens[nsIndex + 1]) {
+          namespaceFilter = tokens[nsIndex + 1];
+        }
+
+        const filteredPods = pods.filter((p) => allNamespaces || p.namespace === namespaceFilter);
+
+        if (filteredPods.length === 0) {
+          print("No resources found in target namespace.");
           return;
         }
 
-        if (pods.some((p) => p.name === name)) {
-          print(`Error from server (AlreadyExists): pods "${name}" already exists`);
-          addEvent("Warning", "AlreadyExists", `pod/${name}`, `Pod ${name} already exists in default namespace`);
+        let header = "";
+        if (allNamespaces) header += "NAMESPACE   ";
+        header += "NAME        READY   STATUS    RESTARTS   AGE   IP            NODE";
+        if (showLabels) header += "         LABELS";
+        header += "\n";
+
+        let table = header;
+        for (const p of filteredPods) {
+          let line = "";
+          if (allNamespaces) line += `${p.namespace.padEnd(11)} `;
+          line += `${p.name.padEnd(11)} 1/1     ${p.status.padEnd(9)} 0          ${p.age.padEnd(5)} ${p.ip.padEnd(13)} ${p.node.padEnd(10)}`;
+          if (showLabels) line += ` ${formatLabels(p.labels)}`;
+          table += `${line}\n`;
+        }
+        print(table.trimEnd());
+        return;
+      }
+
+      if (rawCmd.startsWith("kubectl get nodes") || rawCmd.startsWith("kubectl get node")) {
+        const showLabels = tokens.includes("--show-labels");
+
+        if (nodes.length === 0) {
+          print("No nodes found in cluster.");
           return;
         }
 
-        pods.push({
-          name,
-          status: "Running",
-          age: "1s",
-          image,
-          ip: `10.244.0.${Math.floor(Math.random() * 200 + 10)}`,
-          node: assignedNode
-        });
+        let header = "NAME     STATUS   ROLES          AGE   VERSION";
+        if (showLabels) header += "         LABELS";
+        header += "\n";
 
-        addEvent("Info", "Scheduling", `pod/${name}`, `Binding pod to node ${assignedNode}`);
-        addEvent("Normal", "Scheduled", `pod/${name}`, `Successfully assigned default/${name} to ${assignedNode}`);
-        addEvent("Normal", "Pulled", `pod/${name}`, `Successfully pulled image "${image}"`);
-        addEvent("Normal", "Created", `pod/${name}`, `Created container web`);
-        addEvent("Normal", "Started", `pod/${name}`, `Started container web`);
-
-        updateDashboard();
-        print(`pod/${name} created`);
+        let table = header;
+        for (const n of nodes) {
+          let line = `${n.name.padEnd(8)} ${n.status.padEnd(8)} ${n.role.padEnd(14)} ${n.age.padEnd(5)} ${n.version.padEnd(16)}`;
+          if (showLabels) line += ` ${formatLabels(n.labels)}`;
+          table += `${line}\n`;
+        }
+        print(table.trimEnd());
+        return;
       }
-      else if (cmd.startsWith("kubectl delete pod ") || cmd.startsWith("kubectl delete pods ")) {
-        const parts = cmd.split(" ");
-        const name = parts[3] || parts[2];
+
+      if (rawCmd.startsWith("kubectl delete pod ") || rawCmd.startsWith("kubectl delete pods ")) {
+        const name = tokens[3] || tokens[2];
         const index = pods.findIndex((p) => p.name === name);
 
         if (index === -1) {
           print(`Error from server (NotFound): pods "${name}" not found`);
-          addEvent("Warning", "NotFound", `pod/${name}`, `Delete operation failed: pod "${name}" not found`);
           return;
         }
 
         pods.splice(index, 1);
-        addEvent("Normal", "Killing", `pod/${name}`, `Stopping container web`);
-        addEvent("Normal", "Terminated", `pod/${name}`, `Pod ${name} deleted successfully`);
+        addEvent("Normal", "Killing", `pod/${name}`, "Stopping container web");
+        addEvent("Normal", "Terminated", `pod/${name}`, `Pod ${name} deleted`);
 
         updateDashboard();
         print(`pod "${name}" deleted`);
+        return;
       }
-      else if (cmd.startsWith("kubectl delete node ") || cmd.startsWith("kubectl delete nodes ")) {
-        const parts = cmd.split(" ");
-        const name = parts[3] || parts[2];
+
+      if (rawCmd.startsWith("kubectl delete node ") || rawCmd.startsWith("kubectl delete nodes ")) {
+        const name = tokens[3] || tokens[2];
         const index = nodes.findIndex((n) => n.name === name);
 
         if (index === -1) {
           print(`Error from server (NotFound): nodes "${name}" not found`);
-          addEvent("Warning", "NotFound", `node/${name}`, `Delete operation failed: node "${name}" not found`);
           return;
         }
 
         nodes.splice(index, 1);
-        addEvent("Warning", "NodeDeleted", `node/${name}`, `Node ${name} removed from active cluster state`);
+        addEvent("Warning", "NodeDeleted", `node/${name}`, `Node ${name} removed from cluster`);
 
         pods.forEach((p) => {
           if (p.node === name) {
             const newNode = nodes[0]?.name || "unassigned";
             p.node = newNode;
-            addEvent("Warning", "NodeEviction", `pod/${p.name}`, `Evicted from ${name}, rescheduled to ${newNode}`);
+            addEvent("Warning", "NodeEviction", `pod/${p.name}`, `Rescheduled to ${newNode}`);
           }
         });
 
         updateDashboard();
         print(`node "${name}" deleted`);
+        return;
       }
-      else if (cmd === "kubectl get pods" || cmd === "kubectl get pod") {
-        addEvent("Info", "ApiQuery", "pods", "GET /api/v1/namespaces/default/pods HTTP/1.1");
-        if (pods.length === 0) {
-          print("No resources found in default namespace.");
-          return;
-        }
-        let table = "NAME        READY   STATUS    RESTARTS   AGE   IP            NODE\n";
-        for (const p of pods) {
-          table += `${p.name.padEnd(11)} 1/1     ${p.status.padEnd(9)} 0          ${p.age.padEnd(5)} ${p.ip.padEnd(13)} ${p.node}\n`;
-        }
-        print(table);
-      }
-      else if (cmd === "kubectl get nodes" || cmd === "kubectl get node") {
-        addEvent("Info", "ApiQuery", "nodes", "GET /api/v1/nodes HTTP/1.1");
-        if (nodes.length === 0) {
-          print("No nodes found in cluster.");
-          return;
-        }
-        let table = "NAME     STATUS   ROLES          AGE   VERSION\n";
-        for (const n of nodes) {
-          table += `${n.name.padEnd(8)} ${n.status.padEnd(8)} ${n.role.padEnd(14)} ${n.age.padEnd(5)} ${n.version}\n`;
-        }
-        print(table);
-      }
-      else if (cmd.startsWith("curl ")) {
-        const url = cmd.replace("curl ", "").trim();
+
+      if (rawCmd.startsWith("curl ")) {
+        const url = rawCmd.replace("curl ", "").trim();
         addEvent("Info", "HttpRequest", "curl", `GET ${url}`);
         try {
           const res: any = await cluster.fetch(url);
@@ -499,11 +636,11 @@ Available Commands:
           print(`curl: (7) Failed to connect: ${err.message}`);
           addEvent("Warning", "HttpError", "curl", `Connection failed: ${err.message}`);
         }
+        return;
       }
-      else {
-        print(`command not found: ${cmd}. Type 'help' or 'kubectl --help' to see supported commands.`);
-        addEvent("Warning", "InvalidCommand", "cli", `Unknown command execution attempted: ${cmd}`);
-      }
+
+      print(`command not found: ${rawCmd}. Type 'help' or 'kubectl --help' to see supported commands.`);
+      addEvent("Warning", "InvalidCommand", "cli", `Unknown command execution attempted: ${rawCmd}`);
     });
 
   } catch (error: any) {
