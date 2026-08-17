@@ -105,7 +105,7 @@ async function initTerminalDemo() {
           </div>
 
           <div style="font-family: monospace; background: #010409; border: 1px solid #30363d; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
-            <div id="output" style="white-space: pre-wrap; margin-bottom: 12px; min-height: 240px; max-height: 360px; overflow-y: auto; font-size: 13px;">Initializing Webernetes cluster...</div>
+            <div id="output" style="white-space: pre-wrap; margin-bottom: 12px; min-height: 240px; max-height: 360px; overflow-y: auto; font-size: 13px; line-height: 1.4;">Initializing Webernetes cluster...</div>
             <div style="display: flex; align-items: center; border-top: 1px solid #30363d; padding-top: 12px;">
               <span style="color: #58a6ff; margin-right: 8px;">user@webernetes:~$</span>
               <input id="cmd" type="text" placeholder="Type 'help' or use Up/Down arrow keys for command history..." style="flex: 1; background: transparent; border: none; color: #fff; font-family: inherit; font-size: 13px; outline: none;" disabled />
@@ -255,17 +255,47 @@ async function initTerminalDemo() {
     }).join("");
   };
 
-  const helpText = `Webernetes CLI Reference:
+  const printHtml = (htmlContent: string) => {
+    output.innerHTML += `\n${htmlContent}`;
+    output.scrollTop = output.scrollHeight;
+  };
+
+  const escapeHtml = (str: string) => {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  };
+
+  const highlightYaml = (yamlText: string): string => {
+    return yamlText
+      .split("\n")
+      .map((line) => {
+        const escaped = escapeHtml(line);
+        if (escaped.includes(":")) {
+          const parts = escaped.split(":");
+          const key = parts[0];
+          const val = parts.slice(1).join(":");
+          return `<span style="color: #79c0ff; font-weight: 500;">${key}</span><span style="color: #8b949e;">:</span><span style="color: #a5d6ff;">${val}</span>`;
+        }
+        return `<span style="color: #c9d1d9;">${escaped}</span>`;
+      })
+      .join("\n");
+  };
+
+  const formatHelpText = (): string => {
+    return `<span style="color: #ffa657;">Webernetes CLI Reference:
 
 Available Commands:
-  • ls                                                List files in current directory
-  • cat <filename>                                    Print contents of a file
-  • kubectl get [pods|nodes] [-A] [--show-labels]     List resources with labels
-  • kubectl label node <node-name> <key>=<value>      Add label to a node
-  • kubectl apply -f <filename.yaml>                  Apply manifest file
-  • kubectl delete [pod|node] <name>                  Remove resources
-  • curl <url>                                        Fetch HTTP endpoint
-  • clear / history                                   Manage terminal view & history`;
+  • ls                                        List files in current directory
+  • cat &lt;filename&gt;                            Print contents of a file
+  • kubectl get [pods|nodes] [-A] [--show-labels]     List resources with filters/labels
+  • kubectl label node &lt;node-name&gt; &lt;key&gt;=&lt;value&gt;      Add label to a node
+  • kubectl apply -f &lt;filename.yaml&gt;                  Apply manifest file
+  • kubectl delete [pod|node] &lt;name&gt;                  Remove resource
+  • curl &lt;url&gt;                                        Fetch HTTP endpoint
+  • clear / history                                   Manage terminal view & history</span>`;
+  };
 
   const formatLabels = (labels: Record<string, string>): string => {
     const entries = Object.entries(labels);
@@ -342,11 +372,6 @@ Available Commands:
     nodeGrid.scrollTop = nodeGrid.scrollHeight;
   };
 
-  const print = (text: string) => {
-    output.innerText += `\n${text}`;
-    output.scrollTop = output.scrollHeight;
-  };
-
   try {
     const cluster = new Cluster();
     cluster.registerImage(WebServerImage);
@@ -378,7 +403,7 @@ Available Commands:
     await new Promise((r) => setTimeout(r, 800));
 
     updateDashboard();
-    output.innerText = `Webernetes cluster online!\n\n${helpText}`;
+    output.innerHTML = `Webernetes cluster online!\n\n${formatHelpText()}`;
     input.disabled = false;
     input.focus();
 
@@ -412,7 +437,7 @@ Available Commands:
       if (!rawCmd) return;
 
       commandHistory.push(rawCmd);
-      print(`user@webernetes:~$ ${rawCmd}`);
+      printHtml(`<span style="color: #58a6ff;">user@webernetes:~$</span> ${escapeHtml(rawCmd)}`);
 
       const tokens = rawCmd.split(/\s+/);
       const mainCmd = tokens[0];
@@ -423,33 +448,39 @@ Available Commands:
       }
 
       if (mainCmd === "ls") {
-        print(Object.keys(localFiles).join("  "));
+        const fileList = Object.keys(localFiles)
+          .map((f) => `<span style="color: #56d364; font-weight: 600;">${f}</span>`)
+          .join("  ");
+        printHtml(fileList);
         return;
       }
 
       if (mainCmd === "cat") {
         const fileName = tokens[1];
         if (!fileName) {
-          print("cat: missing file operand");
+          printHtml(`<span style="color: #f85149;">cat: missing file operand</span>`);
         } else if (localFiles[fileName]) {
-          print(localFiles[fileName]);
+          printHtml(highlightYaml(localFiles[fileName]));
         } else {
-          print(`cat: ${fileName}: No such file or directory`);
+          printHtml(`<span style="color: #f85149;">cat: ${escapeHtml(fileName)}: No such file or directory</span>`);
         }
         return;
       }
 
       if (mainCmd === "help" || rawCmd === "kubectl --help" || rawCmd === "kubectl -h") {
-        print(helpText);
+        printHtml(formatHelpText());
         return;
       }
 
       if (mainCmd === "history") {
         if (commandHistory.length === 0) {
-          print("No command history.");
+          printHtml(`<span style="color: #ffa657;">No command history.</span>`);
           return;
         }
-        print(commandHistory.map((c, i) => `  ${String(i + 1).padStart(3, " ")}  ${c}`).join("\n"));
+        const formattedHistory = commandHistory
+          .map((c, i) => `<span style="color: #8b949e;">${String(i + 1).padStart(3, " ")}</span>  ${escapeHtml(c)}`)
+          .join("\n");
+        printHtml(`<span style="color: #ffa657;">${formattedHistory}</span>`);
         return;
       }
 
@@ -460,14 +491,14 @@ Available Commands:
         const labelExpr = tokens[nodeOffset + 1];
 
         if (!targetNode || !labelExpr) {
-          print("Error: invalid syntax. Usage: kubectl label node <node-name> <key>=<value> or <key>=");
+          printHtml(`<span style="color: #f85149;">Error: invalid syntax. Usage: kubectl label node &lt;node-name&gt; &lt;key&gt;=&lt;value&gt; or &lt;key&gt;=</span>`);
           addEvent("Warning", "InvalidSyntax", "label", "Failed label command syntax");
           return;
         }
 
         const nodeObj = nodes.find((n) => n.name === targetNode);
         if (!nodeObj) {
-          print(`Error from server (NotFound): nodes "${targetNode}" not found`);
+          printHtml(`<span style="color: #f85149;">Error from server (NotFound): nodes "${escapeHtml(targetNode)}" not found</span>`);
           addEvent("Warning", "NotFound", `node/${targetNode}`, `Label failed: node ${targetNode} not found`);
           return;
         }
@@ -480,7 +511,7 @@ Available Commands:
         }
 
         addEvent("Normal", "Labeled", `node/${targetNode}`, `Node labeled with ${labelExpr}`);
-        print(`node/${targetNode} labeled`);
+        printHtml(`<span style="color: #7ee787;">node/${escapeHtml(targetNode)} labeled</span>`);
 
         checkPendingPods();
         updateDashboard();
@@ -490,7 +521,7 @@ Available Commands:
       if (rawCmd.startsWith("kubectl apply -f")) {
         const fileName = tokens[tokens.indexOf("-f") + 1];
         if (!fileName || !localFiles[fileName]) {
-          print(`error: the path "${fileName || ""}" does not exist`);
+          printHtml(`<span style="color: #f85149;">error: the path "${escapeHtml(fileName || "")}" does not exist</span>`);
           addEvent("Warning", "FileNotFound", "manifest", `Apply failed: file ${fileName} not found`);
           return;
         }
@@ -498,7 +529,7 @@ Available Commands:
         if (fileName === "pod-nginx.yaml") {
           const podName = "nginx";
           if (pods.some((p) => p.name === podName)) {
-            print(`pod/${podName} unchanged`);
+            printHtml(`<span style="color: #8b949e;">pod/${podName} unchanged</span>`);
             return;
           }
 
@@ -528,7 +559,7 @@ Available Commands:
           }
 
           updateDashboard();
-          print(`pod/${podName} created`);
+          printHtml(`<span style="color: #7ee787;">pod/${podName} created</span>`);
         }
         return;
       }
@@ -546,7 +577,7 @@ Available Commands:
         const filteredPods = pods.filter((p) => allNamespaces || p.namespace === namespaceFilter);
 
         if (filteredPods.length === 0) {
-          print("No resources found in target namespace.");
+          printHtml(`<span style="color: #8b949e;">No resources found in target namespace.</span>`);
           return;
         }
 
@@ -554,17 +585,20 @@ Available Commands:
         if (allNamespaces) header += "NAMESPACE   ";
         header += "NAME        READY   STATUS    RESTARTS   AGE   IP             NODE";
         if (showLabels) header += "          LABELS";
-        header += "\n";
 
-        let table = header;
+        let formattedOutput = `<span style="color: #79c0ff; font-weight: 600;">${header}</span>\n`;
+
         for (const p of filteredPods) {
           let line = "";
           if (allNamespaces) line += `${p.namespace.padEnd(11)} `;
-          line += `${p.name.padEnd(11)} 1/1     ${p.status.padEnd(9)} 0          ${p.age.padEnd(5)} ${p.ip.padEnd(13)} ${p.node.padEnd(10)}`;
-          if (showLabels) line += ` ${formatLabels(p.labels)}`;
-          table += `${line}\n`;
+          
+          const statusColor = p.status === "Running" ? "#7ee787" : "#d29922";
+          
+          line += `${p.name.padEnd(11)} 1/1     <span style="color: ${statusColor};">${p.status.padEnd(9)}</span> 0          ${p.age.padEnd(5)} ${p.ip.padEnd(13)} ${p.node.padEnd(10)}`;
+          if (showLabels) line += ` <span style="color: #8b949e;">${formatLabels(p.labels)}</span>`;
+          formattedOutput += `${line}\n`;
         }
-        print(table.trimEnd());
+        printHtml(formattedOutput.trimEnd());
         return;
       }
 
@@ -572,22 +606,22 @@ Available Commands:
         const showLabels = tokens.includes("--show-labels");
 
         if (nodes.length === 0) {
-          print("No nodes found in cluster.");
+          printHtml(`<span style="color: #8b949e;">No nodes found in cluster.</span>`);
           return;
         }
 
         let header = "NAME     STATUS   ROLES          AGE   VERSION";
         if (showLabels) header += "          LABELS";
-        header += "\n";
 
-        let table = header;
+        let formattedOutput = `<span style="color: #79c0ff; font-weight: 600;">${header}</span>\n`;
+
         for (const n of nodes) {
           const roles = getNodeRoles(n);
-          let line = `${n.name.padEnd(8)} ${n.status.padEnd(8)} ${roles.padEnd(14)} ${n.age.padEnd(5)} ${n.version.padEnd(16)}`;
-          if (showLabels) line += ` ${formatLabels(n.labels)}`;
-          table += `${line}\n`;
+          let line = `${n.name.padEnd(8)} <span style="color: #7ee787;">${n.status.padEnd(8)}</span> ${roles.padEnd(14)} ${n.age.padEnd(5)} ${n.version.padEnd(16)}`;
+          if (showLabels) line += ` <span style="color: #8b949e;">${formatLabels(n.labels)}</span>`;
+          formattedOutput += `${line}\n`;
         }
-        print(table.trimEnd());
+        printHtml(formattedOutput.trimEnd());
         return;
       }
 
@@ -596,7 +630,7 @@ Available Commands:
         const index = pods.findIndex((p) => p.name === name);
 
         if (index === -1) {
-          print(`Error from server (NotFound): pods "${name}" not found`);
+          printHtml(`<span style="color: #f85149;">Error from server (NotFound): pods "${escapeHtml(name)}" not found</span>`);
           return;
         }
 
@@ -605,7 +639,7 @@ Available Commands:
         addEvent("Normal", "Terminated", `pod/${name}`, `Pod ${name} deleted`);
 
         updateDashboard();
-        print(`pod "${name}" deleted`);
+        printHtml(`<span style="color: #7ee787;">pod "${escapeHtml(name)}" deleted</span>`);
         return;
       }
 
@@ -614,7 +648,7 @@ Available Commands:
         const index = nodes.findIndex((n) => n.name === name);
 
         if (index === -1) {
-          print(`Error from server (NotFound): nodes "${name}" not found`);
+          printHtml(`<span style="color: #f85149;">Error from server (NotFound): nodes "${escapeHtml(name)}" not found</span>`);
           return;
         }
 
@@ -630,7 +664,7 @@ Available Commands:
         });
 
         updateDashboard();
-        print(`node "${name}" deleted`);
+        printHtml(`<span style="color: #7ee787;">node "${escapeHtml(name)}" deleted</span>`);
         return;
       }
 
@@ -640,16 +674,16 @@ Available Commands:
         try {
           const res: any = await cluster.fetch(url);
           const text = typeof res?.text === "function" ? await res.text() : res?.body || res;
-          print(String(text));
+          printHtml(`<span style="color: #a5d6ff;">${escapeHtml(String(text))}</span>`);
           addEvent("Normal", "HttpResponse", "curl", `200 OK from ${url}`);
         } catch (err: any) {
-          print(`curl: (7) Failed to connect: ${err.message}`);
+          printHtml(`<span style="color: #f85149;">curl: (7) Failed to connect: ${escapeHtml(err.message)}</span>`);
           addEvent("Warning", "HttpError", "curl", `Connection failed: ${err.message}`);
         }
         return;
       }
 
-      print(`command not found: ${rawCmd}. Type 'help' or 'kubectl --help' to see supported commands.`);
+      printHtml(`<span style="color: #f85149;">command not found: ${escapeHtml(rawCmd)}. Type 'help' or 'kubectl --help' to see supported commands.</span>`);
       addEvent("Warning", "InvalidCommand", "cli", `Unknown command execution attempted: ${rawCmd}`);
     });
 
