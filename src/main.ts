@@ -29,7 +29,6 @@ interface LocalPod {
 interface LocalNode {
   name: string;
   status: string;
-  role: string;
   age: string;
   version: string;
   labels: Record<string, string>;
@@ -160,9 +159,36 @@ async function initTerminalDemo() {
   ];
 
   let nodes: LocalNode[] = [
-    { name: "node-1", status: "Ready", role: "control-plane", age: "5m", version: "v1.30.0-webernetes", labels: { "kubernetes.io/hostname": "node-1" } },
-    { name: "node-2", status: "Ready", role: "worker", age: "5m", version: "v1.30.0-webernetes", labels: { "kubernetes.io/hostname": "node-2" } },
-    { name: "node-3", status: "Ready", role: "worker", age: "5m", version: "v1.30.0-webernetes", labels: { "kubernetes.io/hostname": "node-3" } }
+    {
+      name: "node-1",
+      status: "Ready",
+      age: "5m",
+      version: "v1.30.0-webernetes",
+      labels: {
+        "kubernetes.io/hostname": "node-1",
+        "node-role.kubernetes.io/control-plane": ""
+      }
+    },
+    {
+      name: "node-2",
+      status: "Ready",
+      age: "5m",
+      version: "v1.30.0-webernetes",
+      labels: {
+        "kubernetes.io/hostname": "node-2",
+        "node-role.kubernetes.io/worker": ""
+      }
+    },
+    {
+      name: "node-3",
+      status: "Ready",
+      age: "5m",
+      version: "v1.30.0-webernetes",
+      labels: {
+        "kubernetes.io/hostname": "node-3",
+        "node-role.kubernetes.io/worker": ""
+      }
+    }
   ];
 
   let clusterEvents: ClusterEvent[] = [];
@@ -237,7 +263,6 @@ Available Commands:
   • kubectl get [pods|nodes] [-A] [-n ns] [--show-labels] List resources with filters/labels
   • kubectl label node[s] <node-name> <key>=<value>    Add label to a node
   • kubectl apply -f <filename.yaml>                  Apply manifest file
-  • kubectl create node <name> [--role=worker|controlplane] Provision new node
   • kubectl delete [pod|node] <name>                  Remove resource
   • curl <url>                                        Fetch HTTP endpoint
   • clear / history                                   Manage terminal view & history`;
@@ -245,7 +270,18 @@ Available Commands:
   const formatLabels = (labels: Record<string, string>): string => {
     const entries = Object.entries(labels);
     if (entries.length === 0) return "<none>";
-    return entries.map(([k, v]) => `${k}=${v}`).join(",");
+    return entries.map(([k, v]) => (v ? `${k}=${v}` : k)).join(",");
+  };
+
+  const getNodeRoles = (node: LocalNode): string => {
+    const roles: string[] = [];
+    Object.keys(node.labels).forEach((label) => {
+      if (label.startsWith("node-role.kubernetes.io/")) {
+        const role = label.replace("node-role.kubernetes.io/", "");
+        if (role) roles.push(role);
+      }
+    });
+    return roles.length > 0 ? roles.join(",") : "<none>";
   };
 
   const checkPendingPods = () => {
@@ -295,7 +331,7 @@ Available Commands:
         <div style="background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
           <div>
             <div style="font-weight: 600; font-size: 13px; color: #f0f6fc;">${n.name}</div>
-            <div style="font-size: 11px; color: #8b949e;">${n.role}</div>
+            <div style="font-size: 11px; color: #8b949e;">${getNodeRoles(n)}</div>
           </div>
           <span style="font-size: 10px; background: #388bfd15; color: #58a6ff; border: 1px solid #388bfd33; padding: 2px 6px; border-radius: 4px;">${n.status}</span>
         </div>
@@ -419,10 +455,10 @@ Available Commands:
 
       if (rawCmd.startsWith("kubectl label node ") || rawCmd.startsWith("kubectl label nodes ")) {
         const targetNode = tokens[2];
-        const kvPair = tokens[3];
+        const labelExpr = tokens[3];
 
-        if (!targetNode || !kvPair || !kvPair.includes("=")) {
-          print("Error: invalid syntax. Usage: kubectl label node <node-name> <key>=<value>");
+        if (!targetNode || !labelExpr) {
+          print("Error: invalid syntax. Usage: kubectl label node <node-name> <key>=<value> or <key>=");
           addEvent("Warning", "InvalidSyntax", "label", "Failed label command syntax");
           return;
         }
@@ -434,9 +470,14 @@ Available Commands:
           return;
         }
 
-        const [key, val] = kvPair.split("=");
-        nodeObj.labels[key] = val;
-        addEvent("Normal", "Labeled", `node/${targetNode}`, `Node labeled with ${key}=${val}`);
+        if (labelExpr.includes("=")) {
+          const [key, val] = labelExpr.split("=");
+          nodeObj.labels[key] = val;
+        } else {
+          nodeObj.labels[labelExpr] = "";
+        }
+
+        addEvent("Normal", "Labeled", `node/${targetNode}`, `Node labeled with ${labelExpr}`);
         print(`node/${targetNode} labeled`);
 
         checkPendingPods();
@@ -490,40 +531,6 @@ Available Commands:
         return;
       }
 
-      if (rawCmd.startsWith("kubectl create node ") || rawCmd.startsWith("kubectl create nodes ")) {
-        const name = tokens[3];
-        const roleArg = tokens.find((p) => p.startsWith("--role="));
-        let role = roleArg ? roleArg.split("=")[1] : "worker";
-        if (role === "controlplane") role = "control-plane";
-
-        if (!name) {
-          print("Error: node name required. Usage: kubectl create node <name> [--role=worker|controlplane]");
-          return;
-        }
-
-        if (nodes.some((n) => n.name === name)) {
-          print(`Error from server (AlreadyExists): nodes "${name}" already exists`);
-          return;
-        }
-
-        nodes.push({
-          name,
-          status: "Ready",
-          role,
-          age: "1s",
-          version: "v1.30.0-webernetes",
-          labels: { "kubernetes.io/hostname": name }
-        });
-
-        addEvent("Info", "NodeRegistration", `node/${name}`, `Registering node with role "${role}"`);
-        addEvent("Normal", "NodeReady", `node/${name}`, `Node ${name} status is now Ready`);
-
-        checkPendingPods();
-        updateDashboard();
-        print(`node/${name} created (${role})`);
-        return;
-      }
-
       if (rawCmd.startsWith("kubectl get pods") || rawCmd.startsWith("kubectl get pod")) {
         const showLabels = tokens.includes("--show-labels");
         const allNamespaces = tokens.includes("-A") || tokens.includes("--all-namespaces");
@@ -573,7 +580,8 @@ Available Commands:
 
         let table = header;
         for (const n of nodes) {
-          let line = `${n.name.padEnd(8)} ${n.status.padEnd(8)} ${n.role.padEnd(14)} ${n.age.padEnd(5)} ${n.version.padEnd(16)}`;
+          const roles = getNodeRoles(n);
+          let line = `${n.name.padEnd(8)} ${n.status.padEnd(8)} ${roles.padEnd(14)} ${n.age.padEnd(5)} ${n.version.padEnd(16)}`;
           if (showLabels) line += ` ${formatLabels(n.labels)}`;
           table += `${line}\n`;
         }
