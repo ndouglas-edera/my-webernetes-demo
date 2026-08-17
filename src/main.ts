@@ -287,13 +287,12 @@ async function initTerminalDemo() {
     return `<span style="color: #ffa657;">Webernetes CLI Reference:
 
 Available Commands:
-  • ls                                        List files in current directory
-  • cat &lt;filename&gt;                            Print contents of a file
-  • kubectl get [pods|nodes] [-A] [--show-labels]     List resources with filters/labels
-  • kubectl label node &lt;node-name&gt; &lt;key&gt;=&lt;value&gt;      Add label to a node
-  • kubectl apply -f &lt;filename.yaml&gt;                  Apply manifest file
-  • kubectl delete [pod|node] &lt;name&gt;                  Remove resource
-  • curl &lt;url&gt;                                        Fetch HTTP endpoint
+  • ls / cat                                          List files or print contents of a file
+  • kubectl get [pods|nodes] [--show-labels]          List resources with filters/labels
+  • kubectl label nodes node-3 disktype=ssd;          Add label to a node
+  • kubectl apply -f filename.yaml;                   Apply manifest file
+  • kubectl delete [pod|node] name;                   Remove resource
+  • curl 8.8.8.8                                      Fetch HTTP endpoint
   • clear / history                                   Manage terminal view & history</span>`;
   };
 
@@ -323,6 +322,7 @@ Available Commands:
         if (matchingNode) {
           p.status = "Running";
           p.node = matchingNode.name;
+          p.ip = `10.244.0.${Math.floor(Math.random() * 200 + 10)}`;
           addEvent("Normal", "Scheduled", `pod/${p.name}`, `Successfully assigned ${p.namespace}/${p.name} to ${matchingNode.name}`);
           addEvent("Normal", "Started", `pod/${p.name}`, `Started container ${p.name}`);
         }
@@ -403,7 +403,7 @@ Available Commands:
     await new Promise((r) => setTimeout(r, 800));
 
     updateDashboard();
-    output.innerHTML = `Webernetes cluster online!\n\n${formatHelpText()}`;
+    output.innerText = "Webernetes cluster online!";
     input.disabled = false;
     input.focus();
 
@@ -467,7 +467,7 @@ Available Commands:
         return;
       }
 
-      if (mainCmd === "help" || rawCmd === "kubectl --help" || rawCmd === "kubectl -h") {
+      if (mainCmd === "help" || rawCmd === "kubectl --help" || rawCmd === "kubectl -h" || rawCmd === "--help") {
         printHtml(formatHelpText());
         return;
       }
@@ -594,7 +594,7 @@ Available Commands:
           
           const statusColor = p.status === "Running" ? "#7ee787" : "#d29922";
           
-          line += `${p.name.padEnd(11)} 1/1     <span style="color: ${statusColor};">${p.status.padEnd(9)}</span> 0          ${p.age.padEnd(5)} ${p.ip.padEnd(13)} ${p.node.padEnd(10)}`;
+          line += `${p.name.padEnd(11)} 1/1     <span style="color: ${statusColor};">${p.status.padEnd(9)}</span> 0          ${p.age.padEnd(5)} ${(p.ip || "<none>").padEnd(13)} ${(p.node || "<none>").padEnd(10)}`;
           if (showLabels) line += ` <span style="color: #8b949e;">${formatLabels(p.labels)}</span>`;
           formattedOutput += `${line}\n`;
         }
@@ -683,7 +683,7 @@ Available Commands:
         return;
       }
 
-      printHtml(`<span style="color: #f85149;">command not found: ${escapeHtml(rawCmd)}. Type 'help' or 'kubectl --help' to see supported commands.</span>`);
+      printHtml(`<span style="color: #f85149;">command not found: ${escapeHtml(rawCmd)}. Type 'help' or '--help' to see supported commands.</span>`);
       addEvent("Warning", "InvalidCommand", "cli", `Unknown command execution attempted: ${rawCmd}`);
     });
 
