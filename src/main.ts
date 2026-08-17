@@ -289,6 +289,7 @@ async function initTerminalDemo() {
 Available Commands:
   • ls                                        List files in current directory
   • cat &lt;filename&gt;                            Print contents of a file
+  • kubectl run &lt;name&gt; [--image=&lt;img&gt;] [--labels="k1=v1,k2=v2"]  Create & run a pod directly
   • kubectl get [pods|nodes] [-A] [--show-labels]     List resources with filters/labels
   • kubectl label node &lt;node-name&gt; &lt;key&gt;=&lt;value&gt;      Add label to a node
   • kubectl apply -f &lt;filename.yaml&gt;                  Apply manifest file
@@ -482,6 +483,61 @@ Available Commands:
           .map((c, i) => `<span style="color: #8b949e;">${String(i + 1).padStart(3, " ")}</span>  ${escapeHtml(c)}`)
           .join("\n");
         printHtml(`<span style="color: #ffa657;">${formattedHistory}</span>`);
+        return;
+      }
+
+      if (rawCmd.startsWith("kubectl run ")) {
+        const podName = tokens[2];
+        if (!podName || podName.startsWith("-")) {
+          printHtml(`<span style="color: #f85149;">Error: pod name required. Usage: kubectl run &lt;pod-name&gt; [--image=&lt;image&gt;] [--labels="k=v,k2=v2"]</span>`);
+          addEvent("Warning", "InvalidSyntax", "run", "Failed kubectl run command syntax");
+          return;
+        }
+
+        if (pods.some((p) => p.name === podName)) {
+          printHtml(`<span style="color: #f85149;">Error from server (AlreadyExists): pods "${escapeHtml(podName)}" already exists</span>`);
+          addEvent("Warning", "AlreadyExists", `pod/${podName}`, `Run failed: pod ${podName} already exists`);
+          return;
+        }
+
+        let imageName = podName;
+        const customLabels: Record<string, string> = { run: podName };
+
+        for (let i = 3; i < tokens.length; i++) {
+          const arg = tokens[i];
+          if (arg.startsWith("--image=")) {
+            imageName = arg.split("=")[1] || imageName;
+          } else if (arg.startsWith("--labels=")) {
+            const rawLabelsStr = rawCmd.match(/--labels=["']?([^"']+)["']?/)?.[1] || arg.replace("--labels=", "").replace(/["']/g, "");
+            rawLabelsStr.split(",").forEach((pair) => {
+              const [k, v] = pair.split("=");
+              if (k) customLabels[k.trim()] = v ? v.trim() : "";
+            });
+          }
+        }
+
+        const assignedNode = nodes.find((n) => !n.labels["node-role.kubernetes.io/control-plane"]) || nodes[0];
+
+        const newPod: LocalPod = {
+          name: podName,
+          namespace: "default",
+          status: "Running",
+          age: "1s",
+          image: imageName,
+          ip: `10.244.0.${Math.floor(Math.random() * 200 + 10)}`,
+          node: assignedNode ? assignedNode.name : "node-2",
+          labels: customLabels
+        };
+
+        pods.push(newPod);
+        addEvent("Normal", "Created", `pod/${podName}`, `pod/${podName} created via kubectl run`);
+        if (assignedNode) {
+          addEvent("Normal", "Scheduled", `pod/${podName}`, `Successfully assigned default/${podName} to ${assignedNode.name}`);
+          addEvent("Normal", "Started", `pod/${podName}`, `Started container ${podName}`);
+        }
+
+        updateDashboard();
+        printHtml(`<span style="color: #7ee787;">pod/${escapeHtml(podName)} created</span>`);
         return;
       }
 
