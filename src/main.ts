@@ -24,6 +24,7 @@ async function runCluster() {
     cluster.registerImage(WebServerImage);
     await cluster.init();
 
+    // 1. Apply Pod Manifest
     await cluster.apply([
       {
         apiVersion: "v1",
@@ -35,6 +36,7 @@ async function runCluster() {
       },
     ]);
 
+    // 2. Apply NodePort Service Manifest
     await cluster.apply([
       {
         apiVersion: "v1",
@@ -42,14 +44,16 @@ async function runCluster() {
         metadata: { name: "demo-service" },
         spec: {
           type: "NodePort",
-          ports: [{ port: 80, targetPort: 8080, nodeNodePort: 31000, protocol: "TCP" }],
+          ports: [{ port: 80, targetPort: 8080, nodePort: 31000, protocol: "TCP" }],
           selector: { app: "demo" },
         },
       },
     ]);
 
+    // 3. Pause briefly for internal DNS/Endpoint reconciliation
     await new Promise((r) => setTimeout(r, 1000));
 
+    // 4. Send request to NodePort endpoint
     const res = await cluster.fetch("http://node-1:31000");
     const text = await res.text();
 
