@@ -40,6 +40,20 @@ interface ClusterEvent {
 }
 
 async function initTerminalDemo() {
+  // Inject global body styles to eliminate white margins/background
+  const styleTag = document.createElement("style");
+  styleTag.textContent = `
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #0d1117 !important;
+      color: #c9d1d9;
+      min-height: 100vh;
+      width: 100%;
+    }
+  `;
+  document.head.appendChild(styleTag);
+
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `
     <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; color: #c9d1d9; padding: 24px; min-height: 100vh; background-color: #0d1117;">
@@ -335,7 +349,6 @@ Available Commands:
         });
         print(list.trimEnd());
       }
-      // CREATE NODE functionality
       else if (cmd.startsWith("kubectl create node ") || cmd.startsWith("kubectl create nodes ")) {
         const parts = cmd.split(" ");
         const name = parts[3];
