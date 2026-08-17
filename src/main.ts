@@ -260,8 +260,8 @@ async function initTerminalDemo() {
 Available Commands:
   • ls                                                List files in current directory
   • cat <filename>                                    Print contents of a file
-  • kubectl get [pods|nodes] [-A] [-n ns] [--show-labels] List resources with filters/labels
-  • kubectl label node[s] <node-name> <key>=<value>    Add label to a node
+  • kubectl get [pods|nodes] [-A] [--show-labels]     List resources with filters/labels
+  • kubectl label node <node-name> <key>=<value>      Add label to a node
   • kubectl apply -f <filename.yaml>                  Apply manifest file
   • kubectl delete [pod|node] <name>                  Remove resource
   • curl <url>                                        Fetch HTTP endpoint
