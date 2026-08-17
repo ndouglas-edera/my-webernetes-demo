@@ -287,12 +287,13 @@ async function initTerminalDemo() {
     return `<span style="color: #ffa657;">Webernetes CLI Reference:
 
 Available Commands:
-  • ls / cat                                          List files or print contents of a file
-  • kubectl get [pods|nodes] [--show-labels]          List resources with filters/labels
-  • kubectl label nodes node-3 disktype=ssd;          Add label to a node
-  • kubectl apply -f filename.yaml;                   Apply manifest file
-  • kubectl delete [pod|node] name;                   Remove resource
-  • curl 8.8.8.8                                      Fetch HTTP endpoint
+  • ls                                        List files in current directory
+  • cat &lt;filename&gt;                            Print contents of a file
+  • kubectl get [pods|nodes] [-A] [--show-labels]     List resources with filters/labels
+  • kubectl label node &lt;node-name&gt; &lt;key&gt;=&lt;value&gt;      Add label to a node
+  • kubectl apply -f &lt;filename.yaml&gt;                  Apply manifest file
+  • kubectl delete [pod|node] &lt;name&gt;                  Remove resource
+  • curl &lt;url&gt;                                        Fetch HTTP endpoint
   • clear / history                                   Manage terminal view & history</span>`;
   };
 
