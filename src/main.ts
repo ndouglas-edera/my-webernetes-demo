@@ -50,7 +50,8 @@ async function initTerminalDemo() {
             <h3 style="margin: 0; font-size: 14px; color: #f0f6fc;">📦 Active Pods</h3>
             <span id="pod-count" style="font-size: 11px; background: #21262d; padding: 2px 8px; border-radius: 12px; border: 1px solid #30363d;">1 Pod</span>
           </div>
-          <div id="pod-grid" style="display: flex; flex-direction: column; gap: 8px;"></div>
+          <!-- Fixed max-height for 3 items max with scroll overflow -->
+          <div id="pod-grid" style="display: flex; flex-direction: column; gap: 8px; max-height: 170px; overflow-y: auto; padding-right: 4px;"></div>
         </div>
 
         <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;">
@@ -58,7 +59,8 @@ async function initTerminalDemo() {
             <h3 style="margin: 0; font-size: 14px; color: #f0f6fc;">🖥️ Active Nodes</h3>
             <span id="node-count" style="font-size: 11px; background: #21262d; padding: 2px 8px; border-radius: 12px; border: 1px solid #30363d;">3 Nodes</span>
           </div>
-          <div id="node-grid" style="display: flex; flex-direction: column; gap: 8px;"></div>
+          <!-- Fixed max-height for 3 items max with scroll overflow -->
+          <div id="node-grid" style="display: flex; flex-direction: column; gap: 8px; max-height: 170px; overflow-y: auto; padding-right: 4px;"></div>
         </div>
       </div>
 
@@ -80,7 +82,6 @@ async function initTerminalDemo() {
   const nodeGrid = document.querySelector<HTMLDivElement>("#node-grid")!;
   const nodeCount = document.querySelector<HTMLSpanElement>("#node-count")!;
 
-  // History tracking state
   const commandHistory: string[] = [];
   let historyIndex = -1;
 
@@ -122,7 +123,7 @@ Tips:
       podGrid.innerHTML = `<div style="font-size: 12px; color: #8b949e; padding: 6px;">No pods running</div>`;
     } else {
       podGrid.innerHTML = pods.map((p) => `
-        <div style="background: #0d1117; border: 1px solid #238636; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="background: #0d1117; border: 1px solid #238636; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
           <div>
             <div style="font-weight: 600; font-size: 13px; color: #58a6ff;">${p.name}</div>
             <div style="font-size: 11px; color: #8b949e;">${p.image} · ${p.node}</div>
@@ -137,7 +138,7 @@ Tips:
       nodeGrid.innerHTML = `<div style="font-size: 12px; color: #8b949e; padding: 6px;">No nodes available</div>`;
     } else {
       nodeGrid.innerHTML = nodes.map((n) => `
-        <div style="background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
           <div>
             <div style="font-weight: 600; font-size: 13px; color: #f0f6fc;">${n.name}</div>
             <div style="font-size: 11px; color: #8b949e;">${n.role}</div>
@@ -146,6 +147,10 @@ Tips:
         </div>
       `).join("");
     }
+
+    // Auto-scroll dashboard grids to the bottom when new items are added
+    podGrid.scrollTop = podGrid.scrollHeight;
+    nodeGrid.scrollTop = nodeGrid.scrollHeight;
   };
 
   const print = (text: string) => {
@@ -184,9 +189,7 @@ Tips:
     input.disabled = false;
     input.focus();
 
-    // Keydown listener for Navigation (Up/Down) + Execution (Enter)
     input.addEventListener("keydown", async (e) => {
-      // Navigate Up in history
       if (e.key === "ArrowUp") {
         e.preventDefault();
         if (commandHistory.length > 0 && historyIndex < commandHistory.length - 1) {
@@ -196,7 +199,6 @@ Tips:
         return;
       }
 
-      // Navigate Down in history
       if (e.key === "ArrowDown") {
         e.preventDefault();
         if (historyIndex > 0) {
@@ -216,7 +218,6 @@ Tips:
       historyIndex = -1;
       if (!cmd) return;
 
-      // Add to command history
       commandHistory.push(cmd);
       print(`user@webernetes:~$ ${cmd}`);
 
@@ -225,11 +226,9 @@ Tips:
         return;
       }
 
-      // Help commands
       if (cmd === "help" || cmd === "kubectl --help" || cmd === "kubectl -h" || cmd === "kubectl help") {
         print(helpText);
       }
-      // History command
       else if (cmd === "history") {
         if (commandHistory.length === 0) {
           print("No command history.");
@@ -241,7 +240,6 @@ Tips:
         });
         print(list.trimEnd());
       }
-      // kubectl describe pod
       else if (cmd.startsWith("kubectl describe pod ") || cmd.startsWith("kubectl describe pods ")) {
         const parts = cmd.split(" ");
         const name = parts[3] || parts[2];
@@ -275,7 +273,6 @@ Events:
   Normal  Started    ${pod.age}   kubelet, ${pod.node}   Started container web`
         );
       }
-      // kubectl get events
       else if (cmd === "kubectl get events" || cmd === "kubectl get event") {
         if (events.length === 0) {
           print("No events found in default namespace.");
@@ -287,7 +284,6 @@ Events:
         }
         print(table);
       }
-      // kubectl delete node
       else if (cmd.startsWith("kubectl delete node ") || cmd.startsWith("kubectl delete nodes ")) {
         const parts = cmd.split(" ");
         const name = parts[3] || parts[2];
@@ -316,7 +312,6 @@ Events:
         updateDashboard();
         print(`node "${name}" deleted`);
       }
-      // kubectl run
       else if (cmd.startsWith("kubectl run ")) {
         const parts = cmd.split(" ");
         const name = parts[2];
@@ -354,7 +349,6 @@ Events:
         updateDashboard();
         print(`pod/${name} created`);
       }
-      // kubectl delete pod
       else if (cmd.startsWith("kubectl delete pod ") || cmd.startsWith("kubectl delete pods ")) {
         const parts = cmd.split(" ");
         const name = parts[3] || parts[2];
@@ -377,7 +371,6 @@ Events:
         updateDashboard();
         print(`pod "${name}" deleted`);
       }
-      // kubectl get pods
       else if (cmd === "kubectl get pods" || cmd === "kubectl get pod") {
         if (pods.length === 0) {
           print("No resources found in default namespace.");
@@ -389,7 +382,6 @@ Events:
         }
         print(table);
       }
-      // kubectl get nodes
       else if (cmd === "kubectl get nodes" || cmd === "kubectl get node") {
         if (nodes.length === 0) {
           print("No nodes found in cluster.");
@@ -401,11 +393,9 @@ Events:
         }
         print(table);
       }
-      // kubectl get services
       else if (cmd === "kubectl get services" || cmd === "kubectl get svc") {
         print("NAME           TYPE       CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE\ndemo-service   NodePort   10.96.0.15   <none>        80:31000/TCP   2m");
       }
-      // curl
       else if (cmd.startsWith("curl ")) {
         const url = cmd.replace("curl ", "").trim();
         try {
