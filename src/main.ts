@@ -42,12 +42,15 @@ interface ClusterEvent {
 async function initTerminalDemo() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `
-    <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 20px auto; color: #c9d1d9; padding: 0 16px;">
+    <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; color: #c9d1d9; padding: 24px; min-height: 100vh; background-color: #0d1117;">
       
-      <!-- Top Bar Controls -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h2 style="margin: 0; font-size: 18px; color: #f0f6fc;">Webernetes Dashboard & Terminal</h2>
-        <button id="toggle-events-btn" style="background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+      <!-- High-Contrast Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #30363d; padding-bottom: 16px;">
+        <div>
+          <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff;">Webernetes Dashboard & Terminal</h1>
+          <p style="margin: 4px 0 0 0; font-size: 13px; color: #8b949e;">Browser-based Kubernetes cluster emulator</p>
+        </div>
+        <button id="toggle-events-btn" style="background: #21262d; border: 1px solid #30363d; color: #f0f6fc; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px;">
           <span id="toggle-icon">▶</span> Lifecycle Events Panel
         </button>
       </div>
@@ -55,9 +58,8 @@ async function initTerminalDemo() {
       <!-- Main Layout Grid -->
       <div style="display: flex; gap: 16px; align-items: flex-start;">
         
-        <!-- Left Main Area: Cluster Visuals + Terminal -->
+        <!-- Left Area: Cluster Visuals + Terminal -->
         <div style="flex: 1; min-width: 0;">
-          <!-- Cluster State Visual Dashboard -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -77,7 +79,7 @@ async function initTerminalDemo() {
           </div>
 
           <!-- Terminal UI -->
-          <div style="font-family: monospace; background: #0d1117; border: 1px solid #30363d; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+          <div style="font-family: monospace; background: #010409; border: 1px solid #30363d; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
             <div id="output" style="white-space: pre-wrap; margin-bottom: 12px; min-height: 240px; max-height: 360px; overflow-y: auto; font-size: 13px;">Initializing Webernetes cluster...</div>
             <div style="display: flex; align-items: center; border-top: 1px solid #30363d; padding-top: 12px;">
               <span style="color: #58a6ff; margin-right: 8px;">user@webernetes:~$</span>
@@ -86,7 +88,7 @@ async function initTerminalDemo() {
           </div>
         </div>
 
-        <!-- Right Side Window: Expandable Lifecycle Events -->
+        <!-- Right Side Panel: Lifecycle Events -->
         <div id="events-panel" style="width: 340px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; transition: all 0.25s ease-in-out; display: flex; flex-direction: column; height: 600px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #30363d;">
             <h3 style="margin: 0; font-size: 14px; color: #f0f6fc; display: flex; align-items: center; gap: 6px;">
@@ -130,7 +132,6 @@ async function initTerminalDemo() {
 
   let clusterEvents: ClusterEvent[] = [];
 
-  // Toggle Panel Drawer Functionality
   toggleBtn.addEventListener("click", () => {
     eventsPanelExpanded = !eventsPanelExpanded;
     if (eventsPanelExpanded) {
@@ -197,15 +198,16 @@ async function initTerminalDemo() {
   const helpText = `Webernetes CLI Reference:
 
 Available Commands:
-  • help / kubectl --help                  Show this help message
-  • history                                Display command history
-  • kubectl get [pods|nodes|events|svc]    List cluster resources
-  • kubectl describe pod <name>            Display pod details and events
-  • kubectl run <name> --image=<image>     Deploy a new pod
-  • kubectl delete pod <name>              Remove a pod from the cluster
-  • kubectl delete node <name>             Remove a node from the cluster
-  • curl <url>                             Fetch endpoint (e.g. http://node-1:31000)
-  • clear                                  Clear terminal screen`;
+  • help / kubectl --help                             Show this help message
+  • history                                           Display command history
+  • kubectl get [pods|nodes|events|svc]               List cluster resources
+  • kubectl describe pod <name>                       Display pod details and events
+  • kubectl run <name> --image=<image>                Deploy a new pod
+  • kubectl create node <name> [--role=worker|controlplane]   Provision a new cluster node
+  • kubectl delete pod <name>                         Remove a pod from the cluster
+  • kubectl delete node <name>                        Remove a node from the cluster
+  • curl <url>                                        Fetch endpoint (e.g. http://node-1:31000)
+  • clear                                             Clear terminal screen`;
 
   const updateDashboard = () => {
     podCount.innerText = `${pods.length} ${pods.length === 1 ? "Pod" : "Pods"}`;
@@ -332,6 +334,41 @@ Available Commands:
           list += `  ${String(idx + 1).padStart(3, " ")}  ${c}\n`;
         });
         print(list.trimEnd());
+      }
+      // CREATE NODE functionality
+      else if (cmd.startsWith("kubectl create node ") || cmd.startsWith("kubectl create nodes ")) {
+        const parts = cmd.split(" ");
+        const name = parts[3];
+        const roleArg = parts.find((p) => p.startsWith("--role="));
+        let role = roleArg ? roleArg.split("=")[1] : "worker";
+
+        if (role === "controlplane") role = "control-plane";
+
+        if (!name) {
+          print("Error: node name required. Usage: kubectl create node <name> [--role=worker|control-plane]");
+          addEvent("Warning", "FailedCreate", "node", "Node creation failed: missing node name");
+          return;
+        }
+
+        if (nodes.some((n) => n.name === name)) {
+          print(`Error from server (AlreadyExists): nodes "${name}" already exists`);
+          addEvent("Warning", "AlreadyExists", `node/${name}`, `Node ${name} already exists in cluster`);
+          return;
+        }
+
+        nodes.push({
+          name,
+          status: "Ready",
+          role,
+          age: "1s",
+          version: "v1.30.0-webernetes"
+        });
+
+        addEvent("Info", "NodeRegistration", `node/${name}`, `Registering new node with role "${role}"`);
+        addEvent("Normal", "NodeReady", `node/${name}`, `Node ${name} status is now Ready`);
+
+        updateDashboard();
+        print(`node/${name} created (${role})`);
       }
       else if (cmd.startsWith("kubectl run ")) {
         const parts = cmd.split(" ");
