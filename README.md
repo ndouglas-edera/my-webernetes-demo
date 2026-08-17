@@ -4,8 +4,8 @@ This project is a port of a subset of the Kubernetes project to make it such tha
 ### Preview
 --> https://ndouglas-edera.github.io/my-webernetes-demo
 
-<br/><br/>
-### Assign pods to a specific node
+<br/>
+## Assign pods to a specific node
 
 You can list the files in the demo terminal and even simulate reading a manifest file:
 
@@ -19,7 +19,8 @@ Applying the manifest leads to a ```FailedScheduling``` error for (```pod/nginx`
 kubectl apply -f pod-nginx.yaml
 ```
 
-<img width="1506" height="819" alt="Screenshot 2026-08-17 at 17 34 51" src="https://github.com/user-attachments/assets/1339522c-4a2b-49db-97e9-c8d9a26fa4d3" />
+<img width="1506" height="781" alt="Screenshot 2026-08-17 at 18 41 23" src="https://github.com/user-attachments/assets/446000fe-f069-4e9a-add2-9e14263cf471" />
+
 
 This can be addressed by simply assigning the matching pod label to one of the 3 nodes:
 ```
