@@ -32,8 +32,8 @@ interface LocalNode {
 }
 
 interface ClusterEvent {
-  lastSeen: string;
-  type: string;
+  time: string;
+  type: "Normal" | "Warning" | "Info";
   reason: string;
   object: string;
   message: string;
@@ -42,35 +42,61 @@ interface ClusterEvent {
 async function initTerminalDemo() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `
-    <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 850px; margin: 30px auto; color: #c9d1d9;">
-      <!-- Cluster State Visual Dashboard -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h3 style="margin: 0; font-size: 14px; color: #f0f6fc;">📦 Active Pods</h3>
-            <span id="pod-count" style="font-size: 11px; background: #21262d; padding: 2px 8px; border-radius: 12px; border: 1px solid #30363d;">1 Pod</span>
-          </div>
-          <!-- Fixed max-height for 3 items max with scroll overflow -->
-          <div id="pod-grid" style="display: flex; flex-direction: column; gap: 8px; max-height: 170px; overflow-y: auto; padding-right: 4px;"></div>
-        </div>
-
-        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h3 style="margin: 0; font-size: 14px; color: #f0f6fc;">🖥️ Active Nodes</h3>
-            <span id="node-count" style="font-size: 11px; background: #21262d; padding: 2px 8px; border-radius: 12px; border: 1px solid #30363d;">3 Nodes</span>
-          </div>
-          <!-- Fixed max-height for 3 items max with scroll overflow -->
-          <div id="node-grid" style="display: flex; flex-direction: column; gap: 8px; max-height: 170px; overflow-y: auto; padding-right: 4px;"></div>
-        </div>
+    <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 20px auto; color: #c9d1d9; padding: 0 16px;">
+      
+      <!-- Top Bar Controls -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin: 0; font-size: 18px; color: #f0f6fc;">Webernetes Dashboard & Terminal</h2>
+        <button id="toggle-events-btn" style="background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+          <span id="toggle-icon">▶</span> Lifecycle Events Panel
+        </button>
       </div>
 
-      <!-- Terminal UI -->
-      <div style="font-family: monospace; background: #0d1117; border: 1px solid #30363d; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
-        <div id="output" style="white-space: pre-wrap; margin-bottom: 12px; min-height: 220px; max-height: 380px; overflow-y: auto;">Initializing Webernetes cluster...</div>
-        <div style="display: flex; align-items: center; border-top: 1px solid #30363d; padding-top: 12px;">
-          <span style="color: #58a6ff; margin-right: 8px;">user@webernetes:~$</span>
-          <input id="cmd" type="text" placeholder="Type 'help' or use Up/Down arrow keys for command history..." style="flex: 1; background: transparent; border: none; color: #fff; font-family: inherit; font-size: 14px; outline: none;" disabled />
+      <!-- Main Layout Grid -->
+      <div style="display: flex; gap: 16px; align-items: flex-start;">
+        
+        <!-- Left Main Area: Cluster Visuals + Terminal -->
+        <div style="flex: 1; min-width: 0;">
+          <!-- Cluster State Visual Dashboard -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; font-size: 14px; color: #f0f6fc;">📦 Active Pods</h3>
+                <span id="pod-count" style="font-size: 11px; background: #21262d; padding: 2px 8px; border-radius: 12px; border: 1px solid #30363d;">1 Pod</span>
+              </div>
+              <div id="pod-grid" style="display: flex; flex-direction: column; gap: 8px; max-height: 160px; overflow-y: auto; padding-right: 4px;"></div>
+            </div>
+
+            <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; font-size: 14px; color: #f0f6fc;">🖥️ Active Nodes</h3>
+                <span id="node-count" style="font-size: 11px; background: #21262d; padding: 2px 8px; border-radius: 12px; border: 1px solid #30363d;">3 Nodes</span>
+              </div>
+              <div id="node-grid" style="display: flex; flex-direction: column; gap: 8px; max-height: 160px; overflow-y: auto; padding-right: 4px;"></div>
+            </div>
+          </div>
+
+          <!-- Terminal UI -->
+          <div style="font-family: monospace; background: #0d1117; border: 1px solid #30363d; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+            <div id="output" style="white-space: pre-wrap; margin-bottom: 12px; min-height: 240px; max-height: 360px; overflow-y: auto; font-size: 13px;">Initializing Webernetes cluster...</div>
+            <div style="display: flex; align-items: center; border-top: 1px solid #30363d; padding-top: 12px;">
+              <span style="color: #58a6ff; margin-right: 8px;">user@webernetes:~$</span>
+              <input id="cmd" type="text" placeholder="Type 'help' or use Up/Down arrow keys for command history..." style="flex: 1; background: transparent; border: none; color: #fff; font-family: inherit; font-size: 13px; outline: none;" disabled />
+            </div>
+          </div>
         </div>
+
+        <!-- Right Side Window: Expandable Lifecycle Events -->
+        <div id="events-panel" style="width: 340px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; transition: all 0.25s ease-in-out; display: flex; flex-direction: column; height: 600px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #30363d;">
+            <h3 style="margin: 0; font-size: 14px; color: #f0f6fc; display: flex; align-items: center; gap: 6px;">
+              ⚡ Lifecycle Events
+            </h3>
+            <button id="clear-events-btn" style="background: transparent; border: none; color: #8b949e; font-size: 11px; cursor: pointer;">Clear</button>
+          </div>
+          <div id="events-stream" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-family: monospace; font-size: 11px;"></div>
+        </div>
+
       </div>
     </div>
   `;
@@ -81,7 +107,14 @@ async function initTerminalDemo() {
   const podCount = document.querySelector<HTMLSpanElement>("#pod-count")!;
   const nodeGrid = document.querySelector<HTMLDivElement>("#node-grid")!;
   const nodeCount = document.querySelector<HTMLSpanElement>("#node-count")!;
+  
+  const eventsPanel = document.querySelector<HTMLDivElement>("#events-panel")!;
+  const eventsStream = document.querySelector<HTMLDivElement>("#events-stream")!;
+  const toggleBtn = document.querySelector<HTMLButtonElement>("#toggle-events-btn")!;
+  const toggleIcon = document.querySelector<HTMLSpanElement>("#toggle-icon")!;
+  const clearEventsBtn = document.querySelector<HTMLButtonElement>("#clear-events-btn")!;
 
+  let eventsPanelExpanded = true;
   const commandHistory: string[] = [];
   let historyIndex = -1;
 
@@ -95,11 +128,71 @@ async function initTerminalDemo() {
     { name: "node-3", status: "Ready", role: "worker", age: "5m", version: "v1.30.0-webernetes" }
   ];
 
-  let events: ClusterEvent[] = [
-    { lastSeen: "2m", type: "Normal", reason: "Scheduled", object: "pod/demo-pod", message: "Successfully assigned default/demo-pod to node-2" },
-    { lastSeen: "2m", type: "Normal", reason: "Created", object: "pod/demo-pod", message: "Created container web" },
-    { lastSeen: "2m", type: "Normal", reason: "Started", object: "pod/demo-pod", message: "Started container web" }
-  ];
+  let clusterEvents: ClusterEvent[] = [];
+
+  // Toggle Panel Drawer Functionality
+  toggleBtn.addEventListener("click", () => {
+    eventsPanelExpanded = !eventsPanelExpanded;
+    if (eventsPanelExpanded) {
+      eventsPanel.style.width = "340px";
+      eventsPanel.style.padding = "16px";
+      eventsPanel.style.opacity = "1";
+      eventsPanel.style.display = "flex";
+      toggleIcon.innerText = "▶";
+    } else {
+      eventsPanel.style.width = "0px";
+      eventsPanel.style.padding = "0px";
+      eventsPanel.style.opacity = "0";
+      eventsPanel.style.display = "none";
+      toggleIcon.innerText = "◀";
+    }
+  });
+
+  clearEventsBtn.addEventListener("click", () => {
+    clusterEvents = [];
+    renderEvents();
+  });
+
+  const addEvent = (type: "Normal" | "Warning" | "Info", reason: string, object: string, message: string) => {
+    const time = new Date().toLocaleTimeString().split(" ")[0];
+    const ev: ClusterEvent = { time, type, reason, object, message };
+    clusterEvents.unshift(ev);
+    renderEvents();
+  };
+
+  const renderEvents = () => {
+    if (clusterEvents.length === 0) {
+      eventsStream.innerHTML = `<div style="color: #8b949e; text-align: center; margin-top: 20px;">No lifecycle events captured yet.</div>`;
+      return;
+    }
+
+    eventsStream.innerHTML = clusterEvents.map((ev) => {
+      let badgeColor = "#3fb950";
+      let badgeBg = "#23863622";
+      let border = "#238636";
+
+      if (ev.type === "Warning") {
+        badgeColor = "#f85149";
+        badgeBg = "#da363322";
+        border = "#f85149";
+      } else if (ev.type === "Info") {
+        badgeColor = "#58a6ff";
+        badgeBg = "#388bfd15";
+        border = "#388bfd33";
+      }
+
+      return `
+        <div style="background: #0d1117; border-left: 3px solid ${border}; border-radius: 4px; padding: 8px; margin-bottom: 4px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: #8b949e;">${ev.time}</span>
+            <span style="font-size: 9px; background: ${badgeBg}; color: ${badgeColor}; padding: 1px 5px; border-radius: 3px; font-weight: bold;">${ev.type.toUpperCase()}</span>
+          </div>
+          <div style="color: #f0f6fc; font-weight: 600;">${ev.reason} <span style="color: #8b949e; font-weight: normal;">(${ev.object})</span></div>
+          <div style="color: #8b949e; margin-top: 2px;">${ev.message}</div>
+        </div>
+      `;
+    }).join("");
+  };
 
   const helpText = `Webernetes CLI Reference:
 
@@ -112,10 +205,7 @@ Available Commands:
   • kubectl delete pod <name>              Remove a pod from the cluster
   • kubectl delete node <name>             Remove a node from the cluster
   • curl <url>                             Fetch endpoint (e.g. http://node-1:31000)
-  • clear                                  Clear terminal screen
-
-Tips:
-  • Use Up / Down Arrow keys to navigate previously executed commands.`;
+  • clear                                  Clear terminal screen`;
 
   const updateDashboard = () => {
     podCount.innerText = `${pods.length} ${pods.length === 1 ? "Pod" : "Pods"}`;
@@ -148,7 +238,6 @@ Tips:
       `).join("");
     }
 
-    // Auto-scroll dashboard grids to the bottom when new items are added
     podGrid.scrollTop = podGrid.scrollHeight;
     nodeGrid.scrollTop = nodeGrid.scrollHeight;
   };
@@ -181,6 +270,10 @@ Tips:
         },
       },
     ]);
+
+    addEvent("Normal", "ClusterInitialized", "cluster", "Webernetes browser cluster online");
+    addEvent("Normal", "Scheduled", "pod/demo-pod", "Assigned default/demo-pod to node-2");
+    addEvent("Normal", "Started", "pod/demo-pod", "Started container web");
 
     await new Promise((r) => setTimeout(r, 1000));
 
@@ -240,78 +333,6 @@ Tips:
         });
         print(list.trimEnd());
       }
-      else if (cmd.startsWith("kubectl describe pod ") || cmd.startsWith("kubectl describe pods ")) {
-        const parts = cmd.split(" ");
-        const name = parts[3] || parts[2];
-        const pod = pods.find((p) => p.name === name);
-
-        if (!pod) {
-          print(`Error from server (NotFound): pods "${name}" not found`);
-          return;
-        }
-
-        print(
-`Name:         ${pod.name}
-Namespace:    default
-Node:         ${pod.node}/10.0.0.1
-Start Time:   Mon, 17 Aug 2026 09:45:00 GMT
-Labels:       app=${pod.name}
-Status:       ${pod.status}
-IP:           ${pod.ip}
-Containers:
-  web:
-    Container ID:   webernetes://${pod.name}-web
-    Image:          ${pod.image}
-    State:          Running
-      Started:      Mon, 17 Aug 2026 09:45:01 GMT
-    Ready:          True
-    Restart Count:  0
-Events:
-  Type    Reason     Age   From               Message
-  ----    ------     ----  ----               -------
-  Normal  Scheduled  ${pod.age}   default-scheduler  Successfully assigned default/${pod.name} to ${pod.node}
-  Normal  Started    ${pod.age}   kubelet, ${pod.node}   Started container web`
-        );
-      }
-      else if (cmd === "kubectl get events" || cmd === "kubectl get event") {
-        if (events.length === 0) {
-          print("No events found in default namespace.");
-          return;
-        }
-        let table = "LAST SEEN   TYPE     REASON      OBJECT         MESSAGE\n";
-        for (const ev of events) {
-          table += `${ev.lastSeen.padEnd(11)} ${ev.type.padEnd(8)} ${ev.reason.padEnd(11)} ${ev.object.padEnd(14)} ${ev.message}\n`;
-        }
-        print(table);
-      }
-      else if (cmd.startsWith("kubectl delete node ") || cmd.startsWith("kubectl delete nodes ")) {
-        const parts = cmd.split(" ");
-        const name = parts[3] || parts[2];
-        const index = nodes.findIndex((n) => n.name === name);
-
-        if (index === -1) {
-          print(`Error from server (NotFound): nodes "${name}" not found`);
-          return;
-        }
-
-        nodes.splice(index, 1);
-        events.unshift({
-          lastSeen: "1s",
-          type: "Warning",
-          reason: "NodeDeleted",
-          object: `node/${name}`,
-          message: `Node ${name} removed from cluster state`
-        });
-
-        pods.forEach((p) => {
-          if (p.node === name) {
-            p.node = nodes[0]?.name || "unassigned";
-          }
-        });
-
-        updateDashboard();
-        print(`node "${name}" deleted`);
-      }
       else if (cmd.startsWith("kubectl run ")) {
         const parts = cmd.split(" ");
         const name = parts[2];
@@ -321,11 +342,13 @@ Events:
 
         if (!name) {
           print("Error: pod name required. Usage: kubectl run <name> --image=<image>");
+          addEvent("Warning", "FailedCreate", "pod", "Pod creation failed: missing name parameter");
           return;
         }
 
         if (pods.some((p) => p.name === name)) {
           print(`Error from server (AlreadyExists): pods "${name}" already exists`);
+          addEvent("Warning", "AlreadyExists", `pod/${name}`, `Pod ${name} already exists in default namespace`);
           return;
         }
 
@@ -338,13 +361,11 @@ Events:
           node: assignedNode
         });
 
-        events.unshift({
-          lastSeen: "1s",
-          type: "Normal",
-          reason: "Scheduled",
-          object: `pod/${name}`,
-          message: `Successfully assigned default/${name} to ${assignedNode}`
-        });
+        addEvent("Info", "Scheduling", `pod/${name}`, `Binding pod to node ${assignedNode}`);
+        addEvent("Normal", "Scheduled", `pod/${name}`, `Successfully assigned default/${name} to ${assignedNode}`);
+        addEvent("Normal", "Pulled", `pod/${name}`, `Successfully pulled image "${image}"`);
+        addEvent("Normal", "Created", `pod/${name}`, `Created container web`);
+        addEvent("Normal", "Started", `pod/${name}`, `Started container web`);
 
         updateDashboard();
         print(`pod/${name} created`);
@@ -356,22 +377,44 @@ Events:
 
         if (index === -1) {
           print(`Error from server (NotFound): pods "${name}" not found`);
+          addEvent("Warning", "NotFound", `pod/${name}`, `Delete operation failed: pod "${name}" not found`);
           return;
         }
 
         pods.splice(index, 1);
-        events.unshift({
-          lastSeen: "1s",
-          type: "Normal",
-          reason: "Killing",
-          object: `pod/${name}`,
-          message: `Stopping container web in pod ${name}`
-        });
+        addEvent("Normal", "Killing", `pod/${name}`, `Stopping container web`);
+        addEvent("Normal", "Terminated", `pod/${name}`, `Pod ${name} deleted successfully`);
 
         updateDashboard();
         print(`pod "${name}" deleted`);
       }
+      else if (cmd.startsWith("kubectl delete node ") || cmd.startsWith("kubectl delete nodes ")) {
+        const parts = cmd.split(" ");
+        const name = parts[3] || parts[2];
+        const index = nodes.findIndex((n) => n.name === name);
+
+        if (index === -1) {
+          print(`Error from server (NotFound): nodes "${name}" not found`);
+          addEvent("Warning", "NotFound", `node/${name}`, `Delete operation failed: node "${name}" not found`);
+          return;
+        }
+
+        nodes.splice(index, 1);
+        addEvent("Warning", "NodeDeleted", `node/${name}`, `Node ${name} removed from active cluster state`);
+
+        pods.forEach((p) => {
+          if (p.node === name) {
+            const newNode = nodes[0]?.name || "unassigned";
+            p.node = newNode;
+            addEvent("Warning", "NodeEviction", `pod/${p.name}`, `Evicted from ${name}, rescheduled to ${newNode}`);
+          }
+        });
+
+        updateDashboard();
+        print(`node "${name}" deleted`);
+      }
       else if (cmd === "kubectl get pods" || cmd === "kubectl get pod") {
+        addEvent("Info", "ApiQuery", "pods", "GET /api/v1/namespaces/default/pods HTTP/1.1");
         if (pods.length === 0) {
           print("No resources found in default namespace.");
           return;
@@ -383,6 +426,7 @@ Events:
         print(table);
       }
       else if (cmd === "kubectl get nodes" || cmd === "kubectl get node") {
+        addEvent("Info", "ApiQuery", "nodes", "GET /api/v1/nodes HTTP/1.1");
         if (nodes.length === 0) {
           print("No nodes found in cluster.");
           return;
@@ -393,21 +437,22 @@ Events:
         }
         print(table);
       }
-      else if (cmd === "kubectl get services" || cmd === "kubectl get svc") {
-        print("NAME           TYPE       CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE\ndemo-service   NodePort   10.96.0.15   <none>        80:31000/TCP   2m");
-      }
       else if (cmd.startsWith("curl ")) {
         const url = cmd.replace("curl ", "").trim();
+        addEvent("Info", "HttpRequest", "curl", `GET ${url}`);
         try {
           const res: any = await cluster.fetch(url);
           const text = typeof res?.text === "function" ? await res.text() : res?.body || res;
           print(String(text));
+          addEvent("Normal", "HttpResponse", "curl", `200 OK from ${url}`);
         } catch (err: any) {
           print(`curl: (7) Failed to connect: ${err.message}`);
+          addEvent("Warning", "HttpError", "curl", `Connection failed: ${err.message}`);
         }
       }
       else {
         print(`command not found: ${cmd}. Type 'help' or 'kubectl --help' to see supported commands.`);
+        addEvent("Warning", "InvalidCommand", "cli", `Unknown command execution attempted: ${cmd}`);
       }
     });
 
