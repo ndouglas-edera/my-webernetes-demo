@@ -67,7 +67,7 @@ async function initTerminalDemo() {
         <div id="output" style="white-space: pre-wrap; margin-bottom: 12px; min-height: 220px; max-height: 380px; overflow-y: auto;">Initializing Webernetes cluster...</div>
         <div style="display: flex; align-items: center; border-top: 1px solid #30363d; padding-top: 12px;">
           <span style="color: #58a6ff; margin-right: 8px;">user@webernetes:~$</span>
-          <input id="cmd" type="text" placeholder="Try 'kubectl describe pod demo-pod' or 'kubectl delete node node-3'..." style="flex: 1; background: transparent; border: none; color: #fff; font-family: inherit; font-size: 14px; outline: none;" disabled />
+          <input id="cmd" type="text" placeholder="Type 'help' or use Up/Down arrow keys for command history..." style="flex: 1; background: transparent; border: none; color: #fff; font-family: inherit; font-size: 14px; outline: none;" disabled />
         </div>
       </div>
     </div>
@@ -79,6 +79,10 @@ async function initTerminalDemo() {
   const podCount = document.querySelector<HTMLSpanElement>("#pod-count")!;
   const nodeGrid = document.querySelector<HTMLDivElement>("#node-grid")!;
   const nodeCount = document.querySelector<HTMLSpanElement>("#node-count")!;
+
+  // History tracking state
+  const commandHistory: string[] = [];
+  let historyIndex = -1;
 
   let pods: LocalPod[] = [
     { name: "demo-pod", status: "Running", age: "2m", image: "web-server:1.0", ip: "10.244.0.5", node: "node-2" }
@@ -95,6 +99,22 @@ async function initTerminalDemo() {
     { lastSeen: "2m", type: "Normal", reason: "Created", object: "pod/demo-pod", message: "Created container web" },
     { lastSeen: "2m", type: "Normal", reason: "Started", object: "pod/demo-pod", message: "Started container web" }
   ];
+
+  const helpText = `Webernetes CLI Reference:
+
+Available Commands:
+  • help / kubectl --help                  Show this help message
+  • history                                Display command history
+  • kubectl get [pods|nodes|events|svc]    List cluster resources
+  • kubectl describe pod <name>            Display pod details and events
+  • kubectl run <name> --image=<image>     Deploy a new pod
+  • kubectl delete pod <name>              Remove a pod from the cluster
+  • kubectl delete node <name>             Remove a node from the cluster
+  • curl <url>                             Fetch endpoint (e.g. http://node-1:31000)
+  • clear                                  Clear terminal screen
+
+Tips:
+  • Use Up / Down Arrow keys to navigate previously executed commands.`;
 
   const updateDashboard = () => {
     podCount.innerText = `${pods.length} ${pods.length === 1 ? "Pod" : "Pods"}`;
@@ -160,16 +180,44 @@ async function initTerminalDemo() {
     await new Promise((r) => setTimeout(r, 1000));
 
     updateDashboard();
-    output.innerText = "Webernetes cluster online!\n\nCommands to try:\n  • kubectl get pods / nodes / events / services\n  • kubectl describe pod <name>\n  • kubectl run <name> --image=<image>\n  • kubectl delete pod <name>\n  • kubectl delete node <name>\n  • curl http://node-1:31000";
+    output.innerText = `Webernetes cluster online!\n\n${helpText}`;
     input.disabled = false;
     input.focus();
 
+    // Keydown listener for Navigation (Up/Down) + Execution (Enter)
     input.addEventListener("keydown", async (e) => {
+      // Navigate Up in history
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (commandHistory.length > 0 && historyIndex < commandHistory.length - 1) {
+          historyIndex++;
+          input.value = commandHistory[commandHistory.length - 1 - historyIndex];
+        }
+        return;
+      }
+
+      // Navigate Down in history
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (historyIndex > 0) {
+          historyIndex--;
+          input.value = commandHistory[commandHistory.length - 1 - historyIndex];
+        } else if (historyIndex === 0) {
+          historyIndex = -1;
+          input.value = "";
+        }
+        return;
+      }
+
       if (e.key !== "Enter") return;
+
       const cmd = input.value.trim();
       input.value = "";
+      historyIndex = -1;
       if (!cmd) return;
 
+      // Add to command history
+      commandHistory.push(cmd);
       print(`user@webernetes:~$ ${cmd}`);
 
       if (cmd === "clear") {
@@ -177,8 +225,24 @@ async function initTerminalDemo() {
         return;
       }
 
+      // Help commands
+      if (cmd === "help" || cmd === "kubectl --help" || cmd === "kubectl -h" || cmd === "kubectl help") {
+        print(helpText);
+      }
+      // History command
+      else if (cmd === "history") {
+        if (commandHistory.length === 0) {
+          print("No command history.");
+          return;
+        }
+        let list = "";
+        commandHistory.forEach((c, idx) => {
+          list += `  ${String(idx + 1).padStart(3, " ")}  ${c}\n`;
+        });
+        print(list.trimEnd());
+      }
       // kubectl describe pod
-      if (cmd.startsWith("kubectl describe pod ") || cmd.startsWith("kubectl describe pods ")) {
+      else if (cmd.startsWith("kubectl describe pod ") || cmd.startsWith("kubectl describe pods ")) {
         const parts = cmd.split(" ");
         const name = parts[3] || parts[2];
         const pod = pods.find((p) => p.name === name);
@@ -243,7 +307,6 @@ Events:
           message: `Node ${name} removed from cluster state`
         });
 
-        // Reassign affected pods if their node was deleted
         pods.forEach((p) => {
           if (p.node === name) {
             p.node = nodes[0]?.name || "unassigned";
@@ -354,7 +417,7 @@ Events:
         }
       }
       else {
-        print(`command not found: ${cmd}. Try 'kubectl describe pod demo-pod' or 'kubectl get events'`);
+        print(`command not found: ${cmd}. Type 'help' or 'kubectl --help' to see supported commands.`);
       }
     });
 
