@@ -4,8 +4,8 @@ This project is a port of a subset of the Kubernetes project to make it such tha
 ### Preview
 --> https://ndouglas-edera.github.io/my-webernetes-demo
 
-
-## Assign pods to a specific node
+<br/><br/>
+### Assign pods to a specific node
 
 You can list the files in the demo terminal and even simulate reading a manifest file:
 
@@ -25,5 +25,3 @@ This can be addressed by simply assigning the matching pod label to one of the 3
 ```
 kubectl label nodes node-3 disktype=ssd
 ```
-
-<img width="1506" height="819" alt="Screenshot 2026-08-17 at 17 33 58" src="https://github.com/user-attachments/assets/d0443ee8-c563-4fd9-9e5e-b618ded431d9" />
