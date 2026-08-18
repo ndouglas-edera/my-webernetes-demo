@@ -50,3 +50,26 @@ kubectl get pods --show-labels
 <img width="1506" height="781" alt="Screenshot 2026-08-17 at 18 50 17" src="https://github.com/user-attachments/assets/e0fe0e40-8ad1-459b-9942-8ca976d28d47" />
 
 
+## Working with namespaces
+
+Check for pods in all namespaces
+```
+kubectl get pods -A
+```
+
+Check what namespaces exist:
+```
+kubectl get namespaces
+```
+
+Create your own custom ```edera``` namespace:
+```
+kubectl create namespace edera
+```
+
+Run a new workload inside the ```edera``` namespace:
+```
+kubectl run ubuntu --image=ubuntu:latest --labels="env=prod" -n edera
+```
+
+<img width="1506" height="781" alt="Screenshot 2026-08-18 at 20 40 03" src="https://github.com/user-attachments/assets/0b668f13-9ed7-45d4-963b-52aa2ad5dc8a" />
