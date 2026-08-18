@@ -35,6 +35,12 @@ interface LocalNode {
   labels: Record<string, string>;
 }
 
+interface LocalNamespace {
+  name: string;
+  status: string;
+  age: string;
+}
+
 interface ClusterEvent {
   time: string;
   type: "Normal" | "Warning" | "Info";
@@ -169,6 +175,13 @@ async function initTerminalDemo() {
   };
 
   const activeRuntimeClasses = new Set<string>();
+
+  let namespaces: LocalNamespace[] = [
+    { name: "default", status: "Active", age: "10m" },
+    { name: "kube-system", status: "Active", age: "10m" },
+    { name: "kube-public", status: "Active", age: "10m" },
+    { name: "kube-node-lease", status: "Active", age: "10m" }
+  ];
 
   let pods: LocalPod[] = [
     {
@@ -315,7 +328,8 @@ Available Commands:
   • ls                                       List files in current directory
   • cat &lt;filename&gt;                             Print contents of a file
   • kubectl run &lt;name&gt; [--image=&lt;img&gt;] [--labels="k1=v1,k2=v2"]  Create & run a pod directly
-  • kubectl get [pods|nodes] [-o wide] [-A] [--show-labels]     List resources with filters/labels
+  • kubectl create namespace &lt;name&gt;            Create a new namespace
+  • kubectl get [pods|nodes|namespaces|ns]     List resources
   • kubectl label node &lt;node-name&gt; &lt;key&gt;=&lt;value&gt;      Add label to a node
   • kubectl apply -f &lt;filename.yaml&gt;                  Apply manifest file
   • kubectl delete [pod|node] &lt;name&gt;                  Remove resource
@@ -521,6 +535,31 @@ Available Commands:
         return;
       }
 
+      if (rawCmd.startsWith("kubectl create namespace ") || rawCmd.startsWith("kubectl create ns ")) {
+        const nsName = tokens[3] || tokens[2];
+        if (!nsName || nsName.startsWith("-")) {
+          printHtml(`<span style="color: #f85149;">Error: namespace name required. Usage: kubectl create namespace &lt;name&gt;</span>`);
+          addEvent("Warning", "InvalidSyntax", "create", "Failed kubectl create namespace syntax");
+          return;
+        }
+
+        if (namespaces.some((ns) => ns.name === nsName)) {
+          printHtml(`<span style="color: #f85149;">Error from server (AlreadyExists): namespaces "${escapeHtml(nsName)}" already exists</span>`);
+          addEvent("Warning", "AlreadyExists", `namespace/${nsName}`, `Create failed: namespace ${nsName} already exists`);
+          return;
+        }
+
+        namespaces.push({
+          name: nsName,
+          status: "Active",
+          age: "1s"
+        });
+
+        addEvent("Normal", "Created", `namespace/${nsName}`, `namespace/${nsName} created`);
+        printHtml(`<span style="color: #7ee787;">namespace/${escapeHtml(nsName)} created</span>`);
+        return;
+      }
+
       if (rawCmd.startsWith("kubectl run ")) {
         const podName = tokens[2];
         if (!podName || podName.startsWith("-")) {
@@ -698,6 +737,21 @@ Available Commands:
           updateDashboard();
           printHtml(`<span style="color: #7ee787;">pod/${podName} created</span>`);
         }
+        return;
+      }
+
+      if (rawCmd.startsWith("kubectl get namespaces") || rawCmd.startsWith("kubectl get namespace") || rawCmd.startsWith("kubectl get ns")) {
+        if (namespaces.length === 0) {
+          printHtml(`<span style="color: #8b949e;">No namespaces found.</span>`);
+          return;
+        }
+
+        let formattedOutput = `<span style="color: #79c0ff; font-weight: 600;">NAME              STATUS   AGE</span>\n`;
+
+        for (const ns of namespaces) {
+          formattedOutput += `${ns.name.padEnd(17)} <span style="color: #7ee787;">${ns.status.padEnd(8)}</span> ${ns.age}\n`;
+        }
+        printHtml(formattedOutput.trimEnd());
         return;
       }
 
