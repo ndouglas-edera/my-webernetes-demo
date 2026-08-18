@@ -56,6 +56,26 @@ spec:
   nodeSelector:
     disktype: ssd`;
 
+const RUNTIMECLASS_EDERA_YAML_CONTENT = `apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: edera
+handler: edera`;
+
+const HARDENED_VESSEL_YAML_CONTENT = `apiVersion: v1
+kind: Pod
+metadata:
+  name: hardened-vessel
+spec:
+  runtimeClassName: edera
+  containers:
+  - name: hardened-vessel
+    image: denhamparry/leaky-vessel:0.1
+    imagePullPolicy: Always
+    env:
+    - name: SUPER_ORCHESTRATOR_SECRET
+      value: "this-is-fine-hardened"`;
+
 async function initTerminalDemo() {
   const styleTag = document.createElement("style");
   styleTag.textContent = `
@@ -143,6 +163,8 @@ async function initTerminalDemo() {
 
   const localFiles: Record<string, string> = {
     "pod-nginx.yaml": NGINX_YAML_CONTENT,
+    "runtimeclass-edera.yaml": RUNTIMECLASS_EDERA_YAML_CONTENT,
+    "pod-hardened-vessel.yaml": HARDENED_VESSEL_YAML_CONTENT,
   };
 
   let pods: LocalPod[] = [
@@ -287,14 +309,14 @@ async function initTerminalDemo() {
     return `<span style="color: #ffa657;">Webernetes CLI Reference:
 
 Available Commands:
-  • ls                                        List files in current directory
-  • cat &lt;filename&gt;                            Print contents of a file
+  • ls                                       List files in current directory
+  • cat &lt;filename&gt;                             Print contents of a file
   • kubectl run &lt;name&gt; [--image=&lt;img&gt;] [--labels="k1=v1,k2=v2"]  Create & run a pod directly
-  • kubectl get [pods|nodes] [-A] [--show-labels]     List resources with filters/labels
+  • kubectl get [pods|nodes] [-o wide] [-A] [--show-labels]     List resources with filters/labels
   • kubectl label node &lt;node-name&gt; &lt;key&gt;=&lt;value&gt;      Add label to a node
   • kubectl apply -f &lt;filename.yaml&gt;                  Apply manifest file
   • kubectl delete [pod|node] &lt;name&gt;                  Remove resource
-  • curl &lt;url&gt;                                        Fetch HTTP endpoint
+  • curl &lt;url&gt;                                       Fetch HTTP endpoint
   • clear / history                                   Manage terminal view & history</span>`;
   };
 
@@ -617,12 +639,45 @@ Available Commands:
 
           updateDashboard();
           printHtml(`<span style="color: #7ee787;">pod/${podName} created</span>`);
+        } else if (fileName === "runtimeclass-edera.yaml") {
+          addEvent("Normal", "Created", "runtimeclass/edera", "runtimeclass.node.k8s.io/edera created");
+          printHtml(`<span style="color: #7ee787;">runtimeclass.node.k8s.io/edera created</span>`);
+        } else if (fileName === "pod-hardened-vessel.yaml") {
+          const podName = "hardened-vessel";
+          if (pods.some((p) => p.name === podName)) {
+            printHtml(`<span style="color: #8b949e;">pod/${podName} unchanged</span>`);
+            return;
+          }
+
+          const assignedNode = nodes.find((n) => !n.labels["node-role.kubernetes.io/control-plane"]) || nodes[0];
+
+          const newPod: LocalPod = {
+            name: podName,
+            namespace: "default",
+            status: "Running",
+            age: "1s",
+            image: "denhamparry/leaky-vessel:0.1",
+            ip: `10.244.0.${Math.floor(Math.random() * 200 + 10)}`,
+            node: assignedNode ? assignedNode.name : "node-2",
+            labels: {}
+          };
+
+          pods.push(newPod);
+          addEvent("Normal", "Created", `pod/${podName}`, "pod/hardened-vessel created from manifest");
+          if (assignedNode) {
+            addEvent("Normal", "Scheduled", `pod/${podName}`, `Successfully assigned default/${podName} to ${assignedNode.name}`);
+            addEvent("Normal", "Started", `pod/${podName}`, `Started container ${podName}`);
+          }
+
+          updateDashboard();
+          printHtml(`<span style="color: #7ee787;">pod/${podName} created</span>`);
         }
         return;
       }
 
       if (rawCmd.startsWith("kubectl get pods") || rawCmd.startsWith("kubectl get pod")) {
         const showLabels = tokens.includes("--show-labels");
+        const showWide = tokens.includes("-o") && tokens[tokens.indexOf("-o") + 1] === "wide" || tokens.includes("-owide");
         const allNamespaces = tokens.includes("-A") || tokens.includes("--all-namespaces");
         
         let namespaceFilter = "default";
@@ -640,7 +695,8 @@ Available Commands:
 
         let header = "";
         if (allNamespaces) header += "NAMESPACE   ";
-        header += "NAME        READY   STATUS    RESTARTS   AGE   IP             NODE";
+        header += "NAME        READY   STATUS    RESTARTS   AGE";
+        if (showWide) header += "   IP            NODE";
         if (showLabels) header += "          LABELS";
 
         let formattedOutput = `<span style="color: #79c0ff; font-weight: 600;">${header}</span>\n`;
@@ -651,7 +707,8 @@ Available Commands:
           
           const statusColor = p.status === "Running" ? "#7ee787" : "#d29922";
           
-          line += `${p.name.padEnd(11)} 1/1     <span style="color: ${statusColor};">${p.status.padEnd(9)}</span> 0          ${p.age.padEnd(5)} ${(p.ip || "<none>").padEnd(13)} ${(p.node || "<none>").padEnd(10)}`;
+          line += `${p.name.padEnd(11)} 1/1     <span style="color: ${statusColor};">${p.status.padEnd(9)}</span> 0         ${p.age.padEnd(5)}`;
+          if (showWide) line += ` ${(p.ip || "<none>").padEnd(13)} ${(p.node || "<none>").padEnd(10)}`;
           if (showLabels) line += ` <span style="color: #8b949e;">${formatLabels(p.labels)}</span>`;
           formattedOutput += `${line}\n`;
         }
