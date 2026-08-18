@@ -24,6 +24,7 @@ interface LocalPod {
   node: string;
   labels: Record<string, string>;
   nodeSelector?: Record<string, string>;
+  runtimeClassName?: string;
 }
 
 interface LocalNode {
@@ -166,6 +167,8 @@ async function initTerminalDemo() {
     "runtimeclass-edera.yaml": RUNTIMECLASS_EDERA_YAML_CONTENT,
     "pod-hardened-vessel.yaml": HARDENED_VESSEL_YAML_CONTENT,
   };
+
+  const activeRuntimeClasses = new Set<string>();
 
   let pods: LocalPod[] = [
     {
@@ -339,17 +342,27 @@ Available Commands:
 
   const checkPendingPods = () => {
     pods.forEach((p) => {
-      if (p.status === "Pending" && p.nodeSelector) {
-        const matchingNode = nodes.find((n) =>
+      if (p.status !== "Pending") return;
+
+      if (p.runtimeClassName && !activeRuntimeClasses.has(p.runtimeClassName)) {
+        return;
+      }
+
+      let targetNode: LocalNode | undefined;
+      if (p.nodeSelector) {
+        targetNode = nodes.find((n) =>
           Object.entries(p.nodeSelector!).every(([k, v]) => n.labels[k] === v)
         );
-        if (matchingNode) {
-          p.status = "Running";
-          p.node = matchingNode.name;
-          p.ip = `10.244.0.${Math.floor(Math.random() * 200 + 10)}`;
-          addEvent("Normal", "Scheduled", `pod/${p.name}`, `Successfully assigned ${p.namespace}/${p.name} to ${matchingNode.name}`);
-          addEvent("Normal", "Started", `pod/${p.name}`, `Started container ${p.name}`);
-        }
+      } else {
+        targetNode = nodes.find((n) => !n.labels["node-role.kubernetes.io/control-plane"]) || nodes[0];
+      }
+
+      if (targetNode) {
+        p.status = "Running";
+        p.node = targetNode.name;
+        p.ip = `10.244.0.${Math.floor(Math.random() * 200 + 10)}`;
+        addEvent("Normal", "Scheduled", `pod/${p.name}`, `Successfully assigned ${p.namespace}/${p.name} to ${targetNode.name}`);
+        addEvent("Normal", "Started", `pod/${p.name}`, `Started container ${p.name}`);
       }
     });
   };
@@ -640,8 +653,12 @@ Available Commands:
           updateDashboard();
           printHtml(`<span style="color: #7ee787;">pod/${podName} created</span>`);
         } else if (fileName === "runtimeclass-edera.yaml") {
+          activeRuntimeClasses.add("edera");
           addEvent("Normal", "Created", "runtimeclass/edera", "runtimeclass.node.k8s.io/edera created");
           printHtml(`<span style="color: #7ee787;">runtimeclass.node.k8s.io/edera created</span>`);
+
+          checkPendingPods();
+          updateDashboard();
         } else if (fileName === "pod-hardened-vessel.yaml") {
           const podName = "hardened-vessel";
           if (pods.some((p) => p.name === podName)) {
@@ -649,24 +666,33 @@ Available Commands:
             return;
           }
 
-          const assignedNode = nodes.find((n) => !n.labels["node-role.kubernetes.io/control-plane"]) || nodes[0];
+          const runtimeClassName = "edera";
+          const runtimeClassExists = activeRuntimeClasses.has(runtimeClassName);
+
+          const assignedNode = runtimeClassExists
+            ? nodes.find((n) => !n.labels["node-role.kubernetes.io/control-plane"]) || nodes[0]
+            : undefined;
 
           const newPod: LocalPod = {
             name: podName,
             namespace: "default",
-            status: "Running",
+            status: runtimeClassExists ? "Running" : "Pending",
             age: "1s",
             image: "denhamparry/leaky-vessel:0.1",
-            ip: `10.244.0.${Math.floor(Math.random() * 200 + 10)}`,
-            node: assignedNode ? assignedNode.name : "node-2",
-            labels: {}
+            ip: assignedNode ? `10.244.0.${Math.floor(Math.random() * 200 + 10)}` : "<none>",
+            node: assignedNode ? assignedNode.name : "<none>",
+            labels: {},
+            runtimeClassName
           };
 
           pods.push(newPod);
           addEvent("Normal", "Created", `pod/${podName}`, "pod/hardened-vessel created from manifest");
-          if (assignedNode) {
+
+          if (runtimeClassExists && assignedNode) {
             addEvent("Normal", "Scheduled", `pod/${podName}`, `Successfully assigned default/${podName} to ${assignedNode.name}`);
             addEvent("Normal", "Started", `pod/${podName}`, `Started container ${podName}`);
+          } else {
+            addEvent("Warning", "FailedCreatePodSandBox", `pod/${podName}`, `Failed to create pod sandbox: RuntimeClass "${runtimeClassName}" not found`);
           }
 
           updateDashboard();
@@ -707,7 +733,7 @@ Available Commands:
           
           const statusColor = p.status === "Running" ? "#7ee787" : "#d29922";
           
-          line += `${p.name.padEnd(11)} 1/1     <span style="color: ${statusColor};">${p.status.padEnd(9)}</span> 0         ${p.age.padEnd(5)}`;
+          line += `${p.name.padEnd(11)} ${p.status === "Running" ? "1/1" : "0/1"}     <span style="color: ${statusColor};">${p.status.padEnd(9)}</span> 0         ${p.age.padEnd(5)}`;
           if (showWide) line += ` ${(p.ip || "<none>").padEnd(13)} ${(p.node || "<none>").padEnd(10)}`;
           if (showLabels) line += ` <span style="color: #8b949e;">${formatLabels(p.labels)}</span>`;
           formattedOutput += `${line}\n`;
