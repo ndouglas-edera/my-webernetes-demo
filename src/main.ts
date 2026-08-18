@@ -53,6 +53,7 @@ const NGINX_YAML_CONTENT = `apiVersion: v1
 kind: Pod
 metadata:
   name: nginx
+  namespace: default
   labels:
     env: test
 spec:
@@ -73,6 +74,7 @@ const HARDENED_VESSEL_YAML_CONTENT = `apiVersion: v1
 kind: Pod
 metadata:
   name: hardened-vessel
+  namespace: default
 spec:
   runtimeClassName: edera
   containers:
@@ -327,10 +329,10 @@ async function initTerminalDemo() {
 Available Commands:
   • ls                                       List files in current directory
   • cat &lt;filename&gt;                             Print contents of a file
-  • kubectl run &lt;name&gt; [--image=&lt;img&gt;] [--labels="k1=v1,k2=v2"]  Create & run a pod directly
+  • kubectl run &lt;name&gt; [--image=&lt;img&gt;] [-n &lt;ns&gt;] Create & run a pod
   • kubectl create namespace &lt;name&gt;            Create a new namespace
-  • kubectl get [pods|nodes|namespaces|ns]     List resources
-  • kubectl label node &lt;node-name&gt; &lt;key&gt;=&lt;value&gt;      Add label to a node
+  • kubectl get [pods|nodes|namespaces|ns]     List resources (-n &lt;ns&gt; or -A supported)
+  • kubectl label node &lt;node-name&gt; &lt;key&gt;=&lt;val&gt;  Add label to a node
   • kubectl apply -f &lt;filename.yaml&gt;                  Apply manifest file
   • kubectl delete [pod|node] &lt;name&gt;                  Remove resource
   • curl &lt;url&gt;                                       Fetch HTTP endpoint
@@ -395,7 +397,7 @@ Available Commands:
         return `
           <div style="background: #0d1117; border: 1px solid ${borderColor}; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
             <div>
-              <div style="font-weight: 600; font-size: 13px; color: #58a6ff;">${p.name}</div>
+              <div style="font-weight: 600; font-size: 13px; color: #58a6ff;">${p.name} <span style="font-size: 10px; color: #8b949e; font-weight: normal;">(${p.namespace})</span></div>
               <div style="font-size: 11px; color: #8b949e;">${p.image} · ${p.node || "unassigned"}</div>
             </div>
             <span style="font-size: 10px; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${borderColor}; padding: 2px 6px; border-radius: 4px;">${p.status}</span>
@@ -563,24 +565,28 @@ Available Commands:
       if (rawCmd.startsWith("kubectl run ")) {
         const podName = tokens[2];
         if (!podName || podName.startsWith("-")) {
-          printHtml(`<span style="color: #f85149;">Error: pod name required. Usage: kubectl run &lt;pod-name&gt; [--image=&lt;image&gt;] [--labels="k=v,k2=v2"]</span>`);
+          printHtml(`<span style="color: #f85149;">Error: pod name required. Usage: kubectl run &lt;pod-name&gt; [--image=&lt;image&gt;] [-n &lt;namespace&gt;]</span>`);
           addEvent("Warning", "InvalidSyntax", "run", "Failed kubectl run command syntax");
           return;
         }
 
-        if (pods.some((p) => p.name === podName)) {
-          printHtml(`<span style="color: #f85149;">Error from server (AlreadyExists): pods "${escapeHtml(podName)}" already exists</span>`);
-          addEvent("Warning", "AlreadyExists", `pod/${podName}`, `Run failed: pod ${podName} already exists`);
-          return;
-        }
-
         let imageName = podName;
+        let targetNamespace = "default";
         const customLabels: Record<string, string> = { run: podName };
 
         for (let i = 3; i < tokens.length; i++) {
           const arg = tokens[i];
           if (arg.startsWith("--image=")) {
             imageName = arg.split("=")[1] || imageName;
+          } else if (arg.startsWith("--namespace=")) {
+            targetNamespace = arg.split("=")[1] || targetNamespace;
+          } else if (arg === "-n" || arg === "--namespace") {
+            if (tokens[i + 1]) {
+              targetNamespace = tokens[i + 1];
+              i++;
+            }
+          } else if (arg.startsWith("-n")) {
+            targetNamespace = arg.substring(2) || targetNamespace;
           } else if (arg.startsWith("--labels=")) {
             const rawLabelsStr = rawCmd.match(/--labels=["']?([^"']+)["']?/)?.[1] || arg.replace("--labels=", "").replace(/["']/g, "");
             rawLabelsStr.split(",").forEach((pair) => {
@@ -590,11 +596,23 @@ Available Commands:
           }
         }
 
+        if (!namespaces.some((ns) => ns.name === targetNamespace)) {
+          printHtml(`<span style="color: #f85149;">Error from server (NotFound): namespaces "${escapeHtml(targetNamespace)}" not found</span>`);
+          addEvent("Warning", "NotFound", `namespace/${targetNamespace}`, `Run failed: namespace ${targetNamespace} not found`);
+          return;
+        }
+
+        if (pods.some((p) => p.name === podName && p.namespace === targetNamespace)) {
+          printHtml(`<span style="color: #f85149;">Error from server (AlreadyExists): pods "${escapeHtml(podName)}" already exists in namespace "${escapeHtml(targetNamespace)}"</span>`);
+          addEvent("Warning", "AlreadyExists", `pod/${podName}`, `Run failed: pod ${podName} already exists in ${targetNamespace}`);
+          return;
+        }
+
         const assignedNode = nodes.find((n) => !n.labels["node-role.kubernetes.io/control-plane"]) || nodes[0];
 
         const newPod: LocalPod = {
           name: podName,
-          namespace: "default",
+          namespace: targetNamespace,
           status: "Running",
           age: "1s",
           image: imageName,
@@ -604,9 +622,9 @@ Available Commands:
         };
 
         pods.push(newPod);
-        addEvent("Normal", "Created", `pod/${podName}`, `pod/${podName} created via kubectl run`);
+        addEvent("Normal", "Created", `pod/${podName}`, `pod/${podName} created in namespace ${targetNamespace} via kubectl run`);
         if (assignedNode) {
-          addEvent("Normal", "Scheduled", `pod/${podName}`, `Successfully assigned default/${podName} to ${assignedNode.name}`);
+          addEvent("Normal", "Scheduled", `pod/${podName}`, `Successfully assigned ${targetNamespace}/${podName} to ${assignedNode.name}`);
           addEvent("Normal", "Started", `pod/${podName}`, `Started container ${podName}`);
         }
 
@@ -657,9 +675,15 @@ Available Commands:
           return;
         }
 
+        let targetNamespace = "default";
+        const nsIndex = tokens.indexOf("-n");
+        if (nsIndex !== -1 && tokens[nsIndex + 1]) {
+          targetNamespace = tokens[nsIndex + 1];
+        }
+
         if (fileName === "pod-nginx.yaml") {
           const podName = "nginx";
-          if (pods.some((p) => p.name === podName)) {
+          if (pods.some((p) => p.name === podName && p.namespace === targetNamespace)) {
             printHtml(`<span style="color: #8b949e;">pod/${podName} unchanged</span>`);
             return;
           }
@@ -669,7 +693,7 @@ Available Commands:
 
           const newPod: LocalPod = {
             name: podName,
-            namespace: "default",
+            namespace: targetNamespace,
             status: matchingNode ? "Running" : "Pending",
             age: "1s",
             image: "nginx",
@@ -680,10 +704,10 @@ Available Commands:
           };
 
           pods.push(newPod);
-          addEvent("Normal", "Created", `pod/${podName}`, "pod/nginx created from manifest");
+          addEvent("Normal", "Created", `pod/${podName}`, `pod/nginx created in ${targetNamespace} from manifest`);
 
           if (matchingNode) {
-            addEvent("Normal", "Scheduled", `pod/${podName}`, `Successfully assigned default/${podName} to ${matchingNode.name}`);
+            addEvent("Normal", "Scheduled", `pod/${podName}`, `Successfully assigned ${targetNamespace}/${podName} to ${matchingNode.name}`);
             addEvent("Normal", "Started", `pod/${podName}`, `Started container ${podName}`);
           } else {
             addEvent("Warning", "FailedScheduling", `pod/${podName}`, "0/3 nodes are available: 3 node(s) didn't match Pod's node selector");
@@ -700,7 +724,7 @@ Available Commands:
           updateDashboard();
         } else if (fileName === "pod-hardened-vessel.yaml") {
           const podName = "hardened-vessel";
-          if (pods.some((p) => p.name === podName)) {
+          if (pods.some((p) => p.name === podName && p.namespace === targetNamespace)) {
             printHtml(`<span style="color: #8b949e;">pod/${podName} unchanged</span>`);
             return;
           }
@@ -714,7 +738,7 @@ Available Commands:
 
           const newPod: LocalPod = {
             name: podName,
-            namespace: "default",
+            namespace: targetNamespace,
             status: runtimeClassExists ? "Running" : "Pending",
             age: "1s",
             image: "denhamparry/leaky-vessel:0.1",
@@ -725,10 +749,10 @@ Available Commands:
           };
 
           pods.push(newPod);
-          addEvent("Normal", "Created", `pod/${podName}`, "pod/hardened-vessel created from manifest");
+          addEvent("Normal", "Created", `pod/${podName}`, `pod/hardened-vessel created in ${targetNamespace} from manifest`);
 
           if (runtimeClassExists && assignedNode) {
-            addEvent("Normal", "Scheduled", `pod/${podName}`, `Successfully assigned default/${podName} to ${assignedNode.name}`);
+            addEvent("Normal", "Scheduled", `pod/${podName}`, `Successfully assigned ${targetNamespace}/${podName} to ${assignedNode.name}`);
             addEvent("Normal", "Started", `pod/${podName}`, `Started container ${podName}`);
           } else {
             addEvent("Warning", "FailedCreatePodSandBox", `pod/${podName}`, `Failed to create pod sandbox: RuntimeClass "${runtimeClassName}" not found`);
@@ -761,15 +785,21 @@ Available Commands:
         const allNamespaces = tokens.includes("-A") || tokens.includes("--all-namespaces");
         
         let namespaceFilter = "default";
-        const nsIndex = tokens.indexOf("-n");
-        if (nsIndex !== -1 && tokens[nsIndex + 1]) {
-          namespaceFilter = tokens[nsIndex + 1];
+        for (let i = 0; i < tokens.length; i++) {
+          if (tokens[i] === "-n" || tokens[i] === "--namespace") {
+            if (tokens[i + 1]) namespaceFilter = tokens[i + 1];
+          } else if (tokens[i].startsWith("-n") && tokens[i] !== "-node") {
+            const sub = tokens[i].substring(2);
+            if (sub) namespaceFilter = sub;
+          } else if (tokens[i].startsWith("--namespace=")) {
+            namespaceFilter = tokens[i].split("=")[1] || namespaceFilter;
+          }
         }
 
         const filteredPods = pods.filter((p) => allNamespaces || p.namespace === namespaceFilter);
 
         if (filteredPods.length === 0) {
-          printHtml(`<span style="color: #8b949e;">No resources found in target namespace.</span>`);
+          printHtml(`<span style="color: #8b949e;">No resources found in ${allNamespaces ? "cluster" : namespaceFilter + " namespace"}.</span>`);
           return;
         }
 
@@ -821,16 +851,23 @@ Available Commands:
 
       if (rawCmd.startsWith("kubectl delete pod ") || rawCmd.startsWith("kubectl delete pods ")) {
         const name = tokens[3] || tokens[2];
-        const index = pods.findIndex((p) => p.name === name);
+        let targetNamespace = "default";
+
+        const nsIndex = tokens.indexOf("-n");
+        if (nsIndex !== -1 && tokens[nsIndex + 1]) {
+          targetNamespace = tokens[nsIndex + 1];
+        }
+
+        const index = pods.findIndex((p) => p.name === name && p.namespace === targetNamespace);
 
         if (index === -1) {
-          printHtml(`<span style="color: #f85149;">Error from server (NotFound): pods "${escapeHtml(name)}" not found</span>`);
+          printHtml(`<span style="color: #f85149;">Error from server (NotFound): pods "${escapeHtml(name)}" not found in namespace "${escapeHtml(targetNamespace)}"</span>`);
           return;
         }
 
         pods.splice(index, 1);
-        addEvent("Normal", "Killing", `pod/${name}`, "Stopping container web");
-        addEvent("Normal", "Terminated", `pod/${name}`, `Pod ${name} deleted`);
+        addEvent("Normal", "Killing", `pod/${name}`, `Stopping container in ${targetNamespace}`);
+        addEvent("Normal", "Terminated", `pod/${name}`, `Pod ${name} deleted from ${targetNamespace}`);
 
         updateDashboard();
         printHtml(`<span style="color: #7ee787;">pod "${escapeHtml(name)}" deleted</span>`);
