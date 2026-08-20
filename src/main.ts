@@ -53,29 +53,33 @@ interface ClusterEvent {
   message: string;
 }
 
-interface EderaZone {
+interface ProtectZone {
   name: string;
   uuid: string;
   state: "creating" | "ready" | "destroying" | "destroyed";
   ipv4: string;
   ipv6: string;
   minCpus: number;
-  cpus: number;
-  cores: number;
-  workloads: string[];
+  maxCpus: number;
+  targetCpus: number;
 }
 
-interface EderaWorkload {
+interface ProtectWorkload {
   name: string;
   uuid: string;
   zone: string;
-  state: "creating" | "running" | "stopped" | "destroyed";
+  state: "creating" | "running" | "stopped" | "destroying" | "destroyed";
   image: string;
   command: string[];
-  createdAt: number;
 }
 
-type PanelId = "pods" | "nodes" | "zones" | "events";
+interface DemoStep {
+  id: string;
+  title: string;
+  description: string;
+  command: string;
+  optional?: boolean;
+}
 
 const NGINX_YAML_CONTENT = `apiVersion: v1
 kind: Pod
@@ -113,6 +117,69 @@ spec:
     - name: SUPER_ORCHESTRATOR_SECRET
       value: "this-is-fine-hardened"`;
 
+const PROTECT_DEMO_STEPS: DemoStep[] = [
+  {
+    id: "zone-launch",
+    title: "Create an isolated Edera zone",
+    description:
+      "Launch a lightweight Protect zone. The --wait flag waits until the zone is ready.",
+    command:
+      "protect zone launch -n test-zone --min-cpus 1 -C 2 -c 2 --wait",
+  },
+  {
+    id: "zone-list",
+    title: "Inspect the zone",
+    description:
+      "List the zones managed by Edera Protect and inspect its networking information.",
+    command: "protect zone list",
+  },
+  {
+    id: "workload-launch",
+    title: "Launch a workload inside the zone",
+    description:
+      "Start an Alpine container inside the isolated test-zone.",
+    command:
+      "protect workload launch --zone test-zone --name alpine-long -- docker.io/library/alpine:latest sleep 3600",
+  },
+  {
+    id: "workload-list",
+    title: "Inspect the workload",
+    description:
+      "List workloads and see which Protect zone contains the container.",
+    command: "protect workload list",
+  },
+  {
+    id: "workload-exec",
+    title: "Execute inside the workload",
+    description:
+      "Run a harmless command inside the Alpine workload.",
+    command:
+      "protect workload exec alpine-long /bin/sh -c \"echo Hello from inside Edera\"",
+    optional: true,
+  },
+  {
+    id: "workload-destroy",
+    title: "Destroy the workload",
+    description:
+      "Remove the workload from the Protect zone.",
+    command: "protect workload destroy alpine-long --wait",
+  },
+  {
+    id: "zone-destroy",
+    title: "Destroy the zone",
+    description:
+      "Tear down the isolated Edera zone.",
+    command: "protect zone destroy test-zone",
+  },
+  {
+    id: "final-list",
+    title: "Verify the zone lifecycle",
+    description:
+      "List the zones one final time and observe the destroyed tombstone.",
+    command: "protect zone list",
+  },
+];
+
 async function initTerminalDemo() {
   const styleTag = document.createElement("style");
 
@@ -131,11 +198,11 @@ async function initTerminalDemo() {
       box-sizing: border-box;
     }
 
-    #app {
-      min-height: 100vh;
+    button {
+      font-family: inherit;
     }
 
-    .dashboard-shell {
+    .demo-shell {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       max-width: 1200px;
       margin: 0 auto;
@@ -145,151 +212,103 @@ async function initTerminalDemo() {
       background: #0d1117;
     }
 
-    .dashboard-header {
+    .top-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 16px;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
       border-bottom: 1px solid #30363d;
       padding-bottom: 16px;
     }
 
-    .dashboard-title {
+    .top-header h1 {
       margin: 0;
       font-size: 22px;
       font-weight: 700;
-      color: #ffffff;
+      color: #fff;
     }
 
-    .dashboard-subtitle {
+    .top-header p {
       margin: 4px 0 0;
       font-size: 13px;
       color: #8b949e;
     }
 
-    .panel-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-
-    .toolbar-button,
-    .panel-button {
-      background: #21262d;
-      border: 1px solid #30363d;
-      color: #f0f6fc;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 500;
-      cursor: pointer;
-    }
-
-    .toolbar-button:hover,
-    .panel-button:hover {
-      background: #30363d;
-      border-color: #484f58;
-    }
-
-    .hidden-panel-list {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-
-    .dashboard-panels {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      align-items: start;
-      margin-bottom: 16px;
-    }
-
-    .dashboard-panel {
-      min-width: 0;
+    .panel {
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 8px;
       overflow: hidden;
-      transition:
-        opacity 0.15s ease,
-        transform 0.15s ease,
-        border-color 0.15s ease;
-    }
-
-    .dashboard-panel.dragging {
-      opacity: 0.45;
-      transform: scale(0.99);
-      border-color: #58a6ff;
-    }
-
-    .dashboard-panel.drag-over {
-      border-color: #58a6ff;
-      box-shadow: 0 0 0 1px #58a6ff33;
-    }
-
-    .dashboard-panel.wide {
-      grid-column: 1 / -1;
     }
 
     .panel-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
       padding: 12px 14px;
       border-bottom: 1px solid #30363d;
     }
 
-    .panel-header-left {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      min-width: 0;
+    .panel-header h3 {
+      margin: 0;
+      font-size: 14px;
+      color: #f0f6fc;
     }
 
     .drag-handle {
-      color: #6e7681;
+      color: #484f58;
       cursor: grab;
       user-select: none;
-      font-size: 13px;
-      letter-spacing: -2px;
-    }
-
-    .drag-handle:active {
-      cursor: grabbing;
-    }
-
-    .panel-title {
-      margin: 0;
       font-size: 14px;
-      font-weight: 700;
-      color: #f0f6fc;
-      white-space: nowrap;
+    }
+
+    .panel-subtitle {
+      font-size: 11px;
+      color: #8b949e;
+      margin-left: 4px;
     }
 
     .panel-count {
+      margin-left: auto;
       font-size: 10px;
+      color: #8b949e;
       background: #21262d;
-      padding: 2px 8px;
-      border-radius: 12px;
       border: 1px solid #30363d;
-      color: #c9d1d9;
+      padding: 3px 7px;
+      border-radius: 10px;
     }
 
-    .panel-body {
-      padding: 12px 14px;
+    .hide-btn {
+      margin-left: 6px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      border-radius: 5px;
+      padding: 4px 8px;
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .hide-btn:hover {
+      background: #30363d;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .resource-body {
+      padding: 10px 14px 14px;
+      min-height: 92px;
     }
 
     .resource-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      max-height: 210px;
-      overflow-y: auto;
+      gap: 7px;
     }
 
     .resource-card {
@@ -300,7 +319,6 @@ async function initTerminalDemo() {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
     }
 
     .resource-card.running {
@@ -311,38 +329,27 @@ async function initTerminalDemo() {
       border-color: #d29922;
     }
 
-    .resource-main {
-      min-width: 0;
-    }
-
     .resource-name {
-      font-weight: 650;
-      font-size: 13px;
       color: #58a6ff;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 600;
     }
 
     .resource-meta {
-      margin-top: 2px;
-      font-size: 11px;
       color: #8b949e;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      font-size: 11px;
+      margin-top: 2px;
     }
 
     .status-badge {
-      flex: 0 0 auto;
       font-size: 10px;
       padding: 2px 6px;
       border-radius: 4px;
       border: 1px solid;
+      white-space: nowrap;
     }
 
-    .status-ready,
-    .status-running {
+    .status-ready {
       color: #3fb950;
       background: #23863622;
       border-color: #238636;
@@ -354,152 +361,154 @@ async function initTerminalDemo() {
       border-color: #d29922;
     }
 
-    .status-info {
-      color: #58a6ff;
-      background: #388bfd15;
-      border-color: #388bfd33;
-    }
-
     .status-destroyed {
       color: #8b949e;
       background: #21262d;
       border-color: #30363d;
     }
 
-    .empty-state {
-      font-size: 12px;
-      color: #8b949e;
-      padding: 8px 0;
+    .protect-panel {
+      margin-bottom: 16px;
     }
 
-    /* -------------------------------
-       Terminal
-       ------------------------------- */
+    .protect-body {
+      padding: 10px 14px 14px;
+    }
 
-    .terminal-row {
+    .zone-card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+
+    .zone-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .zone-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .zone-name {
+      color: #58a6ff;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .zone-uuid {
+      color: #8b949e;
+      font-size: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      margin-top: 2px;
+    }
+
+    .zone-meta {
+      color: #8b949e;
+      font-size: 10px;
+      margin-top: 7px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .main-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 340px;
+      grid-template-columns: minmax(0, 1fr) 300px;
       gap: 16px;
       align-items: stretch;
     }
 
     .terminal-panel {
-      min-width: 0;
-      font-family:
-        ui-monospace,
-        SFMono-Regular,
-        Menlo,
-        Monaco,
-        Consolas,
-        "Liberation Mono",
-        monospace;
       background: #010409;
       border: 1px solid #30363d;
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      min-width: 0;
       overflow: hidden;
     }
 
     .terminal-output {
-      display: block !important;
-      width: 100%;
-      min-height: 240px;
-      max-height: 420px;
-      overflow-y: auto;
-      overflow-x: auto;
+      height: 430px;
+      max-height: 430px;
+      overflow: auto;
       padding: 16px;
-      margin: 0;
-      color: #c9d1d9;
-      text-align: left !important;
-      white-space: normal !important;
-      font-family: inherit;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       font-size: 13px;
       line-height: 1.45;
+      color: #c9d1d9;
+      white-space: normal;
     }
 
-    .terminal-line {
-      display: block !important;
-      width: 100% !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      text-align: left !important;
-      white-space: pre-wrap !important;
-      word-break: normal;
-      overflow-wrap: anywhere;
+    .terminal-block {
+      margin: 0 0 12px;
+    }
+
+    .terminal-command {
+      color: #c9d1d9;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-bottom: 5px;
+    }
+
+    .terminal-prompt {
+      color: #58a6ff;
     }
 
     .terminal-pre {
-      display: block !important;
-      width: max-content;
-      min-width: 100%;
-      margin: 0;
+      margin: 4px 0 0;
       padding: 0;
-      text-align: left !important;
-      white-space: pre;
       font-family: inherit;
-      line-height: 1.45;
+      font-size: inherit;
+      line-height: inherit;
+      white-space: pre;
+      overflow-x: auto;
     }
 
     .terminal-input-row {
       display: flex;
       align-items: center;
-      width: 100%;
       border-top: 1px solid #30363d;
       padding: 12px 16px;
-      background: #010409;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
 
-    .terminal-prompt {
+    .terminal-input-row span {
       color: #58a6ff;
       margin-right: 8px;
-      flex: 0 0 auto;
       white-space: nowrap;
+      font-size: 13px;
     }
 
-    .terminal-input {
-      flex: 1 1 auto;
+    .terminal-input-row input {
+      flex: 1;
       min-width: 0;
-      width: 100%;
       background: transparent;
       border: none;
       color: #fff;
-      font-family: inherit;
-      font-size: 13px;
       outline: none;
-      text-align: left !important;
+      font: inherit;
     }
 
-    /* -------------------------------
-       Lifecycle Events
-       ------------------------------- */
+    .terminal-input-row input::placeholder {
+      color: #484f58;
+    }
 
     .events-panel {
-      min-width: 0;
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
+      height: 462px;
       display: flex;
       flex-direction: column;
-      min-height: 300px;
-      max-height: 520px;
-      overflow: hidden;
     }
 
     .events-stream {
       flex: 1;
       overflow-y: auto;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      font-family:
-        ui-monospace,
-        SFMono-Regular,
-        Menlo,
-        Monaco,
-        Consolas,
-        "Liberation Mono",
-        monospace;
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 11px;
     }
 
@@ -508,6 +517,7 @@ async function initTerminalDemo() {
       border-left: 3px solid #238636;
       border-radius: 4px;
       padding: 8px;
+      margin-bottom: 7px;
     }
 
     .event-card.warning {
@@ -518,81 +528,238 @@ async function initTerminalDemo() {
       border-left-color: #388bfd;
     }
 
-    .event-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 4px;
-    }
-
     .event-time {
       color: #8b949e;
     }
 
-    .event-type {
-      font-size: 9px;
+    .event-badge {
+      float: right;
+      font-size: 8px;
       padding: 1px 5px;
       border-radius: 3px;
       font-weight: 700;
     }
 
-    .event-type.normal {
+    .event-normal .event-badge {
       color: #3fb950;
       background: #23863622;
     }
 
-    .event-type.warning {
+    .event-warning .event-badge {
       color: #f85149;
       background: #da363322;
     }
 
-    .event-type.info {
+    .event-info .event-badge {
       color: #58a6ff;
       background: #388bfd15;
     }
 
     .event-reason {
       color: #f0f6fc;
-      font-weight: 650;
+      font-weight: 600;
+      margin-top: 4px;
     }
 
     .event-object {
       color: #8b949e;
-      font-weight: 400;
+      font-weight: normal;
     }
 
     .event-message {
       color: #8b949e;
       margin-top: 2px;
-      line-height: 1.35;
+    }
+
+    .guide-panel {
+      margin-top: 16px;
+      background: linear-gradient(180deg, #161b22 0%, #11161d 100%);
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .guide-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .guide-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f0f6fc;
+    }
+
+    .guide-subtitle {
+      color: #8b949e;
+      font-size: 11px;
+      margin-left: 2px;
+    }
+
+    .guide-progress {
+      margin-left: auto;
+      display: flex;
+      gap: 4px;
+    }
+
+    .progress-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #30363d;
+    }
+
+    .progress-dot.done {
+      background: #3fb950;
+    }
+
+    .progress-dot.current {
+      background: #58a6ff;
+      box-shadow: 0 0 0 3px #388bfd22;
+    }
+
+    .guide-body {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 16px;
+    }
+
+    .guide-current {
+      min-width: 0;
+    }
+
+    .guide-label {
+      color: #8b949e;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .guide-step-title {
+      color: #f0f6fc;
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .guide-description {
+      color: #8b949e;
+      font-size: 12px;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .suggested-command {
+      display: flex;
+      align-items: stretch;
+      background: #010409;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .suggested-command code {
+      flex: 1;
+      padding: 11px 12px;
+      color: #7ee787;
+      font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .use-command-btn {
+      border: none;
+      border-left: 1px solid #30363d;
+      background: #21262d;
+      color: #f0f6fc;
+      padding: 0 14px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .use-command-btn:hover {
+      background: #30363d;
+    }
+
+    .guide-side {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+
+    .guide-side-title {
+      color: #f0f6fc;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .guide-step-mini {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 6px 0;
+      color: #8b949e;
+      font-size: 10px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .guide-step-mini:last-child {
+      border-bottom: none;
+    }
+
+    .mini-number {
+      color: #58a6ff;
+      min-width: 15px;
+    }
+
+    .guide-step-mini.done {
+      color: #3fb950;
+    }
+
+    .guide-step-mini.current {
+      color: #f0f6fc;
+      font-weight: 600;
+    }
+
+    .optional-badge {
+      color: #d29922;
+      font-size: 9px;
+      margin-left: 4px;
+    }
+
+    .empty-state {
+      color: #8b949e;
+      font-size: 11px;
+      padding: 8px 0;
     }
 
     @media (max-width: 900px) {
-      .terminal-row {
+      .main-layout,
+      .guide-body {
         grid-template-columns: 1fr;
       }
 
       .events-panel {
-        max-height: 360px;
+        height: 320px;
       }
     }
 
     @media (max-width: 700px) {
-      .dashboard-shell {
-        padding: 12px;
-      }
-
-      .dashboard-panels {
+      .dashboard-grid {
         grid-template-columns: 1fr;
       }
 
-      .dashboard-panel.wide {
-        grid-column: auto;
-      }
-
-      .dashboard-header {
-        align-items: flex-start;
-        flex-direction: column;
+      .demo-shell {
+        padding: 12px;
       }
     }
   `;
@@ -602,130 +769,129 @@ async function initTerminalDemo() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
 
   app.innerHTML = `
-    <div class="dashboard-shell">
+    <div class="demo-shell">
 
-      <div class="dashboard-header">
+      <div class="top-header">
         <div>
-          <h1 class="dashboard-title">Webernetes Dashboard & Terminal</h1>
-          <p class="dashboard-subtitle">
-            Browser-based Kubernetes cluster emulator
-          </p>
+          <h1>Webernetes Dashboard & Terminal</h1>
+          <p>Browser-based Kubernetes cluster emulator with simulated Edera Protect</p>
         </div>
-
-        <button id="show-panels-btn" class="toolbar-button">
-          Show hidden panels
-        </button>
       </div>
 
-      <div id="hidden-panels" class="panel-toolbar" style="display:none;">
-        <span style="font-size:11px;color:#8b949e;">Hidden:</span>
-        <div id="hidden-panel-list" class="hidden-panel-list"></div>
-      </div>
+      <div class="dashboard-grid">
 
-      <div id="dashboard-panels" class="dashboard-panels">
-
-        <section
-          class="dashboard-panel"
-          data-panel-id="pods"
-          draggable="false"
-        >
+        <div class="panel" id="pods-panel">
           <div class="panel-header">
-            <div class="panel-header-left">
-              <span class="drag-handle" draggable="true" title="Drag to reorder">⋮⋮</span>
-              <h3 class="panel-title">📦 Active Pods</h3>
-              <span id="pod-count" class="panel-count">1 Pod</span>
-            </div>
-            <button class="panel-button" data-hide-panel="pods">Hide</button>
+            <span class="drag-handle">⋮⋮</span>
+            <h3>📦 Active Pods</h3>
+            <span id="pod-count" class="panel-count">0 Pods</span>
+            <button class="hide-btn" id="hide-pods-btn">Hide</button>
           </div>
-          <div class="panel-body">
+          <div class="resource-body" id="pods-body">
             <div id="pod-grid" class="resource-list"></div>
           </div>
-        </section>
+        </div>
 
-        <section
-          class="dashboard-panel"
-          data-panel-id="nodes"
-          draggable="false"
-        >
+        <div class="panel" id="nodes-panel">
           <div class="panel-header">
-            <div class="panel-header-left">
-              <span class="drag-handle" draggable="true" title="Drag to reorder">⋮⋮</span>
-              <h3 class="panel-title">🖥️ Active Nodes</h3>
-              <span id="node-count" class="panel-count">3 Nodes</span>
-            </div>
-            <button class="panel-button" data-hide-panel="nodes">Hide</button>
+            <span class="drag-handle">⋮⋮</span>
+            <h3>🖥️ Active Nodes</h3>
+            <span id="node-count" class="panel-count">3 Nodes</span>
+            <button class="hide-btn" id="hide-nodes-btn">Hide</button>
           </div>
-          <div class="panel-body">
+          <div class="resource-body" id="nodes-body">
             <div id="node-grid" class="resource-list"></div>
           </div>
-        </section>
-
-        <section
-          class="dashboard-panel wide"
-          data-panel-id="zones"
-          draggable="false"
-        >
-          <div class="panel-header">
-            <div class="panel-header-left">
-              <span class="drag-handle" draggable="true" title="Drag to reorder">⋮⋮</span>
-              <h3 class="panel-title">🛡️ Edera Protect Zones</h3>
-              <span id="zone-count" class="panel-count">0 Zones</span>
-            </div>
-            <button class="panel-button" data-hide-panel="zones">Hide</button>
-          </div>
-          <div class="panel-body">
-            <div id="zone-grid" class="resource-list"></div>
-          </div>
-        </section>
+        </div>
 
       </div>
 
-      <div class="terminal-row">
+      <div class="panel protect-panel" id="protect-panel">
+        <div class="panel-header">
+          <span class="drag-handle">⋮⋮</span>
+          <div>
+            <h3>🛡️ Edera Protect Zones</h3>
+            <div class="panel-subtitle">Simulated Protect isolation boundaries</div>
+          </div>
+          <span id="zone-count" class="panel-count">0 Zones</span>
+          <button class="hide-btn" id="hide-protect-btn">Hide</button>
+        </div>
+        <div class="protect-body" id="protect-body">
+          <div id="zone-grid"></div>
+        </div>
+      </div>
 
-        <div class="terminal-panel" id="terminal-panel">
+      <div class="main-layout">
+
+        <div class="terminal-panel">
           <div
             id="output"
             class="terminal-output"
-          >
-            <div class="terminal-line">Initializing Webernetes cluster...</div>
-          </div>
+            aria-live="polite"
+          ></div>
 
           <div class="terminal-input-row">
-            <span class="terminal-prompt">user@webernetes:~$</span>
+            <span>user@webernetes:~$</span>
             <input
               id="cmd"
-              class="terminal-input"
               type="text"
               placeholder="Type 'help' or use Up/Down arrow keys for command history..."
               disabled
+              autocomplete="off"
+              spellcheck="false"
             />
           </div>
         </div>
 
-        <section class="events-panel" id="events-panel">
+        <div class="panel events-panel" id="events-panel">
           <div class="panel-header">
-            <div class="panel-header-left">
-              <span
-                class="drag-handle"
-                draggable="false"
-                style="cursor:default;"
-              >⚡</span>
-              <h3 class="panel-title">Lifecycle Events</h3>
-            </div>
+            <span class="drag-handle">⋮⋮</span>
+            <h3>⚡ Lifecycle Events</h3>
+            <button class="hide-btn" id="clear-events-btn">Clear</button>
+            <button class="hide-btn" id="hide-events-btn">Hide</button>
+          </div>
+          <div id="events-stream" class="events-stream"></div>
+        </div>
 
-            <div style="display:flex;gap:6px;">
-              <button id="clear-events-btn" class="panel-button">
-                Clear
-              </button>
-              <button id="hide-events-btn" class="panel-button">
-                Hide
+      </div>
+
+      <div class="guide-panel" id="guide-panel">
+
+        <div class="guide-header">
+          <span class="drag-handle">⋮⋮</span>
+          <div>
+            <div class="guide-title">🧭 Edera Protect Demo Guide</div>
+            <div class="guide-subtitle">
+              Run each command below to walk through the isolation lifecycle
+            </div>
+          </div>
+
+          <div id="guide-progress" class="guide-progress"></div>
+
+          <button class="hide-btn" id="hide-guide-btn">Hide</button>
+        </div>
+
+        <div class="guide-body" id="guide-body">
+
+          <div class="guide-current">
+            <div class="guide-label">Suggested next command</div>
+            <div id="guide-step-title" class="guide-step-title"></div>
+            <div id="guide-description" class="guide-description"></div>
+
+            <div class="suggested-command">
+              <code id="suggested-command"></code>
+              <button id="use-command-btn" class="use-command-btn">
+                Use command
               </button>
             </div>
           </div>
 
-          <div id="events-stream" class="events-stream"></div>
-        </section>
+          <div class="guide-side">
+            <div class="guide-side-title">Demo flow</div>
+            <div id="guide-step-list"></div>
+          </div>
 
+        </div>
       </div>
 
     </div>
@@ -743,31 +909,28 @@ async function initTerminalDemo() {
   const zoneGrid = document.querySelector<HTMLDivElement>("#zone-grid")!;
   const zoneCount = document.querySelector<HTMLSpanElement>("#zone-count")!;
 
-  const eventsPanel =
-    document.querySelector<HTMLElement>("#events-panel")!;
   const eventsStream =
     document.querySelector<HTMLDivElement>("#events-stream")!;
 
-  const clearEventsBtn =
-    document.querySelector<HTMLButtonElement>("#clear-events-btn")!;
+  const guideStepTitle =
+    document.querySelector<HTMLDivElement>("#guide-step-title")!;
 
-  const hideEventsBtn =
-    document.querySelector<HTMLButtonElement>("#hide-events-btn")!;
+  const guideDescription =
+    document.querySelector<HTMLDivElement>("#guide-description")!;
 
-  const showPanelsBtn =
-    document.querySelector<HTMLButtonElement>("#show-panels-btn")!;
+  const suggestedCommand =
+    document.querySelector<HTMLElement>("#suggested-command")!;
 
-  const hiddenPanels =
-    document.querySelector<HTMLDivElement>("#hidden-panels")!;
+  const guideStepList =
+    document.querySelector<HTMLDivElement>("#guide-step-list")!;
 
-  const hiddenPanelList =
-    document.querySelector<HTMLDivElement>("#hidden-panel-list")!;
+  const guideProgress =
+    document.querySelector<HTMLDivElement>("#guide-progress")!;
 
-  const dashboardPanels =
-    document.querySelector<HTMLDivElement>("#dashboard-panels")!;
+  const useCommandBtn =
+    document.querySelector<HTMLButtonElement>("#use-command-btn")!;
 
-  const commandHistory: string[] = [];
-  let historyIndex = -1;
+  let cluster: Cluster;
 
   const localFiles: Record<string, string> = {
     "pod-nginx.yaml": NGINX_YAML_CONTENT,
@@ -776,10 +939,6 @@ async function initTerminalDemo() {
   };
 
   const activeRuntimeClasses = new Set<string>();
-
-  const hiddenPanelIds = new Set<PanelId>();
-
-  let draggedPanelId: PanelId | null = null;
 
   let namespaces: LocalNamespace[] = [
     { name: "default", status: "Active", age: "10m" },
@@ -834,19 +993,22 @@ async function initTerminalDemo() {
     },
   ];
 
+  let protectZones: ProtectZone[] = [];
+  let protectWorkloads: ProtectWorkload[] = [];
+
   let clusterEvents: ClusterEvent[] = [];
 
-  let ederaZones: EderaZone[] = [];
-  let ederaWorkloads: EderaWorkload[] = [];
+  const commandHistory: string[] = [];
+  let historyIndex = -1;
 
-  const panelNames: Record<PanelId, string> = {
-    pods: "📦 Active Pods",
-    nodes: "🖥️ Active Nodes",
-    zones: "🛡️ Edera Protect Zones",
-    events: "⚡ Lifecycle Events",
-  };
+  /*
+   * We track the highest completed step rather than simply advancing
+   * whenever any protect command is typed. That means the guide remains
+   * useful even if someone explores commands out of order.
+   */
+  let completedDemoSteps = new Set<string>();
 
-  const escapeHtml = (str: string): string =>
+  const escapeHtml = (str: string) =>
     str
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -854,56 +1016,35 @@ async function initTerminalDemo() {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
 
-  const sleep = (ms: number) =>
-    new Promise<void>((resolve) => setTimeout(resolve, ms));
+  const tokenize = (command: string): string[] => {
+    const tokens: string[] = [];
+    const regex = /"([^"]*)"|'([^']*)'|(\S+)/g;
 
-  const makeUuid = (): string => {
-    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-      return crypto.randomUUID();
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(command)) !== null) {
+      tokens.push(match[1] ?? match[2] ?? match[3]);
     }
 
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-      /[xy]/g,
-      (c) => {
-        const r = (Math.random() * 16) | 0;
-        const v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      },
-    );
+    return tokens;
   };
 
-  const nextZoneIpv4 = (): string => {
-    const used = new Set(
-      ederaZones
-        .map((z) => z.ipv4)
-        .filter(Boolean)
-        .map((ip) => ip.split("/")[0]),
-    );
-
-    let octet = 2;
-
-    while (used.has(`10.75.0.${octet}`)) {
-      octet++;
-    }
-
-    return `10.75.0.${octet}/16`;
+  const printHtml = (htmlContent: string) => {
+    const block = document.createElement("div");
+    block.className = "terminal-block";
+    block.innerHTML = htmlContent;
+    output.appendChild(block);
+    output.scrollTop = output.scrollHeight;
   };
 
-  const nextZoneIpv6 = (): string => {
-    const used = new Set(
-      ederaZones
-        .map((z) => z.ipv6)
-        .filter(Boolean)
-        .map((ip) => ip.split("/")[0]),
+  const printPre = (htmlContent: string) => {
+    printHtml(`<pre class="terminal-pre">${htmlContent}</pre>`);
+  };
+
+  const printCommand = (command: string) => {
+    printHtml(
+      `<div class="terminal-command"><span class="terminal-prompt">user@webernetes:~$</span> ${escapeHtml(command)}</div>`,
     );
-
-    let octet = 2;
-
-    while (used.has(`fdd4:1476:6c7e::${octet}`)) {
-      octet++;
-    }
-
-    return `fdd4:1476:6c7e::${octet}/48`;
   };
 
   const addEvent = (
@@ -928,7 +1069,7 @@ async function initTerminalDemo() {
   const renderEvents = () => {
     if (clusterEvents.length === 0) {
       eventsStream.innerHTML = `
-        <div class="empty-state" style="text-align:center;">
+        <div class="empty-state">
           No lifecycle events captured yet.
         </div>
       `;
@@ -937,16 +1078,17 @@ async function initTerminalDemo() {
 
     eventsStream.innerHTML = clusterEvents
       .map((ev) => {
-        const typeClass = ev.type.toLowerCase();
+        const className =
+          ev.type === "Warning"
+            ? "warning event-warning"
+            : ev.type === "Info"
+              ? "info event-info"
+              : "event-normal";
 
         return `
-          <div class="event-card ${typeClass}">
-            <div class="event-top">
-              <span class="event-time">${escapeHtml(ev.time)}</span>
-              <span class="event-type ${typeClass}">
-                ${escapeHtml(ev.type.toUpperCase())}
-              </span>
-            </div>
+          <div class="event-card ${className}">
+            <span class="event-time">${escapeHtml(ev.time)}</span>
+            <span class="event-badge">${ev.type.toUpperCase()}</span>
 
             <div class="event-reason">
               ${escapeHtml(ev.reason)}
@@ -962,146 +1104,6 @@ async function initTerminalDemo() {
         `;
       })
       .join("");
-  };
-
-  const printHtml = (htmlContent: string) => {
-    const line = document.createElement("div");
-
-    line.className = "terminal-line";
-    line.innerHTML = htmlContent;
-
-    output.appendChild(line);
-    output.scrollTop = output.scrollHeight;
-  };
-
-  const printText = (text: string) => {
-    const line = document.createElement("div");
-
-    line.className = "terminal-line";
-    line.textContent = text;
-
-    output.appendChild(line);
-    output.scrollTop = output.scrollHeight;
-  };
-
-  const printTable = (text: string) => {
-    const pre = document.createElement("div");
-
-    pre.className = "terminal-pre";
-    pre.textContent = text;
-
-    output.appendChild(pre);
-    output.scrollTop = output.scrollHeight;
-  };
-
-  const clearTerminal = () => {
-    output.innerHTML = "";
-  };
-
-  const highlightYaml = (yamlText: string): string => {
-    return yamlText
-      .split("\n")
-      .map((line) => {
-        const escaped = escapeHtml(line);
-
-        if (escaped.includes(":")) {
-          const parts = escaped.split(":");
-          const key = parts[0];
-          const val = parts.slice(1).join(":");
-
-          return (
-            `<span style="color:#79c0ff;font-weight:500;">${key}</span>` +
-            `<span style="color:#8b949e;">:</span>` +
-            `<span style="color:#a5d6ff;">${val}</span>`
-          );
-        }
-
-        return `<span style="color:#c9d1d9;">${escaped}</span>`;
-      })
-      .join("\n");
-  };
-
-  const formatHelpText = (): string => `
-<span style="color:#ffa657;">Webernetes CLI Reference
-
-Available Commands:
-
-  ls
-      List files in current directory
-
-  cat &lt;filename&gt;
-      Print contents of a file
-
-  kubectl run &lt;name&gt; [--image=&lt;img&gt;] [-n &lt;ns&gt;
-      Create & run a pod
-
-  kubectl create namespace &lt;name&gt;
-      Create a namespace
-
-  kubectl get pods
-  kubectl get nodes
-  kubectl get namespaces
-      List Kubernetes resources
-
-  kubectl label node &lt;node&gt; &lt;key&gt;=&lt;value&gt;
-      Add a node label
-
-  kubectl apply -f &lt;filename.yaml&gt;
-      Apply a manifest
-
-  kubectl delete pod &lt;name&gt;
-  kubectl delete node &lt;name&gt;
-      Remove a resource
-
-
-Edera Protect Commands:
-
-  protect zone launch -n &lt;name&gt; [options]
-      Launch an Edera Protect zone
-
-      --min-cpus &lt;n&gt;
-      -C &lt;n&gt;
-      -c &lt;n&gt;
-      --wait
-
-  protect zone list
-      List Edera Protect zones
-
-  protect zone destroy &lt;name&gt;
-      Destroy a Protect zone
-
-  protect workload launch --zone &lt;zone&gt; --name &lt;name&gt; &lt;image&gt; [command...]
-      Launch a workload inside a Protect zone
-
-  protect workload list
-      List Protect workloads
-
-  protect workload exec &lt;name&gt; -- &lt;command...&gt;
-      Execute a command in a Protect workload
-
-  protect workload destroy &lt;name&gt;
-      Destroy a Protect workload
-
-  curl &lt;url&gt;
-      Fetch an HTTP endpoint
-
-  clear
-      Clear terminal
-
-  history
-      Show command history
-</span>`;
-
-  const formatLabels = (labels: Record<string, string>): string => {
-    const entries = Object.entries(labels);
-
-    if (entries.length === 0) {
-      return "<none>";
-    }
-
-    return entries
-      .map(([key, value]) => (value ? `${key}=${value}` : key))
-      .join(",");
   };
 
   const getNodeRoles = (node: LocalNode): string => {
@@ -1120,10 +1122,21 @@ Edera Protect Commands:
     return roles.length > 0 ? roles.join(",") : "<none>";
   };
 
+  const formatLabels = (labels: Record<string, string>): string => {
+    const entries = Object.entries(labels);
+
+    if (entries.length === 0) {
+      return "<none>";
+    }
+
+    return entries
+      .map(([key, value]) => (value ? `${key}=${value}` : key))
+      .join(",");
+  };
+
   const renderPods = () => {
-    podCount.textContent = `${pods.length} ${
-      pods.length === 1 ? "Pod" : "Pods"
-    }`;
+    podCount.innerText =
+      `${pods.length} ${pods.length === 1 ? "Pod" : "Pods"}`;
 
     if (pods.length === 0) {
       podGrid.innerHTML = `
@@ -1133,50 +1146,29 @@ Edera Protect Commands:
     }
 
     podGrid.innerHTML = pods
-      .map((p) => {
-        const running = p.status === "Running";
+      .map((pod) => {
+        const pending = pod.status === "Pending";
 
         return `
-          <div class="resource-card ${
-            running ? "running" : "pending"
-          }">
-            <div class="resource-main">
+          <div class="resource-card ${pending ? "pending" : "running"}">
+            <div>
               <div class="resource-name">
-                ${escapeHtml(p.name)}
-                <span style="font-size:10px;color:#8b949e;font-weight:400;">
-                  (${escapeHtml(p.namespace)})
+                ${escapeHtml(pod.name)}
+                <span style="color:#8b949e;font-weight:400;font-size:10px;">
+                  (${escapeHtml(pod.namespace)})
                 </span>
-
-                ${
-                  p.runtimeClassName
-                    ? `
-                      <span style="
-                        font-size:10px;
-                        color:#c9d1d9;
-                        background:#21262d;
-                        border:1px solid #30363d;
-                        padding:2px 5px;
-                        border-radius:4px;
-                        margin-left:4px;
-                      ">
-                        🛡️ ${escapeHtml(p.runtimeClassName)}
-                      </span>
-                    `
-                    : ""
-                }
               </div>
 
               <div class="resource-meta">
-                ${escapeHtml(p.image)}
-                ·
-                ${escapeHtml(p.node || "<none>")}
+                ${escapeHtml(pod.image)} ·
+                ${escapeHtml(pod.node || "unassigned")}
               </div>
             </div>
 
             <span class="status-badge ${
-              running ? "status-running" : "status-pending"
+              pending ? "status-pending" : "status-ready"
             }">
-              ${escapeHtml(p.status)}
+              ${escapeHtml(pod.status)}
             </span>
           </div>
         `;
@@ -1185,9 +1177,8 @@ Edera Protect Commands:
   };
 
   const renderNodes = () => {
-    nodeCount.textContent = `${nodes.length} ${
-      nodes.length === 1 ? "Node" : "Nodes"
-    }`;
+    nodeCount.innerText =
+      `${nodes.length} ${nodes.length === 1 ? "Node" : "Nodes"}`;
 
     if (nodes.length === 0) {
       nodeGrid.innerHTML = `
@@ -1198,20 +1189,20 @@ Edera Protect Commands:
 
     nodeGrid.innerHTML = nodes
       .map(
-        (n) => `
+        (node) => `
           <div class="resource-card">
-            <div class="resource-main">
-              <div class="resource-name" style="color:#f0f6fc;">
-                ${escapeHtml(n.name)}
+            <div>
+              <div style="font-weight:600;font-size:13px;color:#f0f6fc;">
+                ${escapeHtml(node.name)}
               </div>
 
               <div class="resource-meta">
-                ${escapeHtml(getNodeRoles(n))}
+                ${escapeHtml(getNodeRoles(node))}
               </div>
             </div>
 
-            <span class="status-badge status-info">
-              ${escapeHtml(n.status)}
+            <span class="status-badge status-ready">
+              ${escapeHtml(node.status)}
             </span>
           </div>
         `,
@@ -1219,16 +1210,11 @@ Edera Protect Commands:
       .join("");
   };
 
-  const renderZones = () => {
-    const visibleZones = ederaZones.filter(
-      (zone) => zone.state !== "destroyed",
-    );
+  const renderProtectZones = () => {
+    zoneCount.innerText =
+      `${protectZones.length} ${protectZones.length === 1 ? "Zone" : "Zones"}`;
 
-    zoneCount.textContent = `${visibleZones.length} ${
-      visibleZones.length === 1 ? "Zone" : "Zones"
-    }`;
-
-    if (visibleZones.length === 0) {
+    if (protectZones.length === 0) {
       zoneGrid.innerHTML = `
         <div class="empty-state">
           No Edera Protect zones have been launched.
@@ -1237,38 +1223,42 @@ Edera Protect Commands:
       return;
     }
 
-    zoneGrid.innerHTML = visibleZones
+    zoneGrid.innerHTML = protectZones
       .map((zone) => {
-        const stateClass =
+        const workloadCount = protectWorkloads.filter(
+          (workload) => workload.zone === zone.uuid,
+        ).length;
+
+        const statusClass =
           zone.state === "ready"
             ? "status-ready"
             : zone.state === "destroyed"
               ? "status-destroyed"
-              : "status-info";
+              : "status-pending";
 
         return `
-          <div class="resource-card">
-            <div class="resource-main">
-              <div class="resource-name">
-                🛡️ ${escapeHtml(zone.name)}
+          <div class="zone-card">
+            <div class="zone-top">
+              <div>
+                <div class="zone-name">
+                  🛡️ ${escapeHtml(zone.name)}
+                </div>
+
+                <div class="zone-uuid">
+                  ${escapeHtml(zone.uuid)}
+                </div>
               </div>
 
-              <div class="resource-meta">
-                ${escapeHtml(zone.uuid)}
-              </div>
-
-              <div class="resource-meta">
-                IPv4: ${escapeHtml(zone.ipv4 || "<none>")}
-                &nbsp; · &nbsp;
-                CPUs: ${zone.cpus}
-                &nbsp; · &nbsp;
-                Workloads: ${zone.workloads.length}
-              </div>
+              <span class="status-badge ${statusClass}">
+                ${escapeHtml(zone.state)}
+              </span>
             </div>
 
-            <span class="status-badge ${stateClass}">
-              ${escapeHtml(zone.state)}
-            </span>
+            <div class="zone-meta">
+              <span>IPv4: ${escapeHtml(zone.ipv4 || "—")}</span>
+              <span>CPUs: ${zone.targetCpus}</span>
+              <span>Workloads: ${workloadCount}</span>
+            </div>
           </div>
         `;
       })
@@ -1278,701 +1268,1051 @@ Edera Protect Commands:
   const updateDashboard = () => {
     renderPods();
     renderNodes();
-    renderZones();
-    renderEvents();
+    renderProtectZones();
   };
 
+  const getNextDemoStepIndex = (): number => {
+    const index = PROTECT_DEMO_STEPS.findIndex(
+      (step) => !completedDemoSteps.has(step.id),
+    );
+
+    return index === -1 ? PROTECT_DEMO_STEPS.length - 1 : index;
+  };
+
+  const renderGuide = () => {
+    const currentIndex = getNextDemoStepIndex();
+    const currentStep = PROTECT_DEMO_STEPS[currentIndex];
+
+    guideProgress.innerHTML = PROTECT_DEMO_STEPS.map((step, index) => {
+      const done = completedDemoSteps.has(step.id);
+      const current = index === currentIndex && !done;
+
+      return `
+        <span
+          class="progress-dot ${
+            done ? "done" : current ? "current" : ""
+          }"
+          title="${escapeHtml(step.title)}"
+        ></span>
+      `;
+    }).join("");
+
+    guideStepTitle.innerHTML =
+      `${escapeHtml(currentStep.title)}${
+        currentStep.optional
+          ? `<span class="optional-badge">OPTIONAL</span>`
+          : ""
+      }`;
+
+    guideDescription.innerText = currentStep.description;
+    suggestedCommand.innerText = currentStep.command;
+
+    guideStepList.innerHTML = PROTECT_DEMO_STEPS.map((step, index) => {
+      const done = completedDemoSteps.has(step.id);
+      const current = index === currentIndex && !done;
+
+      return `
+        <div class="guide-step-mini ${
+          done ? "done" : current ? "current" : ""
+        }">
+          <span class="mini-number">${index + 1}.</span>
+          <span>
+            ${escapeHtml(step.title)}
+            ${
+              step.optional
+                ? `<span class="optional-badge">optional</span>`
+                : ""
+            }
+          </span>
+        </div>
+      `;
+    }).join("");
+  };
+
+  const markDemoStepComplete = (stepId: string) => {
+    completedDemoSteps.add(stepId);
+    renderGuide();
+  };
+
+  useCommandBtn.addEventListener("click", () => {
+    const index = getNextDemoStepIndex();
+    const step = PROTECT_DEMO_STEPS[index];
+
+    input.value = step.command;
+    input.focus();
+
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
+
+  const hidePanel = (
+    panelId: string,
+    bodyId: string,
+    buttonId: string,
+  ) => {
+    const panel = document.querySelector<HTMLElement>(panelId)!;
+    const body = document.querySelector<HTMLElement>(bodyId)!;
+    const button = document.querySelector<HTMLButtonElement>(buttonId)!;
+
+    let hidden = false;
+
+    button.addEventListener("click", () => {
+      hidden = !hidden;
+
+      body.style.display = hidden ? "none" : "";
+      button.innerText = hidden ? "Show" : "Hide";
+
+      if (hidden) {
+        panel.style.opacity = "0.65";
+      } else {
+        panel.style.opacity = "1";
+      }
+    });
+  };
+
+  hidePanel("#pods-panel", "#pods-body", "#hide-pods-btn");
+  hidePanel("#nodes-panel", "#nodes-body", "#hide-nodes-btn");
+  hidePanel("#protect-panel", "#protect-body", "#hide-protect-btn");
+  hidePanel("#guide-panel", "#guide-body", "#hide-guide-btn");
+
+  document
+    .querySelector<HTMLButtonElement>("#hide-events-btn")!
+    .addEventListener("click", () => {
+      const eventsPanel =
+        document.querySelector<HTMLElement>("#events-panel")!;
+
+      const stream =
+        document.querySelector<HTMLElement>("#events-stream")!;
+
+      const button =
+        document.querySelector<HTMLButtonElement>("#hide-events-btn")!;
+
+      const hidden = stream.style.display === "none";
+
+      stream.style.display = hidden ? "" : "none";
+      button.innerText = hidden ? "Hide" : "Show";
+      eventsPanel.style.opacity = hidden ? "1" : "0.65";
+    });
+
+  document
+    .querySelector<HTMLButtonElement>("#clear-events-btn")!
+    .addEventListener("click", () => {
+      clusterEvents = [];
+      renderEvents();
+    });
+
   const checkPendingPods = () => {
-    pods.forEach((p) => {
-      if (p.status !== "Pending") {
+    pods.forEach((pod) => {
+      if (pod.status !== "Pending") {
         return;
       }
 
       if (
-        p.runtimeClassName &&
-        !activeRuntimeClasses.has(p.runtimeClassName)
+        pod.runtimeClassName &&
+        !activeRuntimeClasses.has(pod.runtimeClassName)
       ) {
         return;
       }
 
       let targetNode: LocalNode | undefined;
 
-      if (p.nodeSelector) {
-        targetNode = nodes.find((n) =>
-          Object.entries(p.nodeSelector!).every(
-            ([key, value]) => n.labels[key] === value,
+      if (pod.nodeSelector) {
+        targetNode = nodes.find((node) =>
+          Object.entries(pod.nodeSelector!).every(
+            ([key, value]) => node.labels[key] === value,
           ),
         );
       } else {
         targetNode =
           nodes.find(
-            (n) =>
-              !n.labels["node-role.kubernetes.io/control-plane"],
+            (node) =>
+              !node.labels["node-role.kubernetes.io/control-plane"],
           ) || nodes[0];
       }
 
       if (targetNode) {
-        p.status = "Running";
-        p.node = targetNode.name;
-        p.ip = `10.244.0.${Math.floor(Math.random() * 200 + 10)}`;
+        pod.status = "Running";
+        pod.node = targetNode.name;
+        pod.ip = `10.244.0.${Math.floor(Math.random() * 200 + 10)}`;
 
         addEvent(
           "Normal",
           "Scheduled",
-          `pod/${p.name}`,
-          `Successfully assigned ${p.namespace}/${p.name} to ${targetNode.name}`,
+          `pod/${pod.name}`,
+          `Successfully assigned ${pod.namespace}/${pod.name} to ${targetNode.name}`,
         );
 
         addEvent(
           "Normal",
           "Started",
-          `pod/${p.name}`,
-          `Started container ${p.name}`,
+          `pod/${pod.name}`,
+          `Started container ${pod.name}`,
         );
       }
     });
   };
 
-  /* ---------------------------------------
-     Panel hide/show
-     --------------------------------------- */
+  /*
+   * -----------------------------------------------------------------------
+   * EDERA PROTECT SIMULATION
+   * -----------------------------------------------------------------------
+   */
 
-  const updateHiddenPanels = () => {
-    document
-      .querySelectorAll<HTMLElement>("[data-panel-id]")
-      .forEach((panel) => {
-        const id = panel.dataset.panelId as PanelId;
-
-        panel.style.display = hiddenPanelIds.has(id) ? "none" : "";
-      });
-
-    const hidden = Array.from(hiddenPanelIds);
-
-    hiddenPanels.style.display =
-      hidden.length > 0 ? "flex" : "none";
-
-    hiddenPanelList.innerHTML = hidden
-      .map(
-        (id) => `
-          <button
-            class="panel-button"
-            data-show-panel="${id}"
-          >
-            ${escapeHtml(panelNames[id])}
-          </button>
-        `,
-      )
-      .join("");
-
-    showPanelsBtn.style.display =
-      hidden.length > 0 ? "none" : "";
-  };
-
-  const hidePanel = (id: PanelId) => {
-    hiddenPanelIds.add(id);
-    updateHiddenPanels();
-  };
-
-  const showPanel = (id: PanelId) => {
-    hiddenPanelIds.delete(id);
-    updateHiddenPanels();
-  };
-
-  document.addEventListener("click", (event) => {
-    const target = event.target as HTMLElement;
-
-    const hideButton = target.closest<HTMLElement>(
-      "[data-hide-panel]",
+  const nextZoneIp = () => {
+    const used = new Set(
+      protectZones
+        .map((zone) => zone.ipv4)
+        .filter(Boolean)
+        .map((ip) => ip.split(".")[3]?.split("/")[0]),
     );
 
-    if (hideButton) {
-      hidePanel(
-        hideButton.dataset.hidePanel as PanelId,
-      );
-      return;
+    for (let i = 2; i < 250; i++) {
+      if (!used.has(String(i))) {
+        return `10.75.0.${i}/16`;
+      }
     }
 
-    const showButton = target.closest<HTMLElement>(
-      "[data-show-panel]",
-    );
+    return `10.75.0.${Math.floor(Math.random() * 200 + 20)}/16`;
+  };
 
-    if (showButton) {
-      showPanel(
-        showButton.dataset.showPanel as PanelId,
-      );
-    }
-  });
+  const nextZoneIpv6 = () => {
+    const id = protectZones.length + 2;
 
-  showPanelsBtn.addEventListener("click", () => {
-    hiddenPanelIds.clear();
-    updateHiddenPanels();
-  });
+    return `fdd4:1476:6c7e::${id}/48`;
+  };
 
-  hideEventsBtn.addEventListener("click", () => {
-    hiddenPanelIds.add("events");
-    eventsPanel.style.display = "none";
-    updateHiddenPanels();
-  });
-
-  clearEventsBtn.addEventListener("click", () => {
-    clusterEvents = [];
-    renderEvents();
-  });
-
-  /* ---------------------------------------
-     Drag/drop dashboard panels
-     --------------------------------------- */
-
-  document
-    .querySelectorAll<HTMLElement>(".drag-handle[draggable='true']")
-    .forEach((handle) => {
-      handle.addEventListener("dragstart", (event) => {
-        const panel = handle.closest<HTMLElement>(
-          "[data-panel-id]",
-        );
-
-        if (!panel) {
-          return;
-        }
-
-        draggedPanelId =
-          panel.dataset.panelId as PanelId;
-
-        panel.classList.add("dragging");
-
-        if (event.dataTransfer) {
-          event.dataTransfer.effectAllowed = "move";
-          event.dataTransfer.setData(
-            "text/plain",
-            draggedPanelId,
-          );
-        }
-      });
-
-      handle.addEventListener("dragend", () => {
-        document
-          .querySelectorAll(".dashboard-panel")
-          .forEach((panel) => {
-            panel.classList.remove("dragging");
-            panel.classList.remove("drag-over");
-          });
-
-        draggedPanelId = null;
-      });
-    });
-
-  document
-    .querySelectorAll<HTMLElement>(".dashboard-panel")
-    .forEach((panel) => {
-      panel.addEventListener("dragover", (event) => {
-        if (!draggedPanelId) {
-          return;
-        }
-
-        const targetId =
-          panel.dataset.panelId as PanelId;
-
-        if (targetId === draggedPanelId) {
-          return;
-        }
-
-        event.preventDefault();
-
-        panel.classList.add("drag-over");
-
-        if (event.dataTransfer) {
-          event.dataTransfer.dropEffect = "move";
-        }
-      });
-
-      panel.addEventListener("dragleave", () => {
-        panel.classList.remove("drag-over");
-      });
-
-      panel.addEventListener("drop", (event) => {
-        event.preventDefault();
-
-        if (!draggedPanelId) {
-          return;
-        }
-
-        const targetPanel =
-          event.currentTarget as HTMLElement;
-
-        const draggedPanel =
-          dashboardPanels.querySelector<HTMLElement>(
-            `[data-panel-id="${draggedPanelId}"]`,
-          );
-
-        if (!draggedPanel || draggedPanel === targetPanel) {
-          return;
-        }
-
-        const rect =
-          targetPanel.getBoundingClientRect();
-
-        const insertBefore =
-          event.clientY < rect.top + rect.height / 2;
-
-        if (insertBefore) {
-          dashboardPanels.insertBefore(
-            draggedPanel,
-            targetPanel,
-          );
-        } else {
-          dashboardPanels.insertBefore(
-            draggedPanel,
-            targetPanel.nextSibling,
-          );
-        }
-
-        targetPanel.classList.remove("drag-over");
-      });
-    });
-
-  /* ---------------------------------------
-     Kubernetes commands
-     --------------------------------------- */
-
-  const handleKubectlCreateNamespace = (
-    tokens: string[],
+  const launchProtectZone = (
+    name: string,
+    minCpus = 1,
+    maxCpus = 2,
+    targetCpus = 2,
   ) => {
-    const nsName =
-      tokens[2] === "namespace" || tokens[2] === "ns"
-        ? tokens[3]
-        : undefined;
-
-    if (!nsName || nsName.startsWith("-")) {
+    if (protectZones.some((zone) => zone.name === name && zone.state !== "destroyed")) {
       printHtml(
-        `<span style="color:#f85149;">Error: namespace name required. Usage: kubectl create namespace &lt;name&gt;</span>`,
+        `<span style="color:#f85149;">Error: zone "${escapeHtml(
+          name,
+        )}" already exists.</span>`,
       );
 
       addEvent(
         "Warning",
-        "InvalidSyntax",
-        "create",
-        "Failed kubectl create namespace syntax",
+        "AlreadyExists",
+        `zone/${name}`,
+        `Zone ${name} already exists`,
       );
 
       return;
     }
 
-    if (namespaces.some((ns) => ns.name === nsName)) {
-      printHtml(
-        `<span style="color:#f85149;">Error from server (AlreadyExists): namespaces "${escapeHtml(nsName)}" already exists</span>`,
-      );
+    const uuid = crypto.randomUUID();
 
-      return;
-    }
+    const zone: ProtectZone = {
+      name,
+      uuid,
+      state: "creating",
+      ipv4: "",
+      ipv6: "",
+      minCpus,
+      maxCpus,
+      targetCpus,
+    };
 
-    namespaces.push({
-      name: nsName,
-      status: "Active",
-      age: "1s",
-    });
+    protectZones.push(zone);
+
+    addEvent(
+      "Info",
+      "ZoneCreating",
+      `zone/${name}`,
+      `Requested Edera zone ${name}`,
+    );
+
+    zone.state = "ready";
+    zone.ipv4 = nextZoneIp();
+    zone.ipv6 = nextZoneIpv6();
 
     addEvent(
       "Normal",
-      "Created",
-      `namespace/${nsName}`,
-      `namespace/${nsName} created`,
+      "ZoneReady",
+      `zone/${name}`,
+      `Edera zone ${name} is ready`,
     );
 
+    updateDashboard();
+
     printHtml(
-      `<span style="color:#7ee787;">namespace/${escapeHtml(nsName)} created</span>`,
+      `<span style="color:#7ee787;">${escapeHtml(uuid)}</span>`,
     );
   };
 
-  const handleKubectlRun = (
-    tokens: string[],
-  ) => {
-    const podName = tokens[2];
-
-    if (!podName || podName.startsWith("-")) {
+  const renderProtectZoneList = () => {
+    if (protectZones.length === 0) {
       printHtml(
-        `<span style="color:#f85149;">Error: pod name required. Usage: kubectl run &lt;pod-name&gt; [--image=&lt;image&gt;]</span>`,
+        `<span style="color:#8b949e;">No zones have been launched.</span>`,
       );
       return;
     }
 
-    let imageName = podName;
-    let targetNamespace = "default";
+    const nameWidth = 15;
+    const uuidWidth = 38;
+    const stateWidth = 13;
+    const ipv4Width = 18;
 
-    const customLabels: Record<string, string> = {
-      run: podName,
+    const header =
+      "NAME".padEnd(nameWidth) +
+      "UUID".padEnd(uuidWidth) +
+      "STATE".padEnd(stateWidth) +
+      "IPV4".padEnd(ipv4Width) +
+      "IPV6";
+
+    const divider =
+      "─".repeat(nameWidth) +
+      "─".repeat(uuidWidth) +
+      "─".repeat(stateWidth) +
+      "─".repeat(ipv4Width) +
+      "─".repeat(28);
+
+    let html = `<span style="color:#79c0ff;font-weight:700;">${header}</span>\n`;
+    html += `<span style="color:#30363d;">${divider}</span>\n`;
+
+    for (const zone of protectZones) {
+      const stateColor =
+        zone.state === "ready"
+          ? "#7ee787"
+          : zone.state === "destroyed"
+            ? "#8b949e"
+            : "#d29922";
+
+      html +=
+        `${escapeHtml(zone.name.padEnd(nameWidth))}` +
+        `${escapeHtml(zone.uuid.padEnd(uuidWidth))}` +
+        `<span style="color:${stateColor};">${escapeHtml(
+          zone.state.padEnd(stateWidth),
+        )}</span>` +
+        `${escapeHtml((zone.ipv4 || "").padEnd(ipv4Width))}` +
+        `${escapeHtml(zone.ipv6 || "")}` +
+        "\n";
+    }
+
+    printPre(html.trimEnd());
+  };
+
+  const destroyProtectZone = (identifier: string) => {
+    const zone = protectZones.find(
+      (item) => item.name === identifier || item.uuid === identifier,
+    );
+
+    if (!zone) {
+      printHtml(
+        `<span style="color:#f85149;">Error: zone "${escapeHtml(
+          identifier,
+        )}" not found.</span>`,
+      );
+      return;
+    }
+
+    if (zone.state === "destroyed") {
+      printHtml(
+        `<span style="color:#8b949e;">Zone ${escapeHtml(
+          identifier,
+        )} is already destroyed.</span>`,
+      );
+      return;
+    }
+
+    zone.state = "destroying";
+
+    addEvent(
+      "Info",
+      "ZoneDestroying",
+      `zone/${zone.name}`,
+      `Destruction requested for zone ${zone.name}`,
+    );
+
+    const attached = protectWorkloads.filter(
+      (workload) => workload.zone === zone.uuid,
+    );
+
+    for (const workload of attached) {
+      addEvent(
+        "Normal",
+        "WorkloadTerminated",
+        `workload/${workload.name}`,
+        `Workload ${workload.name} removed with zone ${zone.name}`,
+      );
+    }
+
+    protectWorkloads = protectWorkloads.filter(
+      (workload) => workload.zone !== zone.uuid,
+    );
+
+    zone.state = "destroyed";
+    zone.ipv4 = "";
+    zone.ipv6 = "";
+
+    addEvent(
+      "Normal",
+      "ZoneDestroyed",
+      `zone/${zone.name}`,
+      `Zone ${zone.name} destroyed`,
+    );
+
+    printHtml(
+      `<span style="color:#c9d1d9;">Destruction of zone ${escapeHtml(
+        zone.uuid,
+      )} requested.</span>`,
+    );
+
+    updateDashboard();
+  };
+
+  const launchProtectWorkload = (
+    zoneIdentifier: string,
+    name: string,
+    image: string,
+    command: string[],
+  ) => {
+    const zone = protectZones.find(
+      (item) =>
+        item.name === zoneIdentifier ||
+        item.uuid === zoneIdentifier,
+    );
+
+    if (!zone) {
+      printHtml(
+        `<span style="color:#f85149;">Error: zone "${escapeHtml(
+          zoneIdentifier,
+        )}" not found.</span>`,
+      );
+      return;
+    }
+
+    if (zone.state !== "ready") {
+      printHtml(
+        `<span style="color:#f85149;">Error: zone "${escapeHtml(
+          zone.name,
+        )}" is not ready.</span>`,
+      );
+      return;
+    }
+
+    if (
+      protectWorkloads.some(
+        (workload) =>
+          workload.name === name && workload.state !== "destroyed",
+      )
+    ) {
+      printHtml(
+        `<span style="color:#f85149;">Error: workload "${escapeHtml(
+          name,
+        )}" already exists.</span>`,
+      );
+      return;
+    }
+
+    const uuid = crypto.randomUUID();
+
+    const workload: ProtectWorkload = {
+      name,
+      uuid,
+      zone: zone.uuid,
+      state: "creating",
+      image,
+      command,
     };
 
-    for (let i = 3; i < tokens.length; i++) {
-      const arg = tokens[i];
+    protectWorkloads.push(workload);
 
-      if (arg.startsWith("--image=")) {
-        imageName =
-          arg.split("=")[1] || imageName;
-      } else if (
-        arg.startsWith("--namespace=")
-      ) {
-        targetNamespace =
-          arg.split("=")[1] || targetNamespace;
-      } else if (
-        arg === "-n" ||
-        arg === "--namespace"
-      ) {
-        if (tokens[i + 1]) {
-          targetNamespace = tokens[i + 1];
-          i++;
+    addEvent(
+      "Info",
+      "WorkloadCreating",
+      `workload/${name}`,
+      `Creating ${image} in Edera zone ${zone.name}`,
+    );
+
+    workload.state = "running";
+
+    addEvent(
+      "Normal",
+      "WorkloadStarted",
+      `workload/${name}`,
+      `Started ${image} in Edera zone ${zone.name}`,
+    );
+
+    printHtml(
+      `<span style="color:#7ee787;">${escapeHtml(uuid)}</span>`,
+    );
+
+    updateDashboard();
+  };
+
+  const renderProtectWorkloadList = () => {
+    if (protectWorkloads.length === 0) {
+      printHtml(
+        `<span style="color:#8b949e;">No workloads have been launched.</span>`,
+      );
+      return;
+    }
+
+    const nameWidth = 18;
+    const uuidWidth = 38;
+    const zoneWidth = 38;
+    const stateWidth = 14;
+
+    const header =
+      "NAME".padEnd(nameWidth) +
+      "UUID".padEnd(uuidWidth) +
+      "ZONE".padEnd(zoneWidth) +
+      "STATE";
+
+    const divider =
+      "─".repeat(nameWidth) +
+      "─".repeat(uuidWidth) +
+      "─".repeat(zoneWidth) +
+      "─".repeat(stateWidth);
+
+    let html = `<span style="color:#79c0ff;font-weight:700;">${header}</span>\n`;
+    html += `<span style="color:#30363d;">${divider}</span>\n`;
+
+    for (const workload of protectWorkloads) {
+      const stateColor =
+        workload.state === "running"
+          ? "#7ee787"
+          : workload.state === "destroyed"
+            ? "#8b949e"
+            : "#d29922";
+
+      html +=
+        `${escapeHtml(workload.name.padEnd(nameWidth))}` +
+        `${escapeHtml(workload.uuid.padEnd(uuidWidth))}` +
+        `${escapeHtml(workload.zone.padEnd(zoneWidth))}` +
+        `<span style="color:${stateColor};">${escapeHtml(
+          workload.state,
+        )}</span>\n`;
+    }
+
+    printPre(html.trimEnd());
+  };
+
+  const destroyProtectWorkload = (identifier: string) => {
+    const workload = protectWorkloads.find(
+      (item) =>
+        item.name === identifier ||
+        item.uuid === identifier,
+    );
+
+    if (!workload) {
+      printHtml(
+        `<span style="color:#f85149;">Error: workload "${escapeHtml(
+          identifier,
+        )}" not found.</span>`,
+      );
+      return;
+    }
+
+    if (workload.state === "destroyed") {
+      printHtml(
+        `<span style="color:#8b949e;">Workload "${escapeHtml(
+          identifier,
+        )}" is already destroyed.</span>`,
+      );
+      return;
+    }
+
+    workload.state = "destroying";
+
+    addEvent(
+      "Info",
+      "WorkloadDestroying",
+      `workload/${workload.name}`,
+      `Destroying workload ${workload.name}`,
+    );
+
+    workload.state = "destroyed";
+
+    addEvent(
+      "Normal",
+      "WorkloadDestroyed",
+      `workload/${workload.name}`,
+      `Workload ${workload.name} destroyed`,
+    );
+
+    protectWorkloads = protectWorkloads.filter(
+      (item) => item.uuid !== workload.uuid,
+    );
+
+    printHtml(
+      `<span style="color:#7ee787;">Workload "${escapeHtml(
+        workload.name,
+      )}" destroyed.</span>`,
+    );
+
+    updateDashboard();
+  };
+
+  const execProtectWorkload = (
+    identifier: string,
+    command: string[],
+  ) => {
+    const workload = protectWorkloads.find(
+      (item) =>
+        item.name === identifier ||
+        item.uuid === identifier,
+    );
+
+    if (!workload) {
+      printHtml(
+        `<span style="color:#f85149;">Error: workload "${escapeHtml(
+          identifier,
+        )}" not found.</span>`,
+      );
+      return;
+    }
+
+    if (workload.state !== "running") {
+      printHtml(
+        `<span style="color:#f85149;">Error: workload "${escapeHtml(
+          workload.name,
+        )}" is not running.</span>`,
+      );
+      return;
+    }
+
+    const commandText = command.join(" ");
+
+    addEvent(
+      "Info",
+      "WorkloadExec",
+      `workload/${workload.name}`,
+      `Executing "${commandText}"`,
+    );
+
+    if (
+      commandText.includes("echo Hello from inside Edera") ||
+      commandText.includes("echo")
+    ) {
+      printHtml(
+        `<span style="color:#a5d6ff;">Hello from inside Edera</span>`,
+      );
+    } else if (
+      commandText.includes("ls") ||
+      commandText.includes("pwd")
+    ) {
+      printPre(
+        `<span style="color:#c9d1d9;">/bin\n/dev\n/etc\n/home\n/proc\n/root\n/tmp\n/usr\n/var</span>`,
+      );
+    } else {
+      printHtml(
+        `<span style="color:#8b949e;">Executed inside ${escapeHtml(
+          workload.name,
+        )}: ${escapeHtml(commandText)}</span>`,
+      );
+    }
+
+    addEvent(
+      "Normal",
+      "WorkloadExecComplete",
+      `workload/${workload.name}`,
+      `Command completed successfully`,
+    );
+  };
+
+  /*
+   * -----------------------------------------------------------------------
+   * KUBERNETES / WEBERNETES COMMANDS
+   * -----------------------------------------------------------------------
+   */
+
+  const formatHelpText = () => {
+    return `
+      <span style="color:#ffa657;">Webernetes CLI Reference
+
+Available Commands:
+
+Kubernetes:
+  ls
+  cat &lt;filename&gt;
+  kubectl run &lt;name&gt; [--image=&lt;img&gt;] [-n &lt;ns&gt;]
+  kubectl create namespace &lt;name&gt;
+  kubectl get pods
+  kubectl get nodes
+  kubectl get namespaces
+  kubectl label node &lt;node&gt; &lt;key&gt;=&lt;value&gt;
+  kubectl apply -f &lt;filename.yaml&gt;
+  kubectl delete pod &lt;name&gt;
+  kubectl delete node &lt;name&gt;
+
+Edera Protect:
+  protect zone launch -n &lt;name&gt; [options]
+  protect zone list
+  protect zone destroy &lt;name&gt;
+  protect workload launch --zone &lt;zone&gt; --name &lt;name&gt; &lt;image&gt; [command]
+  protect workload list
+  protect workload exec &lt;workload&gt; &lt;command&gt;
+  protect workload destroy &lt;workload&gt; --wait
+
+Other:
+  curl &lt;url&gt;
+  clear
+  history
+
+Tip:
+  Use the Edera Protect Demo Guide below the terminal
+  to walk through the isolation lifecycle step-by-step.</span>
+    `;
+  };
+
+  const handleProtectCommand = async (
+    rawCmd: string,
+    tokens: string[],
+  ): Promise<boolean> => {
+    if (tokens[0] !== "protect") {
+      return false;
+    }
+
+    /*
+     * protect --help
+     */
+    if (
+      tokens.length === 1 ||
+      tokens[1] === "--help" ||
+      tokens[1] === "-h"
+    ) {
+      printHtml(`
+        <span style="color:#ffa657;">Edera Protect CLI
+
+Commands:
+  protect zone launch
+  protect zone list
+  protect zone destroy &lt;zone&gt;
+
+  protect workload launch
+  protect workload list
+  protect workload exec
+  protect workload destroy
+
+This is a simulated Protect environment inside the Webernetes demo.</span>
+      `);
+
+      return true;
+    }
+
+    if (tokens[1] === "zone") {
+      const subcommand = tokens[2];
+
+      if (subcommand === "list") {
+        renderProtectZoneList();
+        markDemoStepComplete("zone-list");
+        return true;
+      }
+
+      if (subcommand === "launch") {
+        let name = "";
+        let minCpus = 1;
+        let maxCpus = 2;
+        let targetCpus = 2;
+
+        for (let i = 3; i < tokens.length; i++) {
+          const token = tokens[i];
+
+          if (token === "-n" || token === "--name") {
+            name = tokens[++i] || "";
+          } else if (token.startsWith("--name=")) {
+            name = token.split("=")[1] || "";
+          } else if (token === "--min-cpus") {
+            minCpus = Number(tokens[++i]) || 1;
+          } else if (token.startsWith("--min-cpus=")) {
+            minCpus = Number(token.split("=")[1]) || 1;
+          } else if (token === "-C") {
+            maxCpus = Number(tokens[++i]) || 2;
+          } else if (token === "-c") {
+            targetCpus = Number(tokens[++i]) || 2;
+          }
         }
-      } else if (arg.startsWith("-n")) {
-        targetNamespace =
-          arg.substring(2) || targetNamespace;
-      } else if (arg.startsWith("--labels=")) {
-        const labels =
-          arg
+
+        if (!name) {
+          printHtml(
+            `<span style="color:#f85149;">Error: zone name required. Usage: protect zone launch -n &lt;name&gt;</span>`,
+          );
+          return true;
+        }
+
+        launchProtectZone(name, minCpus, maxCpus, targetCpus);
+
+        markDemoStepComplete("zone-launch");
+
+        return true;
+      }
+
+      if (subcommand === "destroy") {
+        const identifier = tokens[3];
+
+        if (!identifier) {
+          printHtml(
+            `<span style="color:#f85149;">Usage: protect zone destroy &lt;zone&gt;</span>`,
+          );
+          return true;
+        }
+
+        destroyProtectZone(identifier);
+
+        markDemoStepComplete("zone-destroy");
+
+        return true;
+      }
+
+      printHtml(
+        `<span style="color:#f85149;">Unknown protect zone command: ${escapeHtml(
+          tokens.slice(2).join(" "),
+        )}</span>`,
+      );
+
+      return true;
+    }
+
+    if (tokens[1] === "workload") {
+      const subcommand = tokens[2];
+
+      if (subcommand === "list") {
+        renderProtectWorkloadList();
+        markDemoStepComplete("workload-list");
+        return true;
+      }
+
+      if (subcommand === "launch") {
+        let zone = "";
+        let name = "";
+
+        let imageIndex = -1;
+
+        for (let i = 3; i < tokens.length; i++) {
+          const token = tokens[i];
+
+          if (token === "--zone" || token === "-z") {
+            zone = tokens[++i] || "";
+          } else if (token.startsWith("--zone=")) {
+            zone = token.split("=")[1] || "";
+          } else if (token === "--name" || token === "-n") {
+            name = tokens[++i] || "";
+          } else if (token.startsWith("--name=")) {
+            name = token.split("=")[1] || "";
+          } else if (token === "--") {
+            imageIndex = i + 1;
+            break;
+          }
+        }
+
+        if (imageIndex === -1) {
+          for (let i = 3; i < tokens.length; i++) {
+            if (
+              !tokens[i].startsWith("-") &&
+              tokens[i] !== zone &&
+              tokens[i] !== name
+            ) {
+              imageIndex = i;
+              break;
+            }
+          }
+        }
+
+        const image =
+          imageIndex >= 0 ? tokens[imageIndex] : "";
+
+        const command =
+          imageIndex >= 0 ? tokens.slice(imageIndex + 1) : [];
+
+        if (!zone || !name || !image) {
+          printHtml(`
+            <span style="color:#f85149;">Usage:
+  protect workload launch --zone &lt;zone&gt; --name &lt;name&gt; &lt;image&gt; [command...]</span>
+          `);
+
+          return true;
+        }
+
+        launchProtectWorkload(
+          zone,
+          name,
+          image,
+          command,
+        );
+
+        markDemoStepComplete("workload-launch");
+
+        return true;
+      }
+
+      if (subcommand === "exec") {
+        let identifier = "";
+        let commandStart = 3;
+
+        if (tokens[3] === "--tty" || tokens[3] === "-t") {
+          identifier = tokens[4] || "";
+          commandStart = 5;
+        } else {
+          identifier = tokens[3] || "";
+        }
+
+        if (!identifier || tokens.length <= commandStart) {
+          printHtml(`
+            <span style="color:#f85149;">Usage:
+  protect workload exec &lt;workload&gt; &lt;command&gt; [args...]</span>
+          `);
+
+          return true;
+        }
+
+        execProtectWorkload(
+          identifier,
+          tokens.slice(commandStart),
+        );
+
+        markDemoStepComplete("workload-exec");
+
+        return true;
+      }
+
+      if (subcommand === "destroy") {
+        const identifier = tokens[3];
+
+        if (!identifier) {
+          printHtml(
+            `<span style="color:#f85149;">Usage: protect workload destroy &lt;workload&gt; [--wait]</span>`,
+          );
+          return true;
+        }
+
+        destroyProtectWorkload(identifier);
+
+        markDemoStepComplete("workload-destroy");
+
+        return true;
+      }
+
+      printHtml(
+        `<span style="color:#f85149;">Unknown protect workload command: ${escapeHtml(
+          tokens.slice(2).join(" "),
+        )}</span>`,
+      );
+
+      return true;
+    }
+
+    printHtml(
+      `<span style="color:#f85149;">Unknown protect command. Type "protect --help".</span>`,
+    );
+
+    return true;
+  };
+
+  const handleKubectlCommand = async (
+    rawCmd: string,
+    tokens: string[],
+  ): Promise<boolean> => {
+    if (tokens[0] !== "kubectl") {
+      return false;
+    }
+
+    /*
+     * kubectl run
+     */
+    if (tokens[1] === "run") {
+      const podName = tokens[2];
+
+      if (!podName || podName.startsWith("-")) {
+        printHtml(
+          `<span style="color:#f85149;">Error: pod name required.</span>`,
+        );
+        return true;
+      }
+
+      let imageName = podName;
+      let targetNamespace = "default";
+
+      const customLabels: Record<string, string> = {
+        run: podName,
+      };
+
+      for (let i = 3; i < tokens.length; i++) {
+        const arg = tokens[i];
+
+        if (arg.startsWith("--image=")) {
+          imageName = arg.split("=")[1] || imageName;
+        } else if (arg === "--image") {
+          imageName = tokens[++i] || imageName;
+        } else if (arg === "-n" || arg === "--namespace") {
+          targetNamespace = tokens[++i] || targetNamespace;
+        } else if (arg.startsWith("--namespace=")) {
+          targetNamespace =
+            arg.split("=")[1] || targetNamespace;
+        } else if (arg.startsWith("--labels=")) {
+          const rawLabels = arg
             .replace("--labels=", "")
             .replace(/["']/g, "");
 
-        labels.split(",").forEach((pair) => {
-          const [key, value] =
-            pair.split("=");
+          rawLabels.split(",").forEach((pair) => {
+            const [key, value] = pair.split("=");
 
-          if (key) {
-            customLabels[key.trim()] =
-              value ? value.trim() : "";
-          }
-        });
+            if (key) {
+              customLabels[key.trim()] = value?.trim() || "";
+            }
+          });
+        }
       }
-    }
 
-    if (
-      !namespaces.some(
-        (ns) => ns.name === targetNamespace,
-      )
-    ) {
-      printHtml(
-        `<span style="color:#f85149;">Error from server (NotFound): namespaces "${escapeHtml(targetNamespace)}" not found</span>`,
-      );
-
-      return;
-    }
-
-    if (
-      pods.some(
-        (p) =>
-          p.name === podName &&
-          p.namespace === targetNamespace,
-      )
-    ) {
-      printHtml(
-        `<span style="color:#f85149;">Error from server (AlreadyExists): pods "${escapeHtml(podName)}" already exists</span>`,
-      );
-
-      return;
-    }
-
-    const assignedNode =
-      nodes.find(
-        (n) =>
-          !n.labels[
-            "node-role.kubernetes.io/control-plane"
-          ],
-      ) || nodes[0];
-
-    const newPod: LocalPod = {
-      name: podName,
-      namespace: targetNamespace,
-      status: "Running",
-      age: "1s",
-      image: imageName,
-      ip: `10.244.0.${Math.floor(
-        Math.random() * 200 + 10,
-      )}`,
-      node: assignedNode?.name || "unassigned",
-      labels: customLabels,
-    };
-
-    pods.push(newPod);
-
-    addEvent(
-      "Normal",
-      "Created",
-      `pod/${podName}`,
-      `pod/${podName} created in namespace ${targetNamespace} via kubectl run`,
-    );
-
-    if (assignedNode) {
-      addEvent(
-        "Normal",
-        "Scheduled",
-        `pod/${podName}`,
-        `Successfully assigned ${targetNamespace}/${podName} to ${assignedNode.name}`,
-      );
-
-      addEvent(
-        "Normal",
-        "Started",
-        `pod/${podName}`,
-        `Started container ${podName}`,
-      );
-    }
-
-    updateDashboard();
-
-    printHtml(
-      `<span style="color:#7ee787;">pod/${escapeHtml(podName)} created</span>`,
-    );
-  };
-
-  const handleKubectlLabelNode = (
-    tokens: string[],
-  ) => {
-    const targetNode = tokens[3];
-    const labelExpr = tokens[4];
-
-    if (!targetNode || !labelExpr) {
-      printHtml(
-        `<span style="color:#f85149;">Error: invalid syntax. Usage: kubectl label node &lt;node-name&gt; &lt;key&gt;=&lt;value&gt;</span>`,
-      );
-      return;
-    }
-
-    const nodeObj = nodes.find(
-      (n) => n.name === targetNode,
-    );
-
-    if (!nodeObj) {
-      printHtml(
-        `<span style="color:#f85149;">Error from server (NotFound): nodes "${escapeHtml(targetNode)}" not found</span>`,
-      );
-      return;
-    }
-
-    if (labelExpr.includes("=")) {
-      const [key, ...rest] =
-        labelExpr.split("=");
-
-      nodeObj.labels[key] =
-        rest.join("=");
-    } else {
-      nodeObj.labels[labelExpr] = "";
-    }
-
-    addEvent(
-      "Normal",
-      "Labeled",
-      `node/${targetNode}`,
-      `Node labeled with ${labelExpr}`,
-    );
-
-    printHtml(
-      `<span style="color:#7ee787;">node/${escapeHtml(targetNode)} labeled</span>`,
-    );
-
-    checkPendingPods();
-    updateDashboard();
-  };
-
-  const handleKubectlApply = (
-    tokens: string[],
-  ) => {
-    const fileIndex = tokens.indexOf("-f");
-    const fileName =
-      fileIndex >= 0
-        ? tokens[fileIndex + 1]
-        : undefined;
-
-    if (!fileName || !localFiles[fileName]) {
-      printHtml(
-        `<span style="color:#f85149;">error: the path "${escapeHtml(fileName || "")}" does not exist</span>`,
-      );
-      return;
-    }
-
-    let targetNamespace = "default";
-
-    const nsIndex = tokens.indexOf("-n");
-
-    if (
-      nsIndex !== -1 &&
-      tokens[nsIndex + 1]
-    ) {
-      targetNamespace =
-        tokens[nsIndex + 1];
-    }
-
-    if (fileName === "pod-nginx.yaml") {
-      const podName = "nginx";
+      if (
+        !namespaces.some(
+          (namespace) => namespace.name === targetNamespace,
+        )
+      ) {
+        printHtml(
+          `<span style="color:#f85149;">Error from server (NotFound): namespaces "${escapeHtml(
+            targetNamespace,
+          )}" not found</span>`,
+        );
+        return true;
+      }
 
       if (
         pods.some(
-          (p) =>
-            p.name === podName &&
-            p.namespace === targetNamespace,
+          (pod) =>
+            pod.name === podName &&
+            pod.namespace === targetNamespace,
         )
       ) {
-        printText(
-          `pod/${podName} unchanged`,
+        printHtml(
+          `<span style="color:#f85149;">Error from server (AlreadyExists): pods "${escapeHtml(
+            podName,
+          )}" already exists</span>`,
         );
-        return;
+        return true;
       }
-
-      const nodeSelector = {
-        disktype: "ssd",
-      };
-
-      const matchingNode = nodes.find(
-        (n) => n.labels.disktype === "ssd",
-      );
-
-      const newPod: LocalPod = {
-        name: podName,
-        namespace: targetNamespace,
-        status: matchingNode
-          ? "Running"
-          : "Pending",
-        age: "1s",
-        image: "nginx",
-        ip: matchingNode
-          ? `10.244.0.${Math.floor(
-              Math.random() * 200 + 10,
-            )}`
-          : "<none>",
-        node: matchingNode
-          ? matchingNode.name
-          : "<none>",
-        labels: { env: "test" },
-        nodeSelector,
-      };
-
-      pods.push(newPod);
-
-      addEvent(
-        "Normal",
-        "Created",
-        `pod/${podName}`,
-        `pod/nginx created in ${targetNamespace} from manifest`,
-      );
-
-      if (matchingNode) {
-        addEvent(
-          "Normal",
-          "Scheduled",
-          `pod/${podName}`,
-          `Successfully assigned ${targetNamespace}/${podName} to ${matchingNode.name}`,
-        );
-
-        addEvent(
-          "Normal",
-          "Started",
-          `pod/${podName}`,
-          `Started container ${podName}`,
-        );
-      } else {
-        addEvent(
-          "Warning",
-          "FailedScheduling",
-          `pod/${podName}`,
-          "0/3 nodes are available: 3 node(s) didn't match Pod's node selector",
-        );
-      }
-
-      updateDashboard();
-
-      printHtml(
-        `<span style="color:#7ee787;">pod/${podName} created</span>`,
-      );
-
-      return;
-    }
-
-    if (
-      fileName ===
-      "runtimeclass-edera.yaml"
-    ) {
-      activeRuntimeClasses.add("edera");
-
-      addEvent(
-        "Normal",
-        "Created",
-        "runtimeclass/edera",
-        "runtimeclass.node.k8s.io/edera created",
-      );
-
-      printHtml(
-        `<span style="color:#7ee787;">runtimeclass.node.k8s.io/edera created</span>`,
-      );
-
-      checkPendingPods();
-      updateDashboard();
-
-      return;
-    }
-
-    if (
-      fileName ===
-      "pod-hardened-vessel.yaml"
-    ) {
-      const podName = "hardened-vessel";
-
-      if (
-        pods.some(
-          (p) =>
-            p.name === podName &&
-            p.namespace === targetNamespace,
-        )
-      ) {
-        printText(
-          `pod/${podName} unchanged`,
-        );
-        return;
-      }
-
-      const runtimeClassName = "edera";
-
-      const runtimeClassExists =
-        activeRuntimeClasses.has(
-          runtimeClassName,
-        );
 
       const assignedNode =
-        runtimeClassExists
-          ? nodes.find(
-              (n) =>
-                !n.labels[
-                  "node-role.kubernetes.io/control-plane"
-                ],
-            ) || nodes[0]
-          : undefined;
+        nodes.find(
+          (node) =>
+            !node.labels[
+              "node-role.kubernetes.io/control-plane"
+            ],
+        ) || nodes[0];
 
-      const newPod: LocalPod = {
+      pods.push({
         name: podName,
         namespace: targetNamespace,
-        status: runtimeClassExists
-          ? "Running"
-          : "Pending",
+        status: "Running",
         age: "1s",
-        image:
-          "denhamparry/leaky-vessel:0.1",
-        ip: assignedNode
-          ? `10.244.0.${Math.floor(
-              Math.random() * 200 + 10,
-            )}`
-          : "<none>",
-        node: assignedNode
-          ? assignedNode.name
-          : "<none>",
-        labels: {},
-        runtimeClassName,
-      };
-
-      pods.push(newPod);
+        image: imageName,
+        ip: `10.244.0.${Math.floor(Math.random() * 200 + 10)}`,
+        node: assignedNode?.name || "node-2",
+        labels: customLabels,
+      });
 
       addEvent(
         "Normal",
         "Created",
         `pod/${podName}`,
-        `pod/hardened-vessel created in ${targetNamespace} from manifest`,
+        `pod/${podName} created in namespace ${targetNamespace}`,
       );
 
-      if (runtimeClassExists && assignedNode) {
+      if (assignedNode) {
         addEvent(
           "Normal",
           "Scheduled",
@@ -1986,607 +2326,586 @@ Edera Protect Commands:
           `pod/${podName}`,
           `Started container ${podName}`,
         );
-      } else {
-        addEvent(
-          "Warning",
-          "FailedCreatePodSandBox",
-          `pod/${podName}`,
-          `Failed to create pod sandbox: RuntimeClass "${runtimeClassName}" not found`,
-        );
       }
 
       updateDashboard();
 
       printHtml(
-        `<span style="color:#7ee787;">pod/${podName} created</span>`,
+        `<span style="color:#7ee787;">pod/${escapeHtml(
+          podName,
+        )} created</span>`,
       );
+
+      return true;
     }
-  };
 
-  /* ---------------------------------------
-     Protect commands
-     --------------------------------------- */
+    /*
+     * kubectl create namespace
+     */
+    if (
+      tokens[1] === "create" &&
+      (tokens[2] === "namespace" ||
+        tokens[2] === "ns")
+    ) {
+      const namespaceName = tokens[3];
 
-  const printProtectHelp = () => {
-    printHtml(`
-<span style="color:#ffa657;">Edera Protect CLI
-
-Zone commands:
-
-  protect zone launch -n &lt;name&gt; [options]
-  protect zone list
-  protect zone destroy &lt;name&gt;
-
-Workload commands:
-
-  protect workload launch --zone &lt;zone&gt; --name &lt;name&gt; &lt;image&gt; [command...]
-  protect workload list
-  protect workload exec &lt;name&gt; -- &lt;command...&gt;
-  protect workload destroy &lt;name&gt;
-
-Examples:
-
-  protect zone launch -n test-zone --min-cpus 1 -C 2 -c 2 --wait
-
-  protect zone list
-
-  protect workload launch --zone test-zone --name alpine-long alpine:latest sleep 3600
-
-  protect workload list
-
-  protect workload exec alpine-long -- id
-
-  protect workload destroy alpine-long
-
-  protect zone destroy test-zone
-</span>`);
-  };
-
-  const handleProtectZoneLaunch = async (
-    tokens: string[],
-  ) => {
-    let name = "";
-    let minCpus = 1;
-    let cpus = 1;
-    let cores = 1;
-    let wait = false;
-
-    for (let i = 3; i < tokens.length; i++) {
-      const token = tokens[i];
+      if (!namespaceName) {
+        printHtml(
+          `<span style="color:#f85149;">Error: namespace name required.</span>`,
+        );
+        return true;
+      }
 
       if (
-        token === "-n" ||
-        token === "--name"
+        namespaces.some(
+          (namespace) => namespace.name === namespaceName,
+        )
       ) {
-        name = tokens[++i] || "";
-      } else if (
-        token.startsWith("--name=")
-      ) {
-        name =
-          token.substring("--name=".length);
-      } else if (
-        token === "--min-cpus"
-      ) {
-        minCpus = Number(tokens[++i]) || 1;
-      } else if (
-        token.startsWith("--min-cpus=")
-      ) {
-        minCpus =
-          Number(
-            token.substring(
-              "--min-cpus=".length,
-            ),
-          ) || 1;
-      } else if (token === "-C") {
-        cpus = Number(tokens[++i]) || 1;
-      } else if (token === "-c") {
-        cores = Number(tokens[++i]) || 1;
-      } else if (token === "--wait") {
-        wait = true;
+        printHtml(
+          `<span style="color:#f85149;">Error from server (AlreadyExists): namespaces "${escapeHtml(
+            namespaceName,
+          )}" already exists</span>`,
+        );
+        return true;
       }
-    }
 
-    if (!name) {
-      printText(
-        "Error: zone name required. Usage: protect zone launch -n <name>",
+      namespaces.push({
+        name: namespaceName,
+        status: "Active",
+        age: "1s",
+      });
+
+      addEvent(
+        "Normal",
+        "Created",
+        `namespace/${namespaceName}`,
+        `namespace/${namespaceName} created`,
       );
-      return;
-    }
 
-    if (
-      ederaZones.some(
-        (zone) =>
-          zone.name === name &&
-          zone.state !== "destroyed",
-      )
-    ) {
-      printText(
-        `Error: zone "${name}" already exists.`,
+      printHtml(
+        `<span style="color:#7ee787;">namespace/${escapeHtml(
+          namespaceName,
+        )} created</span>`,
       );
-      return;
+
+      return true;
     }
 
-    const uuid = makeUuid();
+    /*
+     * kubectl apply
+     */
+    if (tokens[1] === "apply" && tokens[2] === "-f") {
+      const fileName = tokens[3];
 
-    const zone: EderaZone = {
-      name,
-      uuid,
-      state: "creating",
-      ipv4: "",
-      ipv6: "",
-      minCpus,
-      cpus,
-      cores,
-      workloads: [],
-    };
+      if (!fileName || !localFiles[fileName]) {
+        printHtml(
+          `<span style="color:#f85149;">error: the path "${escapeHtml(
+            fileName || "",
+          )}" does not exist</span>`,
+        );
+        return true;
+      }
 
-    ederaZones.push(zone);
+      if (fileName === "pod-nginx.yaml") {
+        const podName = "nginx";
 
-    addEvent(
-      "Info",
-      "ZoneCreating",
-      `zone/${name}`,
-      `Requested Edera zone ${name}`,
-    );
+        if (
+          pods.some(
+            (pod) =>
+              pod.name === podName &&
+              pod.namespace === "default",
+          )
+        ) {
+          printHtml(
+            `<span style="color:#8b949e;">pod/nginx unchanged</span>`,
+          );
+          return true;
+        }
 
-    updateDashboard();
-
-    await sleep(wait ? 450 : 250);
-
-    zone.state = "ready";
-    zone.ipv4 = nextZoneIpv4();
-    zone.ipv6 = nextZoneIpv6();
-
-    addEvent(
-      "Normal",
-      "ZoneReady",
-      `zone/${name}`,
-      `Edera zone ${name} is ready`,
-    );
-
-    updateDashboard();
-
-    printText(uuid);
-  };
-
-  const handleProtectZoneList = () => {
-    if (ederaZones.length === 0) {
-      printText("No zones have been launched.");
-      return;
-    }
-
-    const rows = [
-      "NAME        UUID                                  STATE       IPV4           IPV6",
-      "----------- ------------------------------------ ----------- -------------- --------------------------",
-    ];
-
-    ederaZones.forEach((zone) => {
-      rows.push(
-        [
-          zone.name.padEnd(11),
-          zone.uuid.padEnd(36),
-          zone.state.padEnd(11),
-          (zone.ipv4 || "").padEnd(14),
-          zone.ipv6 || "",
-        ].join(" "),
-      );
-    });
-
-    printTable(rows.join("\n"));
-  };
-
-  const handleProtectZoneDestroy = async (
-    tokens: string[],
-  ) => {
-    const name = tokens[3];
-
-    if (!name) {
-      printText(
-        "Error: zone name required. Usage: protect zone destroy <name>",
-      );
-      return;
-    }
-
-    const zone = ederaZones.find(
-      (z) =>
-        z.name === name &&
-        z.state !== "destroyed",
-    );
-
-    if (!zone) {
-      printText(
-        `Error: zone "${name}" not found.`,
-      );
-      return;
-    }
-
-    zone.state = "destroying";
-
-    addEvent(
-      "Info",
-      "ZoneDestroying",
-      `zone/${name}`,
-      `Destruction requested for Edera zone ${name}`,
-    );
-
-    updateDashboard();
-
-    await sleep(250);
-
-    for (const workloadName of [
-      ...zone.workloads,
-    ]) {
-      const workload =
-        ederaWorkloads.find(
-          (w) => w.name === workloadName,
+        const matchingNode = nodes.find(
+          (node) => node.labels.disktype === "ssd",
         );
 
-      if (workload) {
-        workload.state = "destroyed";
+        pods.push({
+          name: podName,
+          namespace: "default",
+          status: matchingNode ? "Running" : "Pending",
+          age: "1s",
+          image: "nginx",
+          ip: matchingNode
+            ? `10.244.0.${Math.floor(Math.random() * 200 + 10)}`
+            : "<none>",
+          node: matchingNode?.name || "<none>",
+          labels: { env: "test" },
+          nodeSelector: { disktype: "ssd" },
+        });
+
+        addEvent(
+          "Normal",
+          "Created",
+          "pod/nginx",
+          "pod/nginx created from manifest",
+        );
+
+        if (matchingNode) {
+          addEvent(
+            "Normal",
+            "Scheduled",
+            "pod/nginx",
+            `Successfully assigned default/nginx to ${matchingNode.name}`,
+          );
+
+          addEvent(
+            "Normal",
+            "Started",
+            "pod/nginx",
+            "Started container nginx",
+          );
+        } else {
+          addEvent(
+            "Warning",
+            "FailedScheduling",
+            "pod/nginx",
+            "0/3 nodes are available: node selector did not match",
+          );
+        }
+
+        updateDashboard();
+
+        printHtml(
+          `<span style="color:#7ee787;">pod/nginx created</span>`,
+        );
+
+        return true;
       }
+
+      if (fileName === "runtimeclass-edera.yaml") {
+        activeRuntimeClasses.add("edera");
+
+        addEvent(
+          "Normal",
+          "Created",
+          "runtimeclass/edera",
+          "runtimeclass.node.k8s.io/edera created",
+        );
+
+        printHtml(
+          `<span style="color:#7ee787;">runtimeclass.node.k8s.io/edera created</span>`,
+        );
+
+        checkPendingPods();
+        updateDashboard();
+
+        return true;
+      }
+
+      if (fileName === "pod-hardened-vessel.yaml") {
+        const podName = "hardened-vessel";
+
+        if (
+          pods.some(
+            (pod) =>
+              pod.name === podName &&
+              pod.namespace === "default",
+          )
+        ) {
+          printHtml(
+            `<span style="color:#8b949e;">pod/${podName} unchanged</span>`,
+          );
+          return true;
+        }
+
+        const runtimeReady =
+          activeRuntimeClasses.has("edera");
+
+        const assignedNode = runtimeReady
+          ? nodes.find(
+              (node) =>
+                !node.labels[
+                  "node-role.kubernetes.io/control-plane"
+                ],
+            ) || nodes[0]
+          : undefined;
+
+        pods.push({
+          name: podName,
+          namespace: "default",
+          status: runtimeReady ? "Running" : "Pending",
+          age: "1s",
+          image: "denhamparry/leaky-vessel:0.1",
+          ip: assignedNode
+            ? `10.244.0.${Math.floor(Math.random() * 200 + 10)}`
+            : "<none>",
+          node: assignedNode?.name || "<none>",
+          labels: {},
+          runtimeClassName: "edera",
+        });
+
+        addEvent(
+          "Normal",
+          "Created",
+          `pod/${podName}`,
+          `pod/${podName} created from manifest`,
+        );
+
+        if (runtimeReady && assignedNode) {
+          addEvent(
+            "Normal",
+            "Scheduled",
+            `pod/${podName}`,
+            `Successfully assigned default/${podName} to ${assignedNode.name}`,
+          );
+
+          addEvent(
+            "Normal",
+            "Started",
+            `pod/${podName}`,
+            `Started container ${podName}`,
+          );
+        } else {
+          addEvent(
+            "Warning",
+            "FailedCreatePodSandBox",
+            `pod/${podName}`,
+            `Failed to create pod sandbox: RuntimeClass "edera" not found`,
+          );
+        }
+
+        updateDashboard();
+
+        printHtml(
+          `<span style="color:#7ee787;">pod/${podName} created</span>`,
+        );
+
+        return true;
+      }
+
+      return true;
     }
 
-    zone.workloads = [];
-    zone.state = "destroyed";
-    zone.ipv4 = "";
-    zone.ipv6 = "";
-
-    addEvent(
-      "Normal",
-      "ZoneDestroyed",
-      `zone/${name}`,
-      `Edera zone ${name} destroyed`,
-    );
-
-    updateDashboard();
-
-    printText(
-      `Destruction of zone ${zone.uuid} requested.`,
-    );
-  };
-
-  const handleProtectWorkloadLaunch = async (
-    tokens: string[],
-  ) => {
-    let zoneName = "";
-    let name = "";
-
-    let imageIndex = -1;
-
-    for (let i = 3; i < tokens.length; i++) {
-      const token = tokens[i];
+    /*
+     * kubectl get
+     */
+    if (tokens[1] === "get") {
+      const resource = tokens[2];
 
       if (
-        token === "--zone"
+        resource === "pods" ||
+        resource === "pod"
       ) {
-        zoneName = tokens[++i] || "";
-      } else if (
-        token.startsWith("--zone=")
-      ) {
-        zoneName =
-          token.substring(
-            "--zone=".length,
+        const allNamespaces =
+          tokens.includes("-A") ||
+          tokens.includes("--all-namespaces");
+
+        let namespaceFilter = "default";
+
+        for (let i = 0; i < tokens.length; i++) {
+          if (
+            tokens[i] === "-n" ||
+            tokens[i] === "--namespace"
+          ) {
+            namespaceFilter = tokens[i + 1] || namespaceFilter;
+          }
+
+          if (tokens[i].startsWith("--namespace=")) {
+            namespaceFilter =
+              tokens[i].split("=")[1] || namespaceFilter;
+          }
+        }
+
+        const filtered = pods.filter(
+          (pod) =>
+            allNamespaces ||
+            pod.namespace === namespaceFilter,
+        );
+
+        if (filtered.length === 0) {
+          printHtml(
+            `<span style="color:#8b949e;">No resources found.</span>`,
           );
-      } else if (
-        token === "--name"
+          return true;
+        }
+
+        let html =
+          `<span style="color:#79c0ff;font-weight:700;">` +
+          `${allNamespaces ? "NAMESPACE   " : ""}` +
+          `NAME                 READY   STATUS     NODE` +
+          `</span>\n`;
+
+        html += `<span style="color:#30363d;">${"─".repeat(
+          70,
+        )}</span>\n`;
+
+        for (const pod of filtered) {
+          const statusColor =
+            pod.status === "Running"
+              ? "#7ee787"
+              : "#d29922";
+
+          html +=
+            `${allNamespaces ? escapeHtml(
+              pod.namespace.padEnd(11),
+            ) : ""}` +
+            `${escapeHtml(pod.name.padEnd(21))}` +
+            `${pod.status === "Running" ? "1/1" : "0/1"}     ` +
+            `<span style="color:${statusColor};">${escapeHtml(
+              pod.status.padEnd(10),
+            )}</span>` +
+            `${escapeHtml(pod.node || "<none>")}\n`;
+        }
+
+        printPre(html.trimEnd());
+
+        return true;
+      }
+
+      if (
+        resource === "nodes" ||
+        resource === "node"
       ) {
-        name = tokens[++i] || "";
-      } else if (
-        token.startsWith("--name=")
+        let html =
+          `<span style="color:#79c0ff;font-weight:700;">` +
+          `NAME       STATUS     ROLES          VERSION` +
+          `</span>\n`;
+
+        html += `<span style="color:#30363d;">${"─".repeat(
+          60,
+        )}</span>\n`;
+
+        for (const node of nodes) {
+          html +=
+            `${escapeHtml(node.name.padEnd(11))}` +
+            `<span style="color:#7ee787;">${escapeHtml(
+              node.status.padEnd(11),
+            )}</span>` +
+            `${escapeHtml(
+              getNodeRoles(node).padEnd(15),
+            )}` +
+            `${escapeHtml(node.version)}\n`;
+        }
+
+        printPre(html.trimEnd());
+
+        return true;
+      }
+
+      if (
+        resource === "namespaces" ||
+        resource === "namespace" ||
+        resource === "ns"
       ) {
-        name =
-          token.substring(
-            "--name=".length,
-          );
-      } else if (
-        token !== "--"
-      ) {
-        imageIndex = i;
-        break;
+        let html =
+          `<span style="color:#79c0ff;font-weight:700;">` +
+          `NAME                  STATUS     AGE` +
+          `</span>\n`;
+
+        html += `<span style="color:#30363d;">${"─".repeat(
+          45,
+        )}</span>\n`;
+
+        for (const namespace of namespaces) {
+          html +=
+            `${escapeHtml(
+              namespace.name.padEnd(22),
+            )}` +
+            `<span style="color:#7ee787;">${escapeHtml(
+              namespace.status.padEnd(11),
+            )}</span>` +
+            `${escapeHtml(namespace.age)}\n`;
+        }
+
+        printPre(html.trimEnd());
+
+        return true;
       }
     }
 
-    if (!zoneName) {
-      printText(
-        "Error: --zone is required.",
-      );
-      return;
-    }
-
-    if (!name) {
-      printText(
-        "Error: --name is required.",
-      );
-      return;
-    }
-
-    const image =
-      imageIndex >= 0
-        ? tokens[imageIndex]
-        : "";
-
-    if (!image) {
-      printText(
-        "Error: workload image is required.",
-      );
-      return;
-    }
-
-    const command =
-      imageIndex >= 0
-        ? tokens.slice(imageIndex + 1)
-        : [];
-
-    const zone = ederaZones.find(
-      (z) =>
-        z.name === zoneName &&
-        z.state === "ready",
-    );
-
-    if (!zone) {
-      printText(
-        `Error: zone "${zoneName}" is not ready.`,
-      );
-      return;
-    }
-
+    /*
+     * kubectl label node
+     */
     if (
-      ederaWorkloads.some(
-        (w) =>
-          w.name === name &&
-          w.state !== "destroyed",
-      )
+      tokens[1] === "label" &&
+      (tokens[2] === "node" ||
+        tokens[2] === "nodes")
     ) {
-      printText(
-        `Error: workload "${name}" already exists.`,
-      );
-      return;
-    }
+      const nodeName = tokens[3];
+      const labelExpression = tokens[4];
 
-    const uuid = makeUuid();
-
-    const workload: EderaWorkload = {
-      name,
-      uuid,
-      zone: zone.uuid,
-      state: "creating",
-      image,
-      command,
-      createdAt: Date.now(),
-    };
-
-    ederaWorkloads.push(workload);
-    zone.workloads.push(name);
-
-    addEvent(
-      "Info",
-      "WorkloadCreating",
-      `workload/${name}`,
-      `Creating ${image} in Edera zone ${zoneName}`,
-    );
-
-    updateDashboard();
-
-    await sleep(300);
-
-    workload.state = "running";
-
-    addEvent(
-      "Normal",
-      "WorkloadStarted",
-      `workload/${name}`,
-      `Started ${image} in Edera zone ${zoneName}`,
-    );
-
-    updateDashboard();
-
-    printText(uuid);
-  };
-
-  const handleProtectWorkloadList = () => {
-    const workloads =
-      ederaWorkloads.filter(
-        (w) => w.state !== "destroyed",
+      const node = nodes.find(
+        (item) => item.name === nodeName,
       );
 
-    if (workloads.length === 0) {
-      printText(
-        "No workloads have been launched.",
-      );
-      return;
-    }
-
-    const rows = [
-      "NAME          UUID                                  ZONE                                  STATE",
-      "------------- ------------------------------------ ------------------------------------ -----------",
-    ];
-
-    workloads.forEach((workload) => {
-      rows.push(
-        [
-          workload.name.padEnd(13),
-          workload.uuid.padEnd(36),
-          workload.zone.padEnd(36),
-          workload.state,
-        ].join(" "),
-      );
-    });
-
-    printTable(rows.join("\n"));
-  };
-
-  const handleProtectWorkloadExec = (
-    tokens: string[],
-  ) => {
-    const name = tokens[3];
-
-    if (!name) {
-      printText(
-        "Error: workload name required. Usage: protect workload exec <name> -- <command>",
-      );
-      return;
-    }
-
-    const separatorIndex =
-      tokens.indexOf("--");
-
-    const command =
-      separatorIndex >= 0
-        ? tokens.slice(separatorIndex + 1)
-        : tokens.slice(4);
-
-    const workload =
-      ederaWorkloads.find(
-        (w) =>
-          w.name === name &&
-          w.state === "running",
-      );
-
-    if (!workload) {
-      printText(
-        `Error: workload "${name}" is not running.`,
-      );
-      return;
-    }
-
-    if (command.length === 0) {
-      printText(
-        `Connected to workload ${name}.`,
-      );
-      return;
-    }
-
-    const cmd = command.join(" ");
-
-    addEvent(
-      "Info",
-      "WorkloadExec",
-      `workload/${name}`,
-      `Executed "${cmd}"`,
-    );
-
-    if (
-      command.length === 1 &&
-      command[0] === "id"
-    ) {
-      printText(
-        "uid=0(root) gid=0(root) groups=0(root)",
-      );
-      return;
-    }
-
-    if (
-      command.length === 1 &&
-      command[0] === "hostname"
-    ) {
-      printText(
-        `edera-${name}`,
-      );
-      return;
-    }
-
-    if (
-      command[0] === "uname" &&
-      command[1] === "-a"
-    ) {
-      printText(
-        "Linux edera-workload 6.8.0-edera #1 SMP x86_64 GNU/Linux",
-      );
-      return;
-    }
-
-    if (
-      command.length === 1 &&
-      command[0] === "whoami"
-    ) {
-      printText("root");
-      return;
-    }
-
-    if (
-      command.length === 1 &&
-      command[0] === "pwd"
-    ) {
-      printText("/root");
-      return;
-    }
-
-    if (
-      command.length === 2 &&
-      command[0] === "cat" &&
-      command[1] === "/etc/hostname"
-    ) {
-      printText(`edera-${name}`);
-      return;
-    }
-
-    printText(
-      `/bin/sh: ${cmd}: simulated command completed successfully`,
-    );
-  };
-
-  const handleProtectWorkloadDestroy = async (
-    tokens: string[],
-  ) => {
-    const name = tokens[3];
-
-    if (!name) {
-      printText(
-        "Error: workload name required. Usage: protect workload destroy <name>",
-      );
-      return;
-    }
-
-    const workload =
-      ederaWorkloads.find(
-        (w) =>
-          w.name === name &&
-          w.state !== "destroyed",
-      );
-
-    if (!workload) {
-      printText(
-        `Error: workload "${name}" not found.`,
-      );
-      return;
-    }
-
-    workload.state = "destroyed";
-
-    const zone =
-      ederaZones.find(
-        (z) => z.uuid === workload.zone,
-      );
-
-    if (zone) {
-      zone.workloads =
-        zone.workloads.filter(
-          (w) => w !== name,
+      if (!node) {
+        printHtml(
+          `<span style="color:#f85149;">Error from server (NotFound): nodes "${escapeHtml(
+            nodeName || "",
+          )}" not found</span>`,
         );
+        return true;
+      }
+
+      if (!labelExpression) {
+        printHtml(
+          `<span style="color:#f85149;">Error: label required.</span>`,
+        );
+        return true;
+      }
+
+      if (labelExpression.includes("=")) {
+        const [key, value] =
+          labelExpression.split("=");
+
+        node.labels[key] = value || "";
+      } else {
+        node.labels[labelExpression] = "";
+      }
+
+      addEvent(
+        "Normal",
+        "Labeled",
+        `node/${node.name}`,
+        `Node labeled with ${labelExpression}`,
+      );
+
+      printHtml(
+        `<span style="color:#7ee787;">node/${escapeHtml(
+          node.name,
+        )} labeled</span>`,
+      );
+
+      checkPendingPods();
+      updateDashboard();
+
+      return true;
     }
 
-    addEvent(
-      "Normal",
-      "WorkloadDestroyed",
-      `workload/${name}`,
-      `Workload ${name} destroyed`,
-    );
+    /*
+     * kubectl delete pod
+     */
+    if (
+      tokens[1] === "delete" &&
+      (tokens[2] === "pod" ||
+        tokens[2] === "pods")
+    ) {
+      const podName = tokens[3];
 
-    updateDashboard();
+      const index = pods.findIndex(
+        (pod) =>
+          pod.name === podName &&
+          pod.namespace === "default",
+      );
 
-    printText(
-      `Destruction of workload ${workload.uuid} requested.`,
-    );
+      if (index === -1) {
+        printHtml(
+          `<span style="color:#f85149;">Error from server (NotFound): pods "${escapeHtml(
+            podName || "",
+          )}" not found</span>`,
+        );
+        return true;
+      }
 
-    await sleep(100);
+      pods.splice(index, 1);
+
+      addEvent(
+        "Normal",
+        "Terminated",
+        `pod/${podName}`,
+        `Pod ${podName} deleted`,
+      );
+
+      updateDashboard();
+
+      printHtml(
+        `<span style="color:#7ee787;">pod "${escapeHtml(
+          podName,
+        )}" deleted</span>`,
+      );
+
+      return true;
+    }
+
+    /*
+     * kubectl delete node
+     */
+    if (
+      tokens[1] === "delete" &&
+      (tokens[2] === "node" ||
+        tokens[2] === "nodes")
+    ) {
+      const nodeName = tokens[3];
+
+      const index = nodes.findIndex(
+        (node) => node.name === nodeName,
+      );
+
+      if (index === -1) {
+        printHtml(
+          `<span style="color:#f85149;">Error from server (NotFound): nodes "${escapeHtml(
+            nodeName || "",
+          )}" not found</span>`,
+        );
+        return true;
+      }
+
+      nodes.splice(index, 1);
+
+      addEvent(
+        "Warning",
+        "NodeDeleted",
+        `node/${nodeName}`,
+        `Node ${nodeName} removed from cluster`,
+      );
+
+      pods.forEach((pod) => {
+        if (pod.node === nodeName) {
+          pod.node =
+            nodes.find(
+              (node) =>
+                !node.labels[
+                  "node-role.kubernetes.io/control-plane"
+                ],
+            )?.name || "unassigned";
+
+          addEvent(
+            "Warning",
+            "NodeEviction",
+            `pod/${pod.name}`,
+            `Rescheduled to ${pod.node}`,
+          );
+        }
+      });
+
+      updateDashboard();
+
+      printHtml(
+        `<span style="color:#7ee787;">node "${escapeHtml(
+          nodeName,
+        )}" deleted</span>`,
+      );
+
+      return true;
+    }
+
+    if (
+      tokens[1] === "--help" ||
+      tokens[1] === "-h" ||
+      tokens.length === 1
+    ) {
+      printHtml(formatHelpText());
+      return true;
+    }
+
+    return false;
   };
 
-  /* ---------------------------------------
-     Main initialization
-     --------------------------------------- */
+  /*
+   * -----------------------------------------------------------------------
+   * TERMINAL COMMAND LOOP
+   * -----------------------------------------------------------------------
+   */
 
   try {
-    const cluster = new Cluster();
+    cluster = new Cluster();
 
     cluster.registerImage(WebServerImage);
 
@@ -2655,22 +2974,29 @@ Examples:
       "Started container web",
     );
 
-    await sleep(500);
+    await new Promise((resolve) =>
+      setTimeout(resolve, 500),
+    );
 
     updateDashboard();
+    renderEvents();
+    renderGuide();
 
     output.innerHTML = `
-      <div class="terminal-line">
-        Webernetes cluster online!
+      <div class="terminal-block">
+        <div style="color:#f0f6fc;">
+          Webernetes cluster online!
+        </div>
+
+        <div style="color:#8b949e;margin-top:5px;">
+          Try the suggested Edera Protect command below,
+          or type <span style="color:#7ee787;">help</span>.
+        </div>
       </div>
     `;
 
     input.disabled = false;
     input.focus();
-
-    /* ---------------------------------------
-       Command input
-       --------------------------------------- */
 
     input.addEventListener(
       "keydown",
@@ -2720,8 +3046,7 @@ Examples:
           return;
         }
 
-        const rawCmd =
-          input.value.trim();
+        const rawCmd = input.value.trim();
 
         input.value = "";
         historyIndex = -1;
@@ -2732,679 +3057,134 @@ Examples:
 
         commandHistory.push(rawCmd);
 
-        printHtml(
-          `<span style="color:#58a6ff;">user@webernetes:~$</span> ${escapeHtml(rawCmd)}`,
-        );
+        printCommand(rawCmd);
 
-        const tokens =
-          rawCmd.split(/\s+/);
+        const tokens = tokenize(rawCmd);
 
-        const mainCmd = tokens[0];
-
-        /* ---------------------------
-           Basic shell
-           --------------------------- */
-
-        if (mainCmd === "clear") {
-          clearTerminal();
+        /*
+         * clear
+         */
+        if (tokens[0] === "clear") {
+          output.innerHTML = "";
           return;
         }
 
-        if (mainCmd === "ls") {
-          printHtml(
-            Object.keys(localFiles)
-              .map(
-                (file) =>
-                  `<span style="color:#56d364;font-weight:600;">${escapeHtml(file)}</span>`,
-              )
-              .join("  "),
-          );
+        /*
+         * history
+         */
+        if (tokens[0] === "history") {
+          if (commandHistory.length === 0) {
+            printHtml(
+              `<span style="color:#8b949e;">No command history.</span>`,
+            );
+            return;
+          }
+
+          const historyHtml = commandHistory
+            .map(
+              (command, index) =>
+                `<span style="color:#8b949e;">${String(
+                  index + 1,
+                ).padStart(3, " ")}</span>  ${escapeHtml(
+                  command,
+                )}`,
+            )
+            .join("\n");
+
+          printPre(historyHtml);
 
           return;
         }
 
-        if (mainCmd === "cat") {
+        /*
+         * ls
+         */
+        if (tokens[0] === "ls") {
+          const files = Object.keys(localFiles)
+            .map(
+              (file) =>
+                `<span style="color:#56d364;font-weight:600;">${escapeHtml(
+                  file,
+                )}</span>`,
+            )
+            .join("  ");
+
+          printHtml(files);
+
+          return;
+        }
+
+        /*
+         * cat
+         */
+        if (tokens[0] === "cat") {
           const fileName = tokens[1];
 
           if (!fileName) {
             printHtml(
               `<span style="color:#f85149;">cat: missing file operand</span>`,
             );
-          } else if (
-            localFiles[fileName]
-          ) {
-            printHtml(
-              highlightYaml(
-                localFiles[fileName],
-              ),
+          } else if (localFiles[fileName]) {
+            printPre(
+              escapeHtml(localFiles[fileName]),
             );
           } else {
             printHtml(
-              `<span style="color:#f85149;">cat: ${escapeHtml(fileName)}: No such file or directory</span>`,
+              `<span style="color:#f85149;">cat: ${escapeHtml(
+                fileName,
+              )}: No such file or directory</span>`,
             );
           }
 
           return;
         }
 
+        /*
+         * help
+         */
         if (
-          mainCmd === "help" ||
+          tokens[0] === "help" ||
           rawCmd === "kubectl --help" ||
           rawCmd === "kubectl -h" ||
-          rawCmd === "--help"
+          rawCmd === "protect --help"
         ) {
           printHtml(formatHelpText());
           return;
         }
 
-        if (
-          rawCmd === "protect --help" ||
-          rawCmd === "protect -h"
-        ) {
-          printProtectHelp();
-          return;
-        }
-
-        if (mainCmd === "history") {
-          if (
-            commandHistory.length === 0
-          ) {
-            printHtml(
-              `<span style="color:#ffa657;">No command history.</span>`,
-            );
-            return;
-          }
-
-          const historyText =
-            commandHistory
-              .map(
-                (command, index) =>
-                  `${String(
-                    index + 1,
-                  ).padStart(
-                    3,
-                    " ",
-                  )}  ${command}`,
-              )
-              .join("\n");
-
-          printTable(historyText);
-          return;
-        }
-
-        /* ---------------------------
-           Protect CLI
-           --------------------------- */
-
-        if (
-          tokens[0] === "protect"
-        ) {
-          if (
-            tokens[1] === "zone"
-          ) {
-            if (
-              tokens[2] === "launch"
-            ) {
-              await handleProtectZoneLaunch(
-                tokens,
-              );
-              return;
-            }
-
-            if (
-              tokens[2] === "list"
-            ) {
-              handleProtectZoneList();
-              return;
-            }
-
-            if (
-              tokens[2] === "destroy"
-            ) {
-              await handleProtectZoneDestroy(
-                tokens,
-              );
-              return;
-            }
-
-            printText(
-              "Unknown protect zone command.",
-            );
-            return;
-          }
-
-          if (
-            tokens[1] === "workload"
-          ) {
-            if (
-              tokens[2] === "launch"
-            ) {
-              await handleProtectWorkloadLaunch(
-                tokens,
-              );
-              return;
-            }
-
-            if (
-              tokens[2] === "list"
-            ) {
-              handleProtectWorkloadList();
-              return;
-            }
-
-            if (
-              tokens[2] === "exec"
-            ) {
-              handleProtectWorkloadExec(
-                tokens,
-              );
-              return;
-            }
-
-            if (
-              tokens[2] === "destroy"
-            ) {
-              await handleProtectWorkloadDestroy(
-                tokens,
-              );
-              return;
-            }
-
-            printText(
-              "Unknown protect workload command.",
-            );
-            return;
-          }
-
-          printProtectHelp();
-          return;
-        }
-
-        /* ---------------------------
-           kubectl create namespace
-           --------------------------- */
-
-        if (
-          rawCmd.startsWith(
-            "kubectl create namespace ",
-          ) ||
-          rawCmd.startsWith(
-            "kubectl create ns ",
-          )
-        ) {
-          handleKubectlCreateNamespace(
+        /*
+         * Protect
+         */
+        if (tokens[0] === "protect") {
+          await handleProtectCommand(
+            rawCmd,
             tokens,
           );
           return;
         }
 
-        /* ---------------------------
-           kubectl run
-           --------------------------- */
-
-        if (
-          rawCmd.startsWith(
-            "kubectl run ",
-          )
-        ) {
-          handleKubectlRun(tokens);
-          return;
-        }
-
-        /* ---------------------------
-           kubectl label node
-           --------------------------- */
-
-        if (
-          rawCmd.startsWith(
-            "kubectl label node ",
-          ) ||
-          rawCmd.startsWith(
-            "kubectl label nodes ",
-          )
-        ) {
-          handleKubectlLabelNode(
-            tokens,
-          );
-          return;
-        }
-
-        /* ---------------------------
-           kubectl apply
-           --------------------------- */
-
-        if (
-          rawCmd.startsWith(
-            "kubectl apply -f",
-          )
-        ) {
-          handleKubectlApply(tokens);
-          return;
-        }
-
-        /* ---------------------------
-           kubectl get namespaces
-           --------------------------- */
-
-        if (
-          rawCmd.startsWith(
-            "kubectl get namespaces",
-          ) ||
-          rawCmd.startsWith(
-            "kubectl get namespace",
-          ) ||
-          rawCmd.startsWith(
-            "kubectl get ns",
-          )
-        ) {
-          if (namespaces.length === 0) {
-            printText(
-              "No namespaces found.",
+        /*
+         * Kubernetes
+         */
+        if (tokens[0] === "kubectl") {
+          const handled =
+            await handleKubectlCommand(
+              rawCmd,
+              tokens,
             );
+
+          if (handled) {
             return;
           }
-
-          const rows = [
-            "NAME              STATUS   AGE",
-            "----------------- -------- -----",
-          ];
-
-          namespaces.forEach(
-            (ns) => {
-              rows.push(
-                `${ns.name.padEnd(
-                  17,
-                )} ${ns.status.padEnd(
-                  8,
-                )} ${ns.age}`,
-              );
-            },
-          );
-
-          printTable(
-            rows.join("\n"),
-          );
-
-          return;
         }
 
-        /* ---------------------------
-           kubectl get pods
-           --------------------------- */
-
-        if (
-          rawCmd.startsWith(
-            "kubectl get pods",
-          ) ||
-          rawCmd.startsWith(
-            "kubectl get pod",
-          )
-        ) {
-          const showLabels =
-            tokens.includes(
-              "--show-labels",
-            );
-
-          const showWide =
-            (tokens.includes("-o") &&
-              tokens[
-                tokens.indexOf("-o") + 1
-              ] === "wide") ||
-            tokens.includes("-owide");
-
-          const allNamespaces =
-            tokens.includes("-A") ||
-            tokens.includes(
-              "--all-namespaces",
-            );
-
-          let namespaceFilter =
-            "default";
-
-          for (
-            let i = 0;
-            i < tokens.length;
-            i++
-          ) {
-            if (
-              tokens[i] === "-n" ||
-              tokens[i] ===
-                "--namespace"
-            ) {
-              if (tokens[i + 1]) {
-                namespaceFilter =
-                  tokens[i + 1];
-              }
-            } else if (
-              tokens[i].startsWith(
-                "--namespace=",
-              )
-            ) {
-              namespaceFilter =
-                tokens[i].split(
-                  "=",
-                )[1] ||
-                namespaceFilter;
-            }
-          }
-
-          const filteredPods =
-            pods.filter(
-              (p) =>
-                allNamespaces ||
-                p.namespace ===
-                  namespaceFilter,
-            );
-
-          if (
-            filteredPods.length === 0
-          ) {
-            printText(
-              `No resources found in ${
-                allNamespaces
-                  ? "cluster"
-                  : namespaceFilter +
-                    " namespace"
-              }.`,
-            );
-
-            return;
-          }
-
-          let header =
-            allNamespaces
-              ? "NAMESPACE   "
-              : "";
-
-          header +=
-            "NAME                 READY   STATUS     RESTARTS   AGE";
-
-          if (showWide) {
-            header +=
-              "   IP             NODE";
-          }
-
-          if (showLabels) {
-            header +=
-              "          LABELS";
-          }
-
-          const rows = [header];
-
-          filteredPods.forEach(
-            (p) => {
-              let line =
-                allNamespaces
-                  ? `${p.namespace.padEnd(
-                      11,
-                    )} `
-                  : "";
-
-              line +=
-                `${p.name.padEnd(
-                  20,
-                )} ` +
-                `${(
-                  p.status === "Running"
-                    ? "1/1"
-                    : "0/1"
-                ).padEnd(
-                  7,
-                )} ` +
-                `${p.status.padEnd(
-                  10,
-                )} ` +
-                `0         ` +
-                `${p.age.padEnd(
-                  5,
-                )}`;
-
-              if (showWide) {
-                line +=
-                  ` ${(
-                    p.ip || "<none>"
-                  ).padEnd(
-                    14,
-                  )} ${p.node || "<none>"}`;
-              }
-
-              if (showLabels) {
-                line +=
-                  `  ${formatLabels(
-                    p.labels,
-                  )}`;
-              }
-
-              rows.push(line);
-            },
-          );
-
-          printTable(
-            rows.join("\n"),
-          );
-
-          return;
-        }
-
-        /* ---------------------------
-           kubectl get nodes
-           --------------------------- */
-
-        if (
-          rawCmd.startsWith(
-            "kubectl get nodes",
-          ) ||
-          rawCmd.startsWith(
-            "kubectl get node",
-          )
-        ) {
-          const showLabels =
-            tokens.includes(
-              "--show-labels",
-            );
-
-          if (nodes.length === 0) {
-            printText(
-              "No nodes found in cluster.",
-            );
-            return;
-          }
-
-          let header =
-            "NAME       STATUS   ROLES          AGE   VERSION";
-
-          if (showLabels) {
-            header += "          LABELS";
-          }
-
-          const rows = [header];
-
-          nodes.forEach((n) => {
-            let line =
-              `${n.name.padEnd(
-                10,
-              )} ` +
-              `${n.status.padEnd(
-                8,
-              )} ` +
-              `${getNodeRoles(
-                n,
-              ).padEnd(
-                14,
-              )} ` +
-              `${n.age.padEnd(
-                5,
-              )} ` +
-              n.version.padEnd(
-                20,
-              );
-
-            if (showLabels) {
-              line +=
-                ` ${formatLabels(
-                  n.labels,
-                )}`;
-            }
-
-            rows.push(line);
-          });
-
-          printTable(
-            rows.join("\n"),
-          );
-
-          return;
-        }
-
-        /* ---------------------------
-           kubectl delete pod
-           --------------------------- */
-
-        if (
-          rawCmd.startsWith(
-            "kubectl delete pod ",
-          ) ||
-          rawCmd.startsWith(
-            "kubectl delete pods ",
-          )
-        ) {
-          const name =
-            tokens[3] || tokens[2];
-
-          let targetNamespace =
-            "default";
-
-          const nsIndex =
-            tokens.indexOf("-n");
-
-          if (
-            nsIndex !== -1 &&
-            tokens[nsIndex + 1]
-          ) {
-            targetNamespace =
-              tokens[
-                nsIndex + 1
-              ];
-          }
-
-          const index =
-            pods.findIndex(
-              (p) =>
-                p.name === name &&
-                p.namespace ===
-                  targetNamespace,
-            );
-
-          if (index === -1) {
-            printText(
-              `Error from server (NotFound): pods "${name}" not found in namespace "${targetNamespace}"`,
-            );
-            return;
-          }
-
-          pods.splice(index, 1);
-
-          addEvent(
-            "Normal",
-            "Killing",
-            `pod/${name}`,
-            `Stopping container in ${targetNamespace}`,
-          );
-
-          addEvent(
-            "Normal",
-            "Terminated",
-            `pod/${name}`,
-            `Pod ${name} deleted from ${targetNamespace}`,
-          );
-
-          updateDashboard();
-
-          printHtml(
-            `<span style="color:#7ee787;">pod "${escapeHtml(name)}" deleted</span>`,
-          );
-
-          return;
-        }
-
-        /* ---------------------------
-           kubectl delete node
-           --------------------------- */
-
-        if (
-          rawCmd.startsWith(
-            "kubectl delete node ",
-          ) ||
-          rawCmd.startsWith(
-            "kubectl delete nodes ",
-          )
-        ) {
-          const name =
-            tokens[3] || tokens[2];
-
-          const index =
-            nodes.findIndex(
-              (n) => n.name === name,
-            );
-
-          if (index === -1) {
-            printText(
-              `Error from server (NotFound): nodes "${name}" not found`,
-            );
-            return;
-          }
-
-          nodes.splice(index, 1);
-
-          addEvent(
-            "Warning",
-            "NodeDeleted",
-            `node/${name}`,
-            `Node ${name} removed from cluster`,
-          );
-
-          pods.forEach((p) => {
-            if (p.node === name) {
-              const newNode =
-                nodes[0]?.name ||
-                "unassigned";
-
-              p.node = newNode;
-
-              addEvent(
-                "Warning",
-                "NodeEviction",
-                `pod/${p.name}`,
-                `Rescheduled to ${newNode}`,
-              );
-            }
-          });
-
-          updateDashboard();
-
-          printHtml(
-            `<span style="color:#7ee787;">node "${escapeHtml(name)}" deleted</span>`,
-          );
-
-          return;
-        }
-
-        /* ---------------------------
-           curl
-           --------------------------- */
-
-        if (
-          rawCmd.startsWith(
-            "curl ",
-          )
-        ) {
-          const url =
-            rawCmd
-              .replace(
-                "curl ",
-                "",
-              )
-              .trim();
+        /*
+         * curl
+         */
+        if (tokens[0] === "curl") {
+          const url = rawCmd
+            .replace(/^curl\s+/, "")
+            .trim();
 
           addEvent(
             "Info",
@@ -3414,19 +3194,18 @@ Examples:
           );
 
           try {
-            const res: any =
-              await cluster.fetch(
-                url,
-              );
+            const response: any =
+              await cluster.fetch(url);
 
             const text =
-              typeof res?.text ===
-              "function"
-                ? await res.text()
-                : res?.body || res;
+              typeof response?.text === "function"
+                ? await response.text()
+                : response?.body || response;
 
-            printText(
-              String(text),
+            printHtml(
+              `<span style="color:#a5d6ff;">${escapeHtml(
+                String(text),
+              )}</span>`,
             );
 
             addEvent(
@@ -3435,31 +3214,31 @@ Examples:
               "curl",
               `200 OK from ${url}`,
             );
-          } catch (err: any) {
+          } catch (error: any) {
             printHtml(
-              `<span style="color:#f85149;">curl: (7) Failed to connect: ${escapeHtml(err?.message || String(err))}</span>`,
+              `<span style="color:#f85149;">curl: (7) Failed to connect: ${escapeHtml(
+                error?.message || String(error),
+              )}</span>`,
             );
 
             addEvent(
               "Warning",
               "HttpError",
               "curl",
-              `Connection failed: ${
-                err?.message ||
-                String(err)
-              }`,
+              `Connection failed`,
             );
           }
 
           return;
         }
 
-        /* ---------------------------
-           Unknown command
-           --------------------------- */
-
+        /*
+         * Unknown command
+         */
         printHtml(
-          `<span style="color:#f85149;">command not found: ${escapeHtml(rawCmd)}. Type 'help' or 'protect --help' to see supported commands.</span>`,
+          `<span style="color:#f85149;">command not found: ${escapeHtml(
+            rawCmd,
+          )}. Type 'help' to see supported commands.</span>`,
         );
 
         addEvent(
@@ -3472,11 +3251,9 @@ Examples:
     );
   } catch (error: any) {
     output.innerHTML = `
-      <div class="terminal-line" style="color:#f85149;">
-        Error initializing cluster: ${escapeHtml(
-          error?.message ||
-            String(error),
-        )}
+      <div style="color:#f85149;">
+        Error initializing cluster:
+        ${escapeHtml(error?.message || String(error))}
       </div>
     `;
   }
