@@ -122,7 +122,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "zone-launch",
     title: "Create an isolated Edera zone",
     description:
-      "Launch a lightweight Protect zone. The --wait flag waits until the zone is ready.",
+      "Launch a lightweight Edera zone. The --wait flag waits until the zone is ready.",
     command:
       "protect zone launch -n test-zone --min-cpus 1 -C 2 -c 2 --wait",
   },
@@ -130,7 +130,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "zone-list",
     title: "Inspect the zone",
     description:
-      "List the zones managed by Edera Protect and inspect its networking information.",
+      "List the zones managed by Edera and inspect its networking information.",
     command: "protect zone list",
   },
   {
@@ -144,14 +144,14 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "edera-runtimeclass-apply",
     title: "Enable the Edera RuntimeClass",
     description:
-      "Create the Edera RuntimeClass. The Pending pod can now be scheduled, transition to Running, and attach to the ready Edera Protect zone.",
+      "Create the Edera RuntimeClass. The Pending pod can now be scheduled, transition to Running, and attach to the ready Edera zone.",
     command: "kubectl apply -f runtimeclass-edera.yaml",
   },
   {
     id: "edera-workload-list",
     title: "Prove the pod is Edera protected",
     description:
-      "Before destroying the zone, list Protect workloads and verify edera-protect-pod appears as a running workload attached to test-zone.",
+      "Before destroying the zone, list Edera workloads and verify edera-protect-pod appears as a running workload attached to test-zone.",
     command: "protect workload list",
   },
   {
@@ -166,23 +166,31 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "workload-list",
     title: "Inspect the workload",
     description:
-      "List workloads and see which Protect zone contains the Alpine container.",
+      "List workloads and see which Edera zone contains the Alpine container.",
     command: "protect workload list",
   },
   {
     id: "workload-exec",
-    title: "Verify the Edera kernel",
+    title: "Verify the Edera zone kernel",
     description:
-      "Exec into the Alpine workload and run `uname -r | grep 'edera'`. Expected output: 6.x.y-edera. In this browser simulation, the command returns 6.18.12-edera to represent the dedicated kernel booted for the Edera zone. This demonstrates that the workload is using the zone kernel rather than the shared host kernel; after exiting the workload, a host-level `uname -r` would show the host kernel instead.",
+      "Exec into the Alpine workload and run `uname -r | grep 'edera'`. Expected output: 6.18.44-edera-zone. This demonstrates that the workload is using the dedicated kernel booted for the isolated Edera zone rather than the shared host kernel. In a traditional container, `uname -r` would normally report the host kernel because containers share one kernel.",
     command:
       "protect workload exec alpine-long /bin/sh -c \"uname -r | grep 'edera'\"",
+    optional: true,
+  },
+  {
+    id: "host-kernel",
+    title: "Compare the host kernel",
+    description:
+      "After exiting the workload, run `uname -r` on the host. Expected output: 6.18.44-edera-host. The different kernel suffix proves the workload is not using the host's shared kernel; the Edera zone is running its own isolated kernel in the simulator.",
+    command: "uname -r",
     optional: true,
   },
   {
     id: "workload-destroy",
     title: "Destroy the workload",
     description:
-      "Remove the workload from the Protect zone.",
+      "Remove the workload from the Edera zone.",
     command: "protect workload destroy alpine-long --wait",
   },
   {
@@ -884,7 +892,7 @@ async function initTerminalDemo() {
       <div class="top-header">
         <div>
           <h1>Webernetes Dashboard & Terminal</h1>
-          <p>Browser-based Kubernetes cluster emulator with simulated Edera Protect</p>
+          <p>Browser-based Kubernetes cluster emulator with simulated Edera</p>
         </div>
       </div>
 
@@ -920,7 +928,7 @@ async function initTerminalDemo() {
         <div class="panel-header">
           <span class="drag-handle">⋮⋮</span>
           <div>
-            <h3>🛡️ Edera Protect Zones</h3>
+            <h3>🛡️ Edera Zones</h3>
             <div class="panel-subtitle">Simulated Protect isolation boundaries</div>
           </div>
           <span id="zone-count" class="panel-count">0 Zones</span>
@@ -970,7 +978,7 @@ async function initTerminalDemo() {
         <div class="guide-header">
           <span class="drag-handle">⋮⋮</span>
           <div>
-            <div class="guide-title">🧭 Edera Protect Demo Guide</div>
+            <div class="guide-title">🧭 Edera Demo Guide</div>
             <div class="guide-subtitle">
               Run each command below to walk through the isolation lifecycle
             </div>
@@ -1327,7 +1335,7 @@ async function initTerminalDemo() {
     if (protectZones.length === 0) {
       zoneGrid.innerHTML = `
         <div class="empty-state">
-          No Edera Protect zones have been launched.
+          No Edera zones have been launched.
         </div>
       `;
       return;
@@ -1931,7 +1939,7 @@ async function initTerminalDemo() {
     }
 
     // In the simulator, a runtimeClassName: edera pod attaches to
-    // the most recently launched ready Protect zone.
+    // the most recently launched ready Edera zone.
     const targetZone = readyZones[readyZones.length - 1];
 
     for (const pod of pods) {
@@ -1963,7 +1971,7 @@ async function initTerminalDemo() {
           "Warning",
           "WorkloadNameConflict",
           `pod/${pod.name}`,
-          `Cannot attach pod/${pod.name} to Edera zone: Protect workload name already exists`,
+          `Cannot attach pod/${pod.name} to Edera zone: Edera workload name already exists`,
         );
         continue;
       }
@@ -2136,7 +2144,7 @@ async function initTerminalDemo() {
       /\buname\s+-r\b/i.test(commandText) &&
       /grep.*edera|edera.*grep/i.test(commandText)
     ) {
-      const kernelVersion = "6.18.12-edera";
+      const kernelVersion = "6.18.44-edera-zone";
 
       printPre(
         `<span style="color:#7ee787;">${kernelVersion}</span>`,
@@ -2151,7 +2159,7 @@ async function initTerminalDemo() {
     } else if (
       /\buname\s+-r\b/i.test(commandText)
     ) {
-      const kernelVersion = "6.18.12-edera";
+      const kernelVersion = "6.18.44-edera-zone";
       printPre(
         `<span style="color:#7ee787;">${kernelVersion}</span>`,
       );
@@ -2210,7 +2218,7 @@ Kubernetes:
   kubectl delete pod &lt;name&gt;
   kubectl delete node &lt;name&gt;
 
-Edera Protect:
+Edera:
   protect zone launch -n &lt;name&gt; [options]
   protect zone list
   protect zone destroy [OPTIONS] &lt;ZONE&gt;
@@ -2225,7 +2233,7 @@ Other:
   history
 
 Tip:
-  Use the Edera Protect Demo Guide below the terminal
+  Use the Edera Demo Guide below the terminal
   to walk through the isolation lifecycle step-by-step.</span>
     `;
   };
@@ -2234,8 +2242,8 @@ Tip:
     return `
       <div class="cli-help">
         <div class="cli-help-header">
-          <div class="cli-help-title">🛡️ Edera Protect CLI</div>
-          <div class="cli-help-version">Simulated Protect environment</div>
+          <div class="cli-help-title">🛡️ Edera CLI</div>
+          <div class="cli-help-version">Simulated Edera environment</div>
         </div>
 
         <div class="cli-help-description">
@@ -2249,12 +2257,12 @@ Tip:
 
           <div class="cli-help-command">
             <code>protect zone launch -n &lt;name&gt; [options]</code>
-            <span>Create a new isolated Edera Protect zone.</span>
+            <span>Create a new isolated Edera zone.</span>
           </div>
 
           <div class="cli-help-command">
             <code>protect zone list</code>
-            <span>List Protect zones and their networking/state information.</span>
+            <span>List Edera zones and their networking/state information.</span>
           </div>
 
           <div class="cli-help-command">
@@ -2288,7 +2296,7 @@ Tip:
 
           <div class="cli-help-command">
             <code>protect workload list</code>
-            <span>List workloads and the Protect zones that contain them.</span>
+            <span>List workloads and the Edera zones that contain them.</span>
           </div>
 
           <div class="cli-help-command">
@@ -2298,7 +2306,7 @@ Tip:
 
           <div class="cli-help-command">
             <code>protect workload destroy &lt;workload&gt; --wait</code>
-            <span>Remove a workload from its Protect zone.</span>
+            <span>Remove a workload from its Edera zone.</span>
           </div>
         </div>
 
@@ -2317,7 +2325,7 @@ Tip:
         </div>
 
         <div class="cli-help-tip">
-          Tip: use the Edera Protect Demo Guide below the terminal to walk through
+          Tip: use the Edera Demo Guide below the terminal to walk through
           the isolation lifecycle step-by-step.
         </div>
       </div>
@@ -3400,7 +3408,7 @@ Tip:
         </div>
 
         <div style="color:#8b949e;margin-top:5px;">
-          Try the suggested Edera Protect command below,
+          Try the suggested Edera command below,
           or type <span style="color:#7ee787;">help</span>.
         </div>
       </div>
@@ -3544,6 +3552,35 @@ Tip:
               `<span style="color:#f85149;">cat: ${escapeHtml(
                 fileName,
               )}: No such file or directory</span>`,
+            );
+          }
+
+          return;
+        }
+
+        /*
+         * uname
+         */
+        if (tokens[0] === "uname") {
+          const requestsRelease =
+            tokens.length === 1 ||
+            tokens.includes("-r") ||
+            tokens.includes("--release");
+
+          if (requestsRelease) {
+            const hostKernelVersion = "6.18.44-edera-host";
+            printPre(
+              `<span style="color:#7ee787;">${hostKernelVersion}</span>`,
+            );
+            addEvent(
+              "Normal",
+              "HostKernelVerified",
+              "host",
+              `uname -r reported host kernel ${hostKernelVersion}`,
+            );
+          } else {
+            printHtml(
+              `<span style="color:#f85149;">uname: unsupported option. Try: uname -r</span>`,
             );
           }
 
