@@ -71,6 +71,7 @@ interface ProtectWorkload {
   state: "creating" | "running" | "stopped" | "destroying" | "destroyed";
   image: string;
   command: string[];
+  sourcePodName?: string;
 }
 
 interface DemoStep {
@@ -84,17 +85,16 @@ interface DemoStep {
 const NGINX_YAML_CONTENT = `apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx
+  name: edera-protect-pod
   namespace: default
   labels:
     env: test
 spec:
+  runtimeClassName: edera
   containers:
   - name: nginx
     image: nginx
-    imagePullPolicy: IfNotPresent
-  nodeSelector:
-    disktype: ssd`;
+    imagePullPolicy: IfNotPresent`;
 
 const RUNTIMECLASS_EDERA_YAML_CONTENT = `apiVersion: node.k8s.io/v1
 kind: RuntimeClass
@@ -1625,6 +1625,7 @@ async function initTerminalDemo() {
       `Edera zone ${name} is ready`,
     );
 
+    syncEderaPodsToProtectWorkloads();
     updateDashboard();
 
     printHtml(
@@ -1829,6 +1830,76 @@ async function initTerminalDemo() {
     printHtml(
       `<span style="color:#7ee787;">${escapeHtml(uuid)}</span>`,
     );
+
+    updateDashboard();
+  };
+
+  const syncEderaPodsToProtectWorkloads = () => {
+    const readyZones = protectZones.filter(
+      (zone) => zone.state === "ready",
+    );
+
+    if (readyZones.length === 0) {
+      return;
+    }
+
+    // In the simulator, a runtimeClassName: edera pod attaches to
+    // the most recently launched ready Protect zone.
+    const targetZone = readyZones[readyZones.length - 1];
+
+    for (const pod of pods) {
+      if (
+        pod.runtimeClassName !== "edera" ||
+        pod.status !== "Running"
+      ) {
+        continue;
+      }
+
+      const alreadyAttached = protectWorkloads.some(
+        (workload) =>
+          workload.sourcePodName === pod.name &&
+          workload.state !== "destroyed",
+      );
+
+      if (alreadyAttached) {
+        continue;
+      }
+
+      const conflictingWorkload = protectWorkloads.find(
+        (workload) =>
+          workload.name === pod.name &&
+          workload.state !== "destroyed",
+      );
+
+      if (conflictingWorkload) {
+        addEvent(
+          "Warning",
+          "WorkloadNameConflict",
+          `pod/${pod.name}`,
+          `Cannot attach pod/${pod.name} to Edera zone: Protect workload name already exists`,
+        );
+        continue;
+      }
+
+      const workload: ProtectWorkload = {
+        name: pod.name,
+        uuid: crypto.randomUUID(),
+        zone: targetZone.uuid,
+        state: "running",
+        image: pod.image,
+        command: [],
+        sourcePodName: pod.name,
+      };
+
+      protectWorkloads.push(workload);
+
+      addEvent(
+        "Info",
+        "WorkloadAttached",
+        `workload/${workload.name}`,
+        `Attached pod/${pod.name} to Edera zone ${targetZone.name}`,
+      );
+    }
 
     updateDashboard();
   };
@@ -2561,7 +2632,8 @@ Tip:
       }
 
       if (fileName === "pod-nginx.yaml") {
-        const podName = "nginx";
+        const podName = "edera-protect-pod";
+        const runtimeReady = activeRuntimeClasses.has("edera");
 
         if (
           pods.some(
@@ -2571,63 +2643,72 @@ Tip:
           )
         ) {
           printHtml(
-            `<span style="color:#8b949e;">pod/nginx unchanged</span>`,
+            `<span style="color:#8b949e;">pod/${escapeHtml(podName)} unchanged</span>`,
           );
           return true;
         }
 
-        const matchingNode = nodes.find(
-          (node) => node.labels.disktype === "ssd",
-        );
+        const assignedNode = runtimeReady
+          ? nodes.find(
+              (node) =>
+                !node.labels[
+                  "node-role.kubernetes.io/control-plane"
+                ],
+            ) || nodes[0]
+          : undefined;
 
         pods.push({
           name: podName,
           namespace: "default",
-          status: matchingNode ? "Running" : "Pending",
+          status: runtimeReady ? "Running" : "Pending",
           age: "1s",
           image: "nginx",
-          ip: matchingNode
+          ip: assignedNode
             ? `10.244.0.${Math.floor(Math.random() * 200 + 10)}`
             : "<none>",
-          node: matchingNode?.name || "<none>",
+          node: assignedNode?.name || "<none>",
           labels: { env: "test" },
-          nodeSelector: { disktype: "ssd" },
+          runtimeClassName: "edera",
         });
 
         addEvent(
           "Normal",
           "Created",
-          "pod/nginx",
-          "pod/nginx created from manifest",
+          `pod/${podName}`,
+          `pod/${podName} created from manifest`,
         );
 
-        if (matchingNode) {
+        if (runtimeReady && assignedNode) {
           addEvent(
             "Normal",
             "Scheduled",
-            "pod/nginx",
-            `Successfully assigned default/nginx to ${matchingNode.name}`,
+            `pod/${podName}`,
+            `Successfully assigned default/${podName} to ${assignedNode.name}`,
           );
 
           addEvent(
             "Normal",
             "Started",
-            "pod/nginx",
-            "Started container nginx",
+            `pod/${podName}`,
+            `Started container nginx`,
           );
         } else {
           addEvent(
             "Warning",
-            "FailedScheduling",
-            "pod/nginx",
-            "0/3 nodes are available: node selector did not match",
+            "FailedCreatePodSandBox",
+            `pod/${podName}`,
+            `Failed to create pod sandbox: RuntimeClass "edera" not found`,
           );
+        }
+
+        if (runtimeReady && assignedNode) {
+          syncEderaPodsToProtectWorkloads();
         }
 
         updateDashboard();
 
         printHtml(
-          `<span style="color:#7ee787;">pod/nginx created</span>`,
+          `<span style="color:#7ee787;">pod/${podName} created</span>`,
         );
 
         return true;
@@ -2648,6 +2729,7 @@ Tip:
         );
 
         checkPendingPods();
+        syncEderaPodsToProtectWorkloads();
         updateDashboard();
 
         return true;
@@ -2960,12 +3042,29 @@ Tip:
 
       pods.splice(index, 1);
 
+      const attachedWorkloads = protectWorkloads.filter(
+        (workload) => workload.sourcePodName === podName,
+      );
+
+      protectWorkloads = protectWorkloads.filter(
+        (workload) => workload.sourcePodName !== podName,
+      );
+
       addEvent(
         "Normal",
         "Terminated",
         `pod/${podName}`,
         `Pod ${podName} deleted`,
       );
+
+      for (const workload of attachedWorkloads) {
+        addEvent(
+          "Normal",
+          "WorkloadTerminated",
+          `workload/${workload.name}`,
+          `Workload ${workload.name} removed with pod ${podName}`,
+        );
+      }
 
       updateDashboard();
 
