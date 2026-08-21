@@ -2300,6 +2300,7 @@ Kubernetes:
   kubectl get namespaces
   kubectl label node &lt;node&gt; &lt;key&gt;=&lt;value&gt;
   kubectl apply -f &lt;filename.yaml&gt;
+  kubectl delete -f &lt;filename.yaml&gt;
   kubectl delete pod &lt;name&gt;
   kubectl delete node &lt;name&gt;
 
@@ -3263,6 +3264,113 @@ Tip:
       checkPendingPods();
       updateDashboard();
 
+      return true;
+    }
+
+    /*
+     * kubectl delete -f
+     */
+    if (tokens[1] === "delete" && tokens[2] === "-f") {
+      const fileName = tokens[3];
+
+      if (!fileName || !localFiles[fileName]) {
+        printHtml(
+          `<span style="color:#f85149;">error: the path "${escapeHtml(
+            fileName || "",
+          )}" does not exist</span>`,
+        );
+        return true;
+      }
+
+      if (fileName === "runtimeclass-edera.yaml") {
+        if (!activeRuntimeClasses.has("edera")) {
+          printHtml(
+            `<span style="color:#8b949e;">runtimeclass.node.k8s.io/edera not found</span>`,
+          );
+          return true;
+        }
+
+        activeRuntimeClasses.delete("edera");
+
+        addEvent(
+          "Normal",
+          "Deleted",
+          "runtimeclass/edera",
+          "runtimeclass.node.k8s.io/edera deleted",
+        );
+
+        printHtml(
+          `<span style="color:#7ee787;">runtimeclass.node.k8s.io/edera deleted</span>`,
+        );
+
+        return true;
+      }
+
+      const manifestPodName =
+        fileName === "pod-nginx.yaml"
+          ? "edera-protect-pod"
+          : fileName === "pod-hardened-vessel.yaml"
+            ? "hardened-vessel"
+            : null;
+
+      if (manifestPodName) {
+        const index = pods.findIndex(
+          (pod) =>
+            pod.name === manifestPodName &&
+            pod.namespace === "default",
+        );
+
+        if (index === -1) {
+          printHtml(
+            `<span style="color:#8b949e;">pod/${escapeHtml(
+              manifestPodName,
+            )} not found</span>`,
+          );
+          return true;
+        }
+
+        const [deletedPod] = pods.splice(index, 1);
+
+        const attachedWorkloads = protectWorkloads.filter(
+          (workload) => workload.sourcePodName === manifestPodName,
+        );
+
+        protectWorkloads = protectWorkloads.filter(
+          (workload) => workload.sourcePodName !== manifestPodName,
+        );
+
+        addEvent(
+          "Normal",
+          "Deleted",
+          `pod/${manifestPodName}`,
+          `pod/${manifestPodName} deleted from manifest`,
+        );
+
+        for (const workload of attachedWorkloads) {
+          addEvent(
+            "Normal",
+            "WorkloadTerminated",
+            `workload/${workload.name}`,
+            `Workload ${workload.name} removed with pod ${manifestPodName}`,
+          );
+        }
+
+        updateDashboard();
+
+        printHtml(
+          `<span style="color:#7ee787;">pod/${escapeHtml(
+            deletedPod.name,
+          )} deleted</span>`,
+        );
+
+        return true;
+      }
+
+      printHtml(
+        `<span style="color:#f85149;">error: delete for "${escapeHtml(
+          fileName,
+        )}" is not supported by this simulator</span>`,
+      );
       return true;
     }
 
