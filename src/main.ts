@@ -821,13 +821,32 @@ async function initTerminalDemo() {
     }
 
     .guide-step-mini {
+      width: 100%;
       display: flex;
       gap: 8px;
       align-items: flex-start;
-      padding: 6px 0;
-      color: #8b949e;
-      font-size: 10px;
+      padding: 7px 4px;
+      margin: 0;
+      border: 0;
       border-bottom: 1px solid #21262d;
+      background: transparent;
+      color: #8b949e;
+      font: inherit;
+      font-size: 10px;
+      text-align: left;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 120ms ease, color 120ms ease;
+    }
+
+    .guide-step-mini:hover {
+      background: #161b22;
+      color: #f0f6fc;
+    }
+
+    .guide-step-mini:focus-visible {
+      outline: 1px solid #58a6ff;
+      outline-offset: -1px;
     }
 
     .guide-step-mini:last-child {
@@ -843,9 +862,15 @@ async function initTerminalDemo() {
       color: #3fb950;
     }
 
-    .guide-step-mini.current {
+    .guide-step-mini.current,
+    .guide-step-mini.selected {
       color: #f0f6fc;
       font-weight: 600;
+      background: #161b22;
+    }
+
+    .guide-step-mini.selected {
+      box-shadow: inset 2px 0 0 #58a6ff;
     }
 
     .optional-badge {
@@ -1389,6 +1414,8 @@ async function initTerminalDemo() {
     renderProtectZones();
   };
 
+  let selectedDemoStepIndex: number | null = null;
+
   const getNextDemoStepIndex = (): number => {
     const index = PROTECT_DEMO_STEPS.findIndex(
       (step) => !completedDemoSteps.has(step.id),
@@ -1397,8 +1424,29 @@ async function initTerminalDemo() {
     return index === -1 ? PROTECT_DEMO_STEPS.length - 1 : index;
   };
 
+  const getSelectedDemoStepIndex = (): number => {
+    if (
+      selectedDemoStepIndex !== null &&
+      selectedDemoStepIndex >= 0 &&
+      selectedDemoStepIndex < PROTECT_DEMO_STEPS.length
+    ) {
+      return selectedDemoStepIndex;
+    }
+
+    return getNextDemoStepIndex();
+  };
+
+  const selectDemoStep = (index: number) => {
+    if (index < 0 || index >= PROTECT_DEMO_STEPS.length) {
+      return;
+    }
+
+    selectedDemoStepIndex = index;
+    renderGuide();
+  };
+
   const renderGuide = () => {
-    const currentIndex = getNextDemoStepIndex();
+    const currentIndex = getSelectedDemoStepIndex();
     const currentStep = PROTECT_DEMO_STEPS[currentIndex];
 
     guideProgress.innerHTML = PROTECT_DEMO_STEPS.map((step, index) => {
@@ -1428,11 +1476,17 @@ async function initTerminalDemo() {
     guideStepList.innerHTML = PROTECT_DEMO_STEPS.map((step, index) => {
       const done = completedDemoSteps.has(step.id);
       const current = index === currentIndex && !done;
+      const selected = index === currentIndex;
 
       return `
-        <div class="guide-step-mini ${
-          done ? "done" : current ? "current" : ""
-        }">
+        <button
+          type="button"
+          class="guide-step-mini ${
+            done ? "done" : current ? "current" : ""
+          } ${selected ? "selected" : ""}"
+          data-step-index="${index}"
+          title="${escapeHtml(step.title)} — click to select this task"
+        >
           <span class="mini-number">${index + 1}.</span>
           <span>
             ${escapeHtml(step.title)}
@@ -1442,18 +1496,49 @@ async function initTerminalDemo() {
                 : ""
             }
           </span>
-        </div>
+        </button>
       `;
     }).join("");
   };
 
   const markDemoStepComplete = (stepId: string) => {
     completedDemoSteps.add(stepId);
+
+    // Once the selected step has completed, advance the selection to the next
+    // incomplete task so the guide remains useful as a linear walkthrough.
+    const selectedStep =
+      selectedDemoStepIndex === null
+        ? undefined
+        : PROTECT_DEMO_STEPS[selectedDemoStepIndex];
+
+    if (selectedStep?.id === stepId) {
+      const nextIndex = PROTECT_DEMO_STEPS.findIndex(
+        (step) => !completedDemoSteps.has(step.id),
+      );
+
+      selectedDemoStepIndex =
+        nextIndex === -1 ? PROTECT_DEMO_STEPS.length - 1 : nextIndex;
+    }
+
     renderGuide();
   };
 
+  guideStepList.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    const button = target.closest<HTMLButtonElement>("button[data-step-index]");
+
+    if (!button) {
+      return;
+    }
+
+    const index = Number(button.dataset.stepIndex);
+    if (Number.isFinite(index)) {
+      selectDemoStep(index);
+    }
+  });
+
   useCommandBtn.addEventListener("click", () => {
-    const index = getNextDemoStepIndex();
+    const index = getSelectedDemoStepIndex();
     const step = PROTECT_DEMO_STEPS[index];
 
     input.value = step.command;
@@ -3578,6 +3663,8 @@ Tip:
               "host",
               `uname -r reported host kernel ${hostKernelVersion}`,
             );
+
+            markDemoStepComplete("host-kernel");
           } else {
             printHtml(
               `<span style="color:#f85149;">uname: unsupported option. Try: uname -r</span>`,
