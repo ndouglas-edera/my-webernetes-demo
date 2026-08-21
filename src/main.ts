@@ -3299,8 +3299,7 @@ Tip:
         if (
           tokens[0] === "help" ||
           rawCmd === "kubectl --help" ||
-          rawCmd === "kubectl -h" ||
-          rawCmd === "protect --help"
+          rawCmd === "kubectl -h"
         ) {
           printHtml(formatHelpText());
           return;
