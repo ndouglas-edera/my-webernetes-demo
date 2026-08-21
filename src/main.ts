@@ -3201,7 +3201,7 @@ async function initTerminalDemo() {
       }
 
       if (fileName === "nginx-deployment.yaml") {
-        const deploymentName = "nginx-deployment";
+        const deploymentName = "nginx";
         const runtimeReady = activeRuntimeClasses.has("edera");
         const existing = deployments.find((deployment) => deployment.name === deploymentName);
 
@@ -3884,7 +3884,7 @@ async function initTerminalDemo() {
       }
 
       if (fileName === "nginx-deployment.yaml") {
-        const deploymentName = "nginx-deployment";
+        const deploymentName = "nginx";
         const index = deployments.findIndex((deployment) => deployment.name === deploymentName);
         if (index === -1) {
           printHtml(`<span style="color:#8b949e;">deployment.apps/${deploymentName} not found</span>`);
