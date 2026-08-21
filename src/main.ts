@@ -885,6 +885,37 @@ async function initTerminalDemo() {
       padding: 8px 0;
     }
 
+    .edera-footer {
+      margin-top: 18px;
+      padding: 14px 0 8px;
+      border-top: 1px solid #21262d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: #8b949e;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .edera-footer img {
+      width: 32px;
+      height: 32px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 1px solid #30363d;
+      flex: 0 0 auto;
+    }
+
+    .edera-footer a {
+      color: #58a6ff;
+      text-decoration: none;
+    }
+
+    .edera-footer a:hover {
+      text-decoration: underline;
+    }
+
     @media (max-width: 900px) {
       .main-layout,
       .guide-body {
@@ -1035,6 +1066,15 @@ async function initTerminalDemo() {
           </div>
 
         </div>
+      </div>
+
+      <div class="edera-footer">
+        <img
+          src="https://docs.edera.dev/Ivy%20Headphones.png"
+          alt="Ivy from Edera"
+          loading="lazy"
+        />
+        <span>Made with love by the team at <a href="https://edera.dev/" target="_blank" rel="noopener noreferrer">Edera</a></span>
       </div>
 
     </div>
@@ -1611,7 +1651,12 @@ async function initTerminalDemo() {
 
   const checkPendingPods = () => {
     pods.forEach((pod) => {
-      if (pod.status !== "Pending") {
+      const recoverableRuntimeClassPod =
+        pod.status === "Failed" &&
+        pod.runtimeClassName &&
+        activeRuntimeClasses.has(pod.runtimeClassName);
+
+      if (pod.status !== "Pending" && !recoverableRuntimeClassPod) {
         return;
       }
 
@@ -1620,6 +1665,16 @@ async function initTerminalDemo() {
         !activeRuntimeClasses.has(pod.runtimeClassName)
       ) {
         return;
+      }
+
+      if (recoverableRuntimeClassPod) {
+        pod.status = "Pending";
+        addEvent(
+          "Info",
+          "RuntimeClassRecovered",
+          `pod/${pod.name}`,
+          `RuntimeClass "${pod.runtimeClassName}" is available again; attempting to reschedule ${pod.name}`,
+        );
       }
 
       let targetNode: LocalNode | undefined;
@@ -2890,16 +2945,28 @@ Tip:
         const podName = "edera-protect-pod";
         const runtimeReady = activeRuntimeClasses.has("edera");
 
-        if (
-          pods.some(
-            (pod) =>
-              pod.name === podName &&
-              pod.namespace === "default",
-          )
-        ) {
-          printHtml(
-            `<span style="color:#8b949e;">pod/${escapeHtml(podName)} unchanged</span>`,
-          );
+        const existingPod = pods.find(
+          (pod) =>
+            pod.name === podName &&
+            pod.namespace === "default",
+        );
+
+        if (existingPod) {
+          if (existingPod.status === "Failed" && runtimeReady) {
+            existingPod.status = "Pending";
+            existingPod.node = "<none>";
+            existingPod.ip = "<none>";
+            checkPendingPods();
+            syncEderaPodsToProtectWorkloads();
+            updateDashboard();
+            printHtml(
+              `<span style="color:#7ee787;">pod/${escapeHtml(podName)} re-applied and recovered</span>`,
+            );
+          } else {
+            printHtml(
+              `<span style="color:#8b949e;">pod/${escapeHtml(podName)} unchanged</span>`,
+            );
+          }
           markDemoStepComplete("edera-pod-apply");
           return true;
         }
@@ -2996,21 +3063,33 @@ Tip:
       if (fileName === "pod-hardened-vessel.yaml") {
         const podName = "hardened-vessel";
 
-        if (
-          pods.some(
-            (pod) =>
-              pod.name === podName &&
-              pod.namespace === "default",
-          )
-        ) {
-          printHtml(
-            `<span style="color:#8b949e;">pod/${podName} unchanged</span>`,
-          );
-          return true;
-        }
-
         const runtimeReady =
           activeRuntimeClasses.has("edera");
+
+        const existingPod = pods.find(
+          (pod) =>
+            pod.name === podName &&
+            pod.namespace === "default",
+        );
+
+        if (existingPod) {
+          if (existingPod.status === "Failed" && runtimeReady) {
+            existingPod.status = "Pending";
+            existingPod.node = "<none>";
+            existingPod.ip = "<none>";
+            checkPendingPods();
+            syncEderaPodsToProtectWorkloads();
+            updateDashboard();
+            printHtml(
+              `<span style="color:#7ee787;">pod/${podName} re-applied and recovered</span>`,
+            );
+          } else {
+            printHtml(
+              `<span style="color:#8b949e;">pod/${podName} unchanged</span>`,
+            );
+          }
+          return true;
+        }
 
         const assignedNode = runtimeReady
           ? nodes.find(
@@ -3353,7 +3432,7 @@ Tip:
           printHtml(
             `<span style="color:#d29922;">${affectedPods.length} Edera pod${
               affectedPods.length === 1 ? "" : "s"
-            } moved to Failed because RuntimeClass "edera" is no longer available. Re-apply the pod manifest after recreating the RuntimeClass.</span>`,
+            } moved to Failed because RuntimeClass "edera" is no longer available. Recreate the RuntimeClass to recover the pod, or re-apply its manifest.</span>`,
           );
         }
 
