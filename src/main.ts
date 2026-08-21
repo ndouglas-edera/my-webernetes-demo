@@ -29,6 +29,17 @@ interface LocalPod {
   labels: Record<string, string>;
   nodeSelector?: Record<string, string>;
   runtimeClassName?: string;
+  ownerDeployment?: string;
+}
+
+interface LocalDeployment {
+  name: string;
+  namespace: string;
+  replicas: number;
+  readyReplicas: number;
+  image: string;
+  runtimeClassName?: string;
+  selector: string;
 }
 
 interface LocalNode {
@@ -102,6 +113,28 @@ metadata:
   name: edera
 handler: edera`;
 
+const NGINX_DEPLOYMENT_YAML_CONTENT = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      runtimeClassName: edera
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80`;
+
 const HARDENED_VESSEL_YAML_CONTENT = `apiVersion: v1
 kind: Pod
 metadata:
@@ -153,6 +186,20 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     description:
       "Before destroying the zone, list Edera workloads and verify edera-protect-pod appears as a running workload attached to test-zone.",
     command: "protect workload list",
+  },
+  {
+    id: "deployment-apply",
+    title: "Deploy an Edera-backed Deployment",
+    description:
+      "Apply an apps/v1 Deployment with two nginx replicas. The pod template uses runtimeClassName: edera, so both replicas remain Pending until the Edera RuntimeClass is available.",
+    command: "kubectl apply -f nginx-deployment.yaml",
+  },
+  {
+    id: "deployment-list",
+    title: "Inspect the Deployment",
+    description:
+      "List the Deployment and verify its two replicas become ready once the Edera RuntimeClass is enabled.",
+    command: "kubectl get deployments",
   },
   {
     id: "workload-launch",
@@ -1119,6 +1166,7 @@ async function initTerminalDemo() {
     "pod-nginx.yaml": NGINX_YAML_CONTENT,
     "runtimeclass-edera.yaml": RUNTIMECLASS_EDERA_YAML_CONTENT,
     "pod-hardened-vessel.yaml": HARDENED_VESSEL_YAML_CONTENT,
+    "nginx-deployment.yaml": NGINX_DEPLOYMENT_YAML_CONTENT,
   };
 
   const activeRuntimeClasses = new Set<string>();
@@ -1129,6 +1177,8 @@ async function initTerminalDemo() {
     { name: "kube-public", status: "Active", age: "10m" },
     { name: "kube-node-lease", status: "Active", age: "10m" },
   ];
+
+  let deployments: LocalDeployment[] = [];
 
   let pods: LocalPod[] = [
     {
@@ -2397,6 +2447,21 @@ async function initTerminalDemo() {
           </div>
 
           <div class="cli-help-command">
+            <code>kubectl get deployments</code>
+            <span>List simulated Deployment resources and replica status.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl describe pod &lt;name&gt;</code>
+            <span>Show detailed simulated Pod configuration, status, events, runtime class, and networking.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl describe node &lt;name&gt;</code>
+            <span>Show detailed simulated Node configuration, labels, roles, and workloads.</span>
+          </div>
+
+          <div class="cli-help-command">
             <code>kubectl label node &lt;node&gt; &lt;key&gt;=&lt;value&gt;</code>
             <span>Add or update a label on a simulated node.</span>
           </div>
@@ -2419,6 +2484,16 @@ async function initTerminalDemo() {
           <div class="cli-help-command">
             <code>kubectl delete node &lt;name&gt;</code>
             <span>Remove a simulated node from the cluster.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl apply -f nginx-deployment.yaml</code>
+            <span>Create an Edera-backed Deployment with two replicas.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl delete -f nginx-deployment.yaml</code>
+            <span>Delete the Edera-backed Deployment and its managed pods.</span>
           </div>
         </div>
 
@@ -3049,6 +3124,59 @@ async function initTerminalDemo() {
         return true;
       }
 
+      if (fileName === "nginx-deployment.yaml") {
+        const deploymentName = "nginx-deployment";
+        const runtimeReady = activeRuntimeClasses.has("edera");
+        const existing = deployments.find((deployment) => deployment.name === deploymentName);
+
+        if (existing) {
+          printHtml(`<span style="color:#8b949e;">deployment.apps/${deploymentName} unchanged</span>`);
+          return true;
+        }
+
+        const deployment: LocalDeployment = {
+          name: deploymentName,
+          namespace: "default",
+          replicas: 2,
+          readyReplicas: 0,
+          image: "nginx:1.14.2",
+          runtimeClassName: "edera",
+          selector: "app=nginx",
+        };
+        deployments.push(deployment);
+
+        for (let i = 1; i <= deployment.replicas; i++) {
+          const podName = `${deploymentName}-${String(i).padStart(5, "0")}`;
+          const assignedNode = runtimeReady
+            ? nodes.find((node) => !node.labels["node-role.kubernetes.io/control-plane"]) || nodes[0]
+            : undefined;
+          pods.push({
+            name: podName,
+            namespace: "default",
+            status: runtimeReady ? "Running" : "Pending",
+            age: "1s",
+            image: deployment.image,
+            ip: assignedNode ? `10.244.0.${Math.floor(Math.random() * 200 + 10)}` : "<none>",
+            node: assignedNode?.name || "<none>",
+            labels: { app: "nginx" },
+            runtimeClassName: "edera",
+            ownerDeployment: deploymentName,
+          });
+        }
+
+        addEvent("Normal", "Created", `deployment/${deploymentName}`, `deployment.apps/${deploymentName} created`);
+        if (runtimeReady) {
+          checkPendingPods();
+          deployment.readyReplicas = pods.filter((pod) => pod.ownerDeployment === deploymentName && pod.status === "Running").length;
+        } else {
+          addEvent("Warning", "ReplicaSetCreate", `deployment/${deploymentName}`, `Created ${deployment.replicas} Pending pods waiting for RuntimeClass "edera"`);
+        }
+
+        updateDashboard();
+        printHtml(`<span style="color:#7ee787;">deployment.apps/${deploymentName} created</span>`);
+        return true;
+      }
+
       if (fileName === "pod-nginx.yaml") {
         const podName = "edera-protect-pod";
         const runtimeReady = activeRuntimeClasses.has("edera");
@@ -3162,6 +3290,9 @@ async function initTerminalDemo() {
 
         checkPendingPods();
         syncEderaPodsToProtectWorkloads();
+        for (const deployment of deployments) {
+          deployment.readyReplicas = pods.filter((pod) => pod.ownerDeployment === deployment.name && pod.status === "Running").length;
+        }
         updateDashboard();
 
         markDemoStepComplete("edera-runtimeclass-apply");
@@ -3261,6 +3392,94 @@ async function initTerminalDemo() {
         return true;
       }
 
+      return true;
+    }
+
+    /*
+     * kubectl describe
+     */
+    if (tokens[1] === "describe") {
+      const resource = tokens[2];
+      const name = tokens[3];
+
+      if (!resource || !name) {
+        printHtml(`<span style="color:#f85149;">Usage: kubectl describe pod|node &lt;name&gt;</span>`);
+        return true;
+      }
+
+      if (resource === "pod" || resource === "pods") {
+        const pod = pods.find(
+          (item) => item.name === name && item.namespace === "default",
+        );
+
+        if (!pod) {
+          printHtml(
+            `<span style="color:#f85149;">Error from server (NotFound): pods "${escapeHtml(name)}" not found</span>`,
+          );
+          return true;
+        }
+
+        const podEvents = clusterEvents.filter((ev) => ev.object === `pod/${pod.name}`);
+        const workload = protectWorkloads.find((item) => item.sourcePodName === pod.name);
+        const conditions = pod.status === "Running" ? "Ready=True\nContainersReady=True" :
+          pod.status === "Pending" ? "Ready=False\nContainersReady=False" :
+          "Ready=False\nContainersReady=False";
+
+        const html = `
+          <div style="color:#8b949e;">Name:</div> ${escapeHtml(pod.name)}
+          <div style="color:#8b949e;">Namespace:</div> ${escapeHtml(pod.namespace)}
+          <div style="color:#8b949e;">Status:</div> <span style="color:${pod.status === "Running" ? "#7ee787" : "#d29922"};">${escapeHtml(pod.status)}</span>
+          <div style="color:#8b949e;">Node:</div> ${escapeHtml(pod.node || "&lt;none>")}
+          <div style="color:#8b949e;">Pod IP:</div> ${escapeHtml(pod.ip || "&lt;none>")}
+          <div style="color:#8b949e;">Image:</div> ${escapeHtml(pod.image)}
+          <div style="color:#8b949e;">RuntimeClass:</div> ${escapeHtml(pod.runtimeClassName || "&lt;none>")}
+          <div style="color:#8b949e;">Labels:</div> ${escapeHtml(formatLabels(pod.labels))}
+          <div style="color:#8b949e;">Edera workload:</div> ${workload ? escapeHtml(`${workload.name} → zone ${workload.zone}`) : "&lt;none>"}
+
+          <div style="color:#79c0ff;font-weight:700;">Conditions</div>
+          ${escapeHtml(conditions)}
+
+          <div style="color:#79c0ff;font-weight:700;">Events</div>
+          ${podEvents.length ? podEvents.slice(-8).map((ev) => `${escapeHtml(ev.type)}   ${escapeHtml(ev.reason)}   ${escapeHtml(ev.message)}`).join("\n") : "No events."}
+        `;
+
+        printPre(html.trim());
+        return true;
+      }
+
+      if (resource === "node" || resource === "nodes") {
+        const node = nodes.find((item) => item.name === name);
+
+        if (!node) {
+          printHtml(
+            `<span style="color:#f85149;">Error from server (NotFound): nodes "${escapeHtml(name)}" not found</span>`,
+          );
+          return true;
+        }
+
+        const nodePods = pods.filter((pod) => pod.node === node.name);
+        const roles = getNodeRoles(node);
+        const nodeEvents = clusterEvents.filter((ev) => ev.object === `node/${node.name}`);
+
+        const html = `
+          <div style="color:#8b949e;">Name:</div> ${escapeHtml(node.name)}
+          <div style="color:#8b949e;">Roles:</div> ${escapeHtml(roles)}
+          <div style="color:#8b949e;">Status:</div> <span style="color:#7ee787;">${escapeHtml(node.status)}</span>
+          <div style="color:#8b949e;">Kubelet Version:</div> ${escapeHtml(node.version)}
+          <div style="color:#8b949e;">Labels:</div> ${escapeHtml(formatLabels(node.labels))}
+
+          <div style="color:#79c0ff;font-weight:700;">Pods</div>
+          ${nodePods.length ? nodePods.map((pod) => `${escapeHtml(pod.namespace)}/${escapeHtml(pod.name)}   ${escapeHtml(pod.status)}`).join("\n") : "No pods assigned."}
+
+          <div style="color:#79c0ff;font-weight:700;">Events</div>
+          ${nodeEvents.length ? nodeEvents.slice(-8).map((ev) => `${escapeHtml(ev.type)}   ${escapeHtml(ev.reason)}   ${escapeHtml(ev.message)}`).join("\n") : "No events."}
+        `;
+
+        printPre(html.trim());
+        return true;
+      }
+
+      printHtml(`<span style="color:#f85149;">Error: describe for resource "${escapeHtml(resource)}" is not supported.</span>`);
       return true;
     }
 
@@ -3367,6 +3586,27 @@ async function initTerminalDemo() {
 
         printPre(html.trimEnd());
 
+        return true;
+      }
+
+      if (
+        resource === "deployments" ||
+        resource === "deployment" ||
+        resource === "deploy"
+      ) {
+        if (deployments.length === 0) {
+          printHtml(`<span style="color:#8b949e;">No resources found.</span>`);
+          return true;
+        }
+
+        let html = `<span style="color:#79c0ff;font-weight:700;">NAME                 READY   UP-TO-DATE   AVAILABLE</span>\n`;
+        html += `<span style="color:#30363d;">${"─".repeat(65)}</span>\n`;
+
+        for (const deployment of deployments) {
+          html += `${escapeHtml(deployment.name.padEnd(21))}${deployment.readyReplicas}/${deployment.replicas}     ${String(deployment.replicas).padEnd(11)}${deployment.readyReplicas}\n`;
+        }
+
+        printPre(html.trimEnd());
         return true;
       }
 
@@ -3532,6 +3772,22 @@ async function initTerminalDemo() {
           }
         }
 
+        for (const deployment of deployments) {
+          const deploymentPods = pods.filter((pod) => pod.ownerDeployment === deployment.name && pod.status === "Running");
+          for (const pod of deploymentPods) {
+            pod.status = "Failed";
+            pod.node = "<none>";
+            pod.ip = "<none>";
+            const attachedWorkloads = protectWorkloads.filter((workload) => workload.sourcePodName === pod.name);
+            protectWorkloads = protectWorkloads.filter((workload) => workload.sourcePodName !== pod.name);
+            addEvent("Warning", "RuntimeClassUnavailable", `pod/${pod.name}`, `Pod ${pod.name} failed: RuntimeClass "edera" is no longer available`);
+            for (const workload of attachedWorkloads) {
+              addEvent("Normal", "WorkloadTerminated", `workload/${workload.name}`, `Workload ${workload.name} removed because RuntimeClass "edera" was deleted`);
+            }
+          }
+          deployment.readyReplicas = 0;
+        }
+
         printHtml(
           `<span style="color:#7ee787;">runtimeclass.node.k8s.io/edera deleted</span>`,
         );
@@ -3545,6 +3801,23 @@ async function initTerminalDemo() {
         }
 
         updateDashboard();
+        return true;
+      }
+
+      if (fileName === "nginx-deployment.yaml") {
+        const deploymentName = "nginx-deployment";
+        const index = deployments.findIndex((deployment) => deployment.name === deploymentName);
+        if (index === -1) {
+          printHtml(`<span style="color:#8b949e;">deployment.apps/${deploymentName} not found</span>`);
+          return true;
+        }
+        const ownedPods = pods.filter((pod) => pod.ownerDeployment === deploymentName);
+        pods = pods.filter((pod) => pod.ownerDeployment !== deploymentName);
+        deployments.splice(index, 1);
+        protectWorkloads = protectWorkloads.filter((workload) => !ownedPods.some((pod) => pod.name === workload.sourcePodName));
+        addEvent("Normal", "Deleted", `deployment/${deploymentName}`, `deployment.apps/${deploymentName} deleted`);
+        updateDashboard();
+        printHtml(`<span style="color:#7ee787;">deployment.apps/${deploymentName} deleted</span>`);
         return true;
       }
 
@@ -3728,6 +4001,10 @@ async function initTerminalDemo() {
           );
         }
       });
+
+      for (const deployment of deployments) {
+        deployment.readyReplicas = pods.filter((pod) => pod.ownerDeployment === deployment.name && pod.status === "Running").length;
+      }
 
       updateDashboard();
 
