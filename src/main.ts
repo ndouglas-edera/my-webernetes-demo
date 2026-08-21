@@ -565,6 +565,34 @@ async function initTerminalDemo() {
       line-height: 1.45;
     }
 
+    .cli-help-details {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #8b949e;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .cli-help-details > div {
+      margin-bottom: 5px;
+    }
+
+    .cli-help-details > div:last-child {
+      margin-bottom: 0;
+    }
+
+    .cli-help-details strong {
+      color: #f0f6fc;
+    }
+
+    .cli-help-example {
+      padding-top: 4px;
+      color: #7ee787;
+    }
+
     .cli-help-tip {
       color: #8b949e;
       font-size: 10px;
@@ -1706,71 +1734,115 @@ async function initTerminalDemo() {
     printPre(html.trimEnd());
   };
 
-  const destroyProtectZone = (identifier: string) => {
-    const zone = protectZones.find(
-      (item) => item.name === identifier || item.uuid === identifier,
+  const normalizeZoneStateSelector = (value: string): string | null => {
+    const normalized = value.trim().toLowerCase();
+    const withoutPrefix = normalized.replace(/^zone_state_/, "");
+
+    const aliases: Record<string, string> = {
+      creating: "creating",
+      created: "created",
+      ready: "ready",
+      exited: "exited",
+      destroying: "destroying",
+      destroyed: "destroyed",
+      failed: "failed",
+    };
+
+    return aliases[withoutPrefix] ?? null;
+  };
+
+  const zoneMatchesSelector = (zone: ProtectZone, selector?: string): boolean => {
+    if (!selector) {
+      return true;
+    }
+
+    const match = selector.match(/^\s*status\.state\s*=\s*(.+?)\s*$/);
+    if (!match) {
+      return false;
+    }
+
+    const selectedState = normalizeZoneStateSelector(match[1]);
+    if (!selectedState) {
+      return false;
+    }
+
+    return zone.state === selectedState;
+  };
+
+  const destroyProtectZone = (
+    identifier: string,
+    destroyAll = false,
+    selector?: string,
+  ) => {
+    const matchingZones = protectZones.filter((zone) => {
+      const identifierMatches =
+        zone.name === identifier || zone.uuid === identifier;
+
+      return identifierMatches && zoneMatchesSelector(zone, selector);
+    });
+
+    const activeMatchingZones = matchingZones.filter(
+      (zone) => zone.state !== "destroyed",
     );
 
-    if (!zone) {
+    if (activeMatchingZones.length === 0) {
+      const selectorText = selector ? ` matching selector "${selector}"` : "";
       printHtml(
         `<span style="color:#f85149;">Error: zone "${escapeHtml(
           identifier,
-        )}" not found.</span>`,
+        )}" not found${selectorText}.</span>`,
       );
       return;
     }
 
-    if (zone.state === "destroyed") {
-      printHtml(
-        `<span style="color:#8b949e;">Zone ${escapeHtml(
-          identifier,
-        )} is already destroyed.</span>`,
+    const zonesToDestroy = destroyAll
+      ? activeMatchingZones
+      : [activeMatchingZones[activeMatchingZones.length - 1]];
+
+    for (const zone of zonesToDestroy) {
+      zone.state = "destroying";
+
+      addEvent(
+        "Info",
+        "ZoneDestroying",
+        `zone/${zone.name}`,
+        `Destruction requested for zone ${zone.name}`,
       );
-      return;
-    }
 
-    zone.state = "destroying";
+      const attached = protectWorkloads.filter(
+        (workload) => workload.zone === zone.uuid,
+      );
 
-    addEvent(
-      "Info",
-      "ZoneDestroying",
-      `zone/${zone.name}`,
-      `Destruction requested for zone ${zone.name}`,
-    );
+      for (const workload of attached) {
+        addEvent(
+          "Normal",
+          "WorkloadTerminated",
+          `workload/${workload.name}`,
+          `Workload ${workload.name} removed with zone ${zone.name}`,
+        );
+      }
 
-    const attached = protectWorkloads.filter(
-      (workload) => workload.zone === zone.uuid,
-    );
+      protectWorkloads = protectWorkloads.filter(
+        (workload) => workload.zone !== zone.uuid,
+      );
 
-    for (const workload of attached) {
+      zone.state = "destroyed";
+      zone.ipv4 = "";
+      zone.ipv6 = "";
+
       addEvent(
         "Normal",
-        "WorkloadTerminated",
-        `workload/${workload.name}`,
-        `Workload ${workload.name} removed with zone ${zone.name}`,
+        "ZoneDestroyed",
+        `zone/${zone.name}`,
+        `Zone ${zone.name} destroyed`,
+      );
+
+      printHtml(
+        `<span style="color:#c9d1d9;">Destruction of zone ${escapeHtml(
+          zone.uuid,
+        )} requested.</span>`,
       );
     }
-
-    protectWorkloads = protectWorkloads.filter(
-      (workload) => workload.zone !== zone.uuid,
-    );
-
-    zone.state = "destroyed";
-    zone.ipv4 = "";
-    zone.ipv6 = "";
-
-    addEvent(
-      "Normal",
-      "ZoneDestroyed",
-      `zone/${zone.name}`,
-      `Zone ${zone.name} destroyed`,
-    );
-
-    printHtml(
-      `<span style="color:#c9d1d9;">Destruction of zone ${escapeHtml(
-        zone.uuid,
-      )} requested.</span>`,
-    );
 
     updateDashboard();
   };
@@ -2169,8 +2241,18 @@ Tip:
           </div>
 
           <div class="cli-help-command">
-            <code>protect zone destroy &lt;zone&gt;</code>
-            <span>Destroy a Protect zone by name or UUID.</span>
+            <code>protect zone destroy [OPTIONS] &lt;ZONE&gt;</code>
+            <span>Destroy a zone by name or UUID. Use <code style="color:#7ee787;">--all</code> to destroy all matching zones.</span>
+          </div>
+
+          <div class="cli-help-details">
+            <div><strong>Arguments</strong></div>
+            <div><code>&lt;ZONE&gt;</code> — Zone to destroy, either the name or the UUID.</div>
+            <div><strong>Options</strong></div>
+            <div><code>-W</code>, <code>--wait</code> — Wait for the destruction of the zone to complete.</div>
+            <div><code>-A</code>, <code>--all</code> — Destroy all zones matching the input.</div>
+            <div><code>-l</code>, <code>--selector &lt;SELECTOR&gt;</code> — Filter by <code>status.state</code> using <code>=</code>. Supported states: <code>creating</code>, <code>created</code>, <code>ready</code>, <code>exited</code>, <code>destroying</code>, <code>destroyed</code>, <code>failed</code>, with or without the <code>ZONE_STATE_</code> prefix.</div>
+            <div class="cli-help-example"><code>--selector status.state=failed</code> or <code>--selector status.state=ZONE_STATE_FAILED</code></div>
           </div>
         </div>
 
@@ -2289,16 +2371,48 @@ Tip:
       }
 
       if (subcommand === "destroy") {
-        const identifier = tokens[3];
+        let identifier = "";
+        let destroyAll = false;
+        let selector = "";
+        let wait = false;
+
+        for (let i = 3; i < tokens.length; i++) {
+          const token = tokens[i];
+
+          if (token === "-W" || token === "--wait") {
+            wait = true;
+          } else if (token === "-A" || token === "--all") {
+            destroyAll = true;
+          } else if (token === "-l" || token === "--selector") {
+            selector = tokens[++i] || "";
+          } else if (token.startsWith("--selector=")) {
+            selector = token.slice("--selector=".length);
+          } else if (!token.startsWith("-")) {
+            identifier = token;
+          }
+        }
 
         if (!identifier) {
+          printHtml(`
+            <span style="color:#f85149;">Usage: protect zone destroy [OPTIONS] &lt;ZONE&gt;</span>
+          `);
+          return true;
+        }
+
+        if (selector && !/^\s*status\.state\s*=\s*[^=]+\s*$/.test(selector)) {
           printHtml(
-            `<span style="color:#f85149;">Usage: protect zone destroy &lt;zone&gt;</span>`,
+            `<span style="color:#f85149;">Invalid selector. Supported form: status.state=&lt;STATE&gt;</span>`,
           );
           return true;
         }
 
-        destroyProtectZone(identifier);
+        destroyProtectZone(identifier, destroyAll, selector || undefined);
+
+        if (wait) {
+          printHtml(
+            `<span style="color:#8b949e;">Destruction completed.</span>`,
+          );
+        }
 
         markDemoStepComplete("zone-destroy");
 
