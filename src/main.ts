@@ -565,34 +565,6 @@ async function initTerminalDemo() {
       line-height: 1.45;
     }
 
-    .cli-help-details {
-      margin-top: 8px;
-      padding: 10px 12px;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      color: #8b949e;
-      font-size: 11px;
-      line-height: 1.5;
-    }
-
-    .cli-help-details > div {
-      margin-bottom: 5px;
-    }
-
-    .cli-help-details > div:last-child {
-      margin-bottom: 0;
-    }
-
-    .cli-help-details strong {
-      color: #f0f6fc;
-    }
-
-    .cli-help-example {
-      padding-top: 4px;
-      color: #7ee787;
-    }
-
     .cli-help-tip {
       color: #8b949e;
       font-size: 10px;
@@ -1624,23 +1596,9 @@ async function initTerminalDemo() {
     maxCpus = 2,
     targetCpus = 2,
   ) => {
-    if (protectZones.some((zone) => zone.name === name && zone.state !== "destroyed")) {
-      printHtml(
-        `<span style="color:#f85149;">Error: zone "${escapeHtml(
-          name,
-        )}" already exists.</span>`,
-      );
-
-      addEvent(
-        "Warning",
-        "AlreadyExists",
-        `zone/${name}`,
-        `Zone ${name} already exists`,
-      );
-
-      return;
-    }
-
+    // Zone names are labels, not unique identifiers. Multiple zones may
+    // legitimately share the same name; the UUID uniquely identifies each
+    // zone instance.
     const uuid = crypto.randomUUID();
 
     const zone: ProtectZone = {
@@ -1734,113 +1692,149 @@ async function initTerminalDemo() {
     printPre(html.trimEnd());
   };
 
-  const normalizeZoneStateSelector = (value: string): string | null => {
-    const normalized = value.trim().toLowerCase();
-    const withoutPrefix = normalized.replace(/^zone_state_/, "");
-
-    const aliases: Record<string, string> = {
-      creating: "creating",
-      created: "created",
-      ready: "ready",
-      exited: "exited",
-      destroying: "destroying",
-      destroyed: "destroyed",
-      failed: "failed",
-    };
-
-    return aliases[withoutPrefix] ?? null;
-  };
-
-  const zoneMatchesSelector = (zone: ProtectZone, selector?: string): boolean => {
-    if (!selector) {
-      return true;
-    }
-
-    const match = selector.match(/^\s*status\.state\s*=\s*(.+?)\s*$/);
-    if (!match) {
+  const destroyProtectZoneInstance = (zone: ProtectZone, wait = false) => {
+    if (zone.state === "destroyed") {
       return false;
     }
 
-    const selectedState = normalizeZoneStateSelector(match[1]);
-    if (!selectedState) {
-      return false;
-    }
+    zone.state = "destroying";
 
-    return zone.state === selectedState;
-  };
-
-  const destroyProtectZone = (
-    identifier: string,
-    destroyAll = false,
-    selector?: string,
-  ) => {
-    const matchingZones = protectZones.filter((zone) => {
-      const identifierMatches =
-        zone.name === identifier || zone.uuid === identifier;
-
-      return identifierMatches && zoneMatchesSelector(zone, selector);
-    });
-
-    const activeMatchingZones = matchingZones.filter(
-      (zone) => zone.state !== "destroyed",
+    addEvent(
+      "Info",
+      "ZoneDestroying",
+      `zone/${zone.name}`,
+      `Destruction requested for zone ${zone.name}`,
     );
 
-    if (activeMatchingZones.length === 0) {
-      const selectorText = selector ? ` matching selector "${selector}"` : "";
+    const attached = protectWorkloads.filter(
+      (workload) => workload.zone === zone.uuid,
+    );
+
+    for (const workload of attached) {
+      addEvent(
+        "Normal",
+        "WorkloadTerminated",
+        `workload/${workload.name}`,
+        `Workload ${workload.name} removed with zone ${zone.name}`,
+      );
+    }
+
+    protectWorkloads = protectWorkloads.filter(
+      (workload) => workload.zone !== zone.uuid,
+    );
+
+    zone.state = "destroyed";
+    zone.ipv4 = "";
+    zone.ipv6 = "";
+
+    addEvent(
+      "Normal",
+      "ZoneDestroyed",
+      `zone/${zone.name}`,
+      `Zone ${zone.name} destroyed`,
+    );
+
+    printHtml(
+      `<span style="color:#c9d1d9;">Destruction of zone ${escapeHtml(
+        zone.uuid,
+      )} ${wait ? "completed" : "requested"}.</span>`,
+    );
+
+    return true;
+  };
+
+  const normalizeZoneSelector = (selector: string): string | null => {
+    const match = selector.trim().match(/^status\.state\s*=\s*([^\s]+)$/i);
+    if (!match) {
+      return null;
+    }
+
+    const rawState = match[1].toLowerCase();
+    const normalized = rawState.startsWith("zone_state_")
+      ? rawState.slice("zone_state_".length)
+      : rawState;
+
+    const supportedStates = new Set([
+      "creating",
+      "created",
+      "ready",
+      "exited",
+      "destroying",
+      "destroyed",
+      "failed",
+    ]);
+
+    return supportedStates.has(normalized) ? normalized : null;
+  };
+
+  const destroyProtectZones = (
+    identifier: string,
+    all = false,
+    wait = false,
+    selector?: string,
+  ) => {
+    const normalizedSelector = selector
+      ? normalizeZoneSelector(selector)
+      : undefined;
+
+    if (selector && !normalizedSelector) {
       printHtml(
-        `<span style="color:#f85149;">Error: zone "${escapeHtml(
-          identifier,
-        )}" not found${selectorText}.</span>`,
+        `<span style="color:#f85149;">Invalid selector "${escapeHtml(
+          selector,
+        )}". Supported form: status.state=&lt;STATE&gt;.</span>`,
       );
       return;
     }
 
-    const zonesToDestroy = destroyAll
-      ? activeMatchingZones
-      : [activeMatchingZones[activeMatchingZones.length - 1]];
-
-    for (const zone of zonesToDestroy) {
-      zone.state = "destroying";
-
-      addEvent(
-        "Info",
-        "ZoneDestroying",
-        `zone/${zone.name}`,
-        `Destruction requested for zone ${zone.name}`,
-      );
-
-      const attached = protectWorkloads.filter(
-        (workload) => workload.zone === zone.uuid,
-      );
-
-      for (const workload of attached) {
-        addEvent(
-          "Normal",
-          "WorkloadTerminated",
-          `workload/${workload.name}`,
-          `Workload ${workload.name} removed with zone ${zone.name}`,
-        );
+    let matches = protectZones.filter((zone) => {
+      if (zone.state === "destroyed") {
+        return false;
       }
 
-      protectWorkloads = protectWorkloads.filter(
-        (workload) => workload.zone !== zone.uuid,
-      );
+      const identifierMatches =
+        zone.uuid === identifier || zone.name === identifier;
+      if (!identifierMatches) {
+        return false;
+      }
 
-      zone.state = "destroyed";
-      zone.ipv4 = "";
-      zone.ipv6 = "";
+      if (!normalizedSelector) {
+        return true;
+      }
 
-      addEvent(
-        "Normal",
-        "ZoneDestroyed",
-        `zone/${zone.name}`,
-        `Zone ${zone.name} destroyed`,
-      );
+      const state = normalizedSelector === "created"
+        ? "ready"
+        : normalizedSelector;
 
+      return zone.state === state;
+    });
+
+    // Without --all, a duplicate name targets the newest active zone.
+    // With --all, every matching active zone is destroyed.
+    if (!all && matches.length > 1) {
+      matches = [matches[matches.length - 1]];
+    }
+
+    if (matches.length === 0) {
       printHtml(
-        `<span style="color:#c9d1d9;">Destruction of zone ${escapeHtml(
-          zone.uuid,
-        )} requested.</span>`,
+        `<span style="color:#8b949e;">No active zones matched "${escapeHtml(
+          identifier,
+        )}".</span>`,
+      );
+      return;
+    }
+
+    let destroyedCount = 0;
+    for (const zone of matches) {
+      if (destroyProtectZoneInstance(zone, wait)) {
+        destroyedCount += 1;
+      }
+    }
+
+    if (all && destroyedCount > 1) {
+      printHtml(
+        `<span style="color:#7ee787;">Destroyed ${destroyedCount} zones matching "${escapeHtml(
+          identifier,
+        )}".</span>`,
       );
     }
 
@@ -2196,7 +2190,7 @@ Kubernetes:
 Edera Protect:
   protect zone launch -n &lt;name&gt; [options]
   protect zone list
-  protect zone destroy &lt;name&gt;
+  protect zone destroy [OPTIONS] &lt;ZONE&gt;
   protect workload launch --zone &lt;zone&gt; --name &lt;name&gt; &lt;image&gt; [command]
   protect workload list
   protect workload exec &lt;workload&gt; &lt;command&gt;
@@ -2242,17 +2236,22 @@ Tip:
 
           <div class="cli-help-command">
             <code>protect zone destroy [OPTIONS] &lt;ZONE&gt;</code>
-            <span>Destroy a zone by name or UUID. Use <code style="color:#7ee787;">--all</code> to destroy all matching zones.</span>
+            <span>Destroy a zone by name or UUID.</span>
           </div>
 
-          <div class="cli-help-details">
-            <div><strong>Arguments</strong></div>
-            <div><code>&lt;ZONE&gt;</code> — Zone to destroy, either the name or the UUID.</div>
-            <div><strong>Options</strong></div>
-            <div><code>-W</code>, <code>--wait</code> — Wait for the destruction of the zone to complete.</div>
-            <div><code>-A</code>, <code>--all</code> — Destroy all zones matching the input.</div>
-            <div><code>-l</code>, <code>--selector &lt;SELECTOR&gt;</code> — Filter by <code>status.state</code> using <code>=</code>. Supported states: <code>creating</code>, <code>created</code>, <code>ready</code>, <code>exited</code>, <code>destroying</code>, <code>destroyed</code>, <code>failed</code>, with or without the <code>ZONE_STATE_</code> prefix.</div>
-            <div class="cli-help-example"><code>--selector status.state=failed</code> or <code>--selector status.state=ZONE_STATE_FAILED</code></div>
+          <div class="cli-help-command">
+            <code>-W, --wait</code>
+            <span>Wait for the destruction of the zone to complete.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>-A, --all</code>
+            <span>Destroy all zones matching the input.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>-l, --selector &lt;SELECTOR&gt;</code>
+            <span>Filter matches using the <code style="color:#7ee787;">status.state</code> field.</span>
           </div>
         </div>
 
@@ -2372,9 +2371,9 @@ Tip:
 
       if (subcommand === "destroy") {
         let identifier = "";
-        let destroyAll = false;
-        let selector = "";
+        let all = false;
         let wait = false;
+        let selector = "";
 
         for (let i = 3; i < tokens.length; i++) {
           const token = tokens[i];
@@ -2382,12 +2381,12 @@ Tip:
           if (token === "-W" || token === "--wait") {
             wait = true;
           } else if (token === "-A" || token === "--all") {
-            destroyAll = true;
+            all = true;
           } else if (token === "-l" || token === "--selector") {
             selector = tokens[++i] || "";
           } else if (token.startsWith("--selector=")) {
             selector = token.slice("--selector=".length);
-          } else if (!token.startsWith("-")) {
+          } else if (!identifier) {
             identifier = token;
           }
         }
@@ -2399,20 +2398,12 @@ Tip:
           return true;
         }
 
-        if (selector && !/^\s*status\.state\s*=\s*[^=]+\s*$/.test(selector)) {
-          printHtml(
-            `<span style="color:#f85149;">Invalid selector. Supported form: status.state=&lt;STATE&gt;</span>`,
-          );
-          return true;
-        }
-
-        destroyProtectZone(identifier, destroyAll, selector || undefined);
-
-        if (wait) {
-          printHtml(
-            `<span style="color:#8b949e;">Destruction completed.</span>`,
-          );
-        }
+        destroyProtectZones(
+          identifier,
+          all,
+          wait,
+          selector || undefined,
+        );
 
         markDemoStepComplete("zone-destroy");
 
