@@ -3250,6 +3250,7 @@ async function initTerminalDemo() {
 
         updateDashboard();
         printHtml(`<span style="color:#7ee787;">deployment.apps/${deploymentName} created</span>`);
+        markDemoStepComplete("deployment-apply");
         return true;
       }
 
