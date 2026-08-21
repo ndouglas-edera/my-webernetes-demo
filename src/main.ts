@@ -469,6 +469,95 @@ async function initTerminalDemo() {
       overflow-x: auto;
     }
 
+    .cli-help {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 100%;
+      padding: 2px 0 4px;
+    }
+
+    .cli-help-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px 12px;
+    }
+
+    .cli-help-title {
+      color: #f0f6fc;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .cli-help-version {
+      color: #8b949e;
+      font-size: 11px;
+    }
+
+    .cli-help-description {
+      color: #8b949e;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .cli-help-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .cli-help-section-title {
+      color: #79c0ff;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .cli-help-command {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(180px, 0.95fr);
+      gap: 16px;
+      align-items: start;
+      padding: 7px 0;
+      border-bottom: 1px solid #161b22;
+    }
+
+    .cli-help-command:last-child {
+      border-bottom: none;
+    }
+
+    .cli-help-command code {
+      color: #7ee787;
+      font: inherit;
+      font-weight: 600;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .cli-help-command span {
+      color: #8b949e;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .cli-help-tip {
+      color: #8b949e;
+      font-size: 10px;
+      line-height: 1.45;
+      padding-top: 2px;
+    }
+
+    @media (max-width: 720px) {
+      .cli-help-command {
+        grid-template-columns: 1fr;
+        gap: 3px;
+      }
+    }
+
     .terminal-input-row {
       display: flex;
       align-items: center;
@@ -1960,6 +2049,85 @@ Tip:
     `;
   };
 
+  const formatProtectHelpText = () => {
+    return `
+      <div class="cli-help">
+        <div class="cli-help-header">
+          <div class="cli-help-title">🛡️ Edera Protect CLI</div>
+          <div class="cli-help-version">Simulated Protect environment</div>
+        </div>
+
+        <div class="cli-help-description">
+          Manage isolated zones and the workloads running inside them.
+          Use <code style="color:#7ee787;">protect &lt;resource&gt; &lt;command&gt;</code>
+          to work with a zone or workload.
+        </div>
+
+        <div class="cli-help-section">
+          <div class="cli-help-section-title">Zones</div>
+
+          <div class="cli-help-command">
+            <code>protect zone launch -n &lt;name&gt; [options]</code>
+            <span>Create a new isolated Edera Protect zone.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect zone list</code>
+            <span>List Protect zones and their networking/state information.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect zone destroy &lt;zone&gt;</code>
+            <span>Destroy a Protect zone by name or UUID.</span>
+          </div>
+        </div>
+
+        <div class="cli-help-section">
+          <div class="cli-help-section-title">Workloads</div>
+
+          <div class="cli-help-command">
+            <code>protect workload launch --zone &lt;zone&gt; --name &lt;name&gt; &lt;image&gt; [command]</code>
+            <span>Start a workload inside an existing ready zone.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload list</code>
+            <span>List workloads and the Protect zones that contain them.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec &lt;workload&gt; &lt;command&gt;</code>
+            <span>Execute a command inside a running workload.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload destroy &lt;workload&gt; --wait</code>
+            <span>Remove a workload from its Protect zone.</span>
+          </div>
+        </div>
+
+        <div class="cli-help-section">
+          <div class="cli-help-section-title">Help</div>
+
+          <div class="cli-help-command">
+            <code>protect --help</code>
+            <span>Show this command reference.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect -h</code>
+            <span>Alias for <code style="color:#7ee787;">protect --help</code>.</span>
+          </div>
+        </div>
+
+        <div class="cli-help-tip">
+          Tip: use the Edera Protect Demo Guide below the terminal to walk through
+          the isolation lifecycle step-by-step.
+        </div>
+      </div>
+    `;
+  };
+
   const handleProtectCommand = async (
     rawCmd: string,
     tokens: string[],
@@ -1976,21 +2144,7 @@ Tip:
       tokens[1] === "--help" ||
       tokens[1] === "-h"
     ) {
-      printHtml(`
-        <span style="color:#ffa657;">Edera Protect CLI
-
-Commands:
-  protect zone launch
-  protect zone list
-  protect zone destroy &lt;zone&gt;
-
-  protect workload launch
-  protect workload list
-  protect workload exec
-  protect workload destroy
-
-This is a simulated Protect environment inside the Webernetes demo.</span>
-      `);
+      printHtml(formatProtectHelpText());
 
       return true;
     }
