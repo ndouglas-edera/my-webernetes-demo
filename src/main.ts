@@ -3684,6 +3684,7 @@ async function initTerminalDemo() {
         }
 
         printPre(html.trimEnd());
+        markDemoStepComplete("deployment-list");
         return true;
       }
 
