@@ -171,11 +171,11 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
   },
   {
     id: "workload-exec",
-    title: "Execute inside the workload",
+    title: "Verify the Edera kernel",
     description:
-      "Run a harmless command inside the Alpine workload.",
+      "Exec into the Alpine workload and run `uname -r | grep 'edera'`. Expected output: 6.x.y-edera. In this browser simulation, the command returns 6.18.12-edera to represent the dedicated kernel booted for the Edera zone. This demonstrates that the workload is using the zone kernel rather than the shared host kernel; after exiting the workload, a host-level `uname -r` would show the host kernel instead.",
     command:
-      "protect workload exec alpine-long /bin/sh -c \"echo Hello from inside Edera\"",
+      "protect workload exec alpine-long /bin/sh -c \"uname -r | grep 'edera'\"",
     optional: true,
   },
   {
@@ -2133,6 +2133,29 @@ async function initTerminalDemo() {
     );
 
     if (
+      /\buname\s+-r\b/i.test(commandText) &&
+      /grep.*edera|edera.*grep/i.test(commandText)
+    ) {
+      const kernelVersion = "6.18.12-edera";
+
+      printPre(
+        `<span style="color:#7ee787;">${kernelVersion}</span>`,
+      );
+
+      addEvent(
+        "Normal",
+        "KernelVerified",
+        `workload/${workload.name}`,
+        `uname -r reported dedicated Edera kernel ${kernelVersion}`,
+      );
+    } else if (
+      /\buname\s+-r\b/i.test(commandText)
+    ) {
+      const kernelVersion = "6.18.12-edera";
+      printPre(
+        `<span style="color:#7ee787;">${kernelVersion}</span>`,
+      );
+    } else if (
       commandText.includes("echo Hello from inside Edera") ||
       commandText.includes("echo")
     ) {
