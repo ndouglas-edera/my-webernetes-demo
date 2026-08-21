@@ -1291,9 +1291,15 @@ async function initTerminalDemo() {
     podGrid.innerHTML = pods
       .map((pod) => {
         const pending = pod.status === "Pending";
+        const failed = pod.status === "Failed";
+        const cardStateClass = failed
+          ? "pending"
+          : pending
+            ? "pending"
+            : "running";
 
         return `
-          <div class="resource-card ${pending ? "pending" : "running"}">
+          <div class="resource-card ${cardStateClass}">
             <div>
               <div class="resource-name">
                 ${escapeHtml(pod.name)}
@@ -1309,7 +1315,7 @@ async function initTerminalDemo() {
             </div>
 
             <span class="status-badge ${
-              pending ? "status-pending" : "status-ready"
+              failed || pending ? "status-pending" : "status-ready"
             }">
               ${escapeHtml(pod.status)}
             </span>
@@ -3299,10 +3305,59 @@ Tip:
           "runtimeclass.node.k8s.io/edera deleted",
         );
 
+        // A Pod that is already running with runtimeClassName: edera cannot
+        // continue using that runtime once the RuntimeClass is gone in this
+        // simulator. Model the unavailable runtime as a terminal Failed pod
+        // rather than leaving it incorrectly marked Running.
+        const affectedPods = pods.filter(
+          (pod) =>
+            pod.runtimeClassName === "edera" &&
+            pod.status === "Running",
+        );
+
+        for (const pod of affectedPods) {
+          const attachedWorkloads = protectWorkloads.filter(
+            (workload) => workload.sourcePodName === pod.name,
+          );
+
+          protectWorkloads = protectWorkloads.filter(
+            (workload) => workload.sourcePodName !== pod.name,
+          );
+
+          pod.status = "Failed";
+          pod.node = "<none>";
+          pod.ip = "<none>";
+
+          addEvent(
+            "Warning",
+            "RuntimeClassUnavailable",
+            `pod/${pod.name}`,
+            `Pod ${pod.name} failed: RuntimeClass "edera" is no longer available`,
+          );
+
+          for (const workload of attachedWorkloads) {
+            addEvent(
+              "Normal",
+              "WorkloadTerminated",
+              `workload/${workload.name}`,
+              `Workload ${workload.name} removed because RuntimeClass "edera" was deleted`,
+            );
+          }
+        }
+
         printHtml(
           `<span style="color:#7ee787;">runtimeclass.node.k8s.io/edera deleted</span>`,
         );
 
+        if (affectedPods.length > 0) {
+          printHtml(
+            `<span style="color:#d29922;">${affectedPods.length} Edera pod${
+              affectedPods.length === 1 ? "" : "s"
+            } moved to Failed because RuntimeClass "edera" is no longer available. Re-apply the pod manifest after recreating the RuntimeClass.</span>`,
+          );
+        }
+
+        updateDashboard();
         return true;
       }
 
