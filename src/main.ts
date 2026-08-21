@@ -2347,41 +2347,149 @@ async function initTerminalDemo() {
 
   const formatHelpText = () => {
     return `
-      <span style="color:#ffa657;">Webernetes CLI Reference
+      <div class="cli-help">
+        <div class="cli-help-header">
+          <div class="cli-help-title">🖥️ Webernetes CLI</div>
+          <div class="cli-help-version">Browser-based Kubernetes environment</div>
+        </div>
 
-Available Commands:
+        <div class="cli-help-description">
+          Explore the simulated Kubernetes cluster, local manifests, Edera zones,
+          and the terminal utilities available in this demo.
+        </div>
 
-Kubernetes:
-  ls
-  cat &lt;filename&gt;
-  kubectl run &lt;name&gt; [--image=&lt;img&gt;] [-n &lt;ns&gt;]
-  kubectl create namespace &lt;name&gt;
-  kubectl get pods
-  kubectl get nodes
-  kubectl get namespaces
-  kubectl label node &lt;node&gt; &lt;key&gt;=&lt;value&gt;
-  kubectl apply -f &lt;filename.yaml&gt;
-  kubectl delete -f &lt;filename.yaml&gt;
-  kubectl delete pod &lt;name&gt;
-  kubectl delete node &lt;name&gt;
+        <div class="cli-help-section">
+          <div class="cli-help-section-title">Kubernetes</div>
 
-Edera:
-  protect zone launch -n &lt;name&gt; [options]
-  protect zone list
-  protect zone destroy [OPTIONS] &lt;ZONE&gt;
-  protect workload launch --zone &lt;zone&gt; --name &lt;name&gt; &lt;image&gt; [command]
-  protect workload list
-  protect workload exec &lt;workload&gt; &lt;command&gt;
-  protect workload destroy &lt;workload&gt; --wait
+          <div class="cli-help-command">
+            <code>ls</code>
+            <span>List the local manifest files available in the demo.</span>
+          </div>
 
-Other:
-  curl &lt;url&gt;
-  clear
-  history
+          <div class="cli-help-command">
+            <code>cat &lt;filename&gt;</code>
+            <span>Display the contents of a local manifest file.</span>
+          </div>
 
-Tip:
-  Use the Edera Demo Guide below the terminal
-  to walk through the isolation lifecycle step-by-step.</span>
+          <div class="cli-help-command">
+            <code>kubectl run &lt;name&gt; [--image=&lt;img&gt;] [-n &lt;ns&gt;]</code>
+            <span>Create a simulated pod directly from the command line.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl create namespace &lt;name&gt;</code>
+            <span>Create a simulated Kubernetes namespace.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl get pods</code>
+            <span>List pods in the current cluster.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl get nodes</code>
+            <span>List the simulated cluster nodes and their status.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl get namespaces</code>
+            <span>List the available Kubernetes namespaces.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl label node &lt;node&gt; &lt;key&gt;=&lt;value&gt;</code>
+            <span>Add or update a label on a simulated node.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl apply -f &lt;filename.yaml&gt;</code>
+            <span>Apply one of the local Kubernetes manifests.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl delete -f &lt;filename.yaml&gt;</code>
+            <span>Delete the resources represented by a local manifest.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl delete pod &lt;name&gt;</code>
+            <span>Delete a pod from the simulated cluster.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl delete node &lt;name&gt;</code>
+            <span>Remove a simulated node from the cluster.</span>
+          </div>
+        </div>
+
+        <div class="cli-help-section">
+          <div class="cli-help-section-title">Edera</div>
+
+          <div class="cli-help-command">
+            <code>protect zone launch -n &lt;name&gt; [options]</code>
+            <span>Create a new isolated Edera zone.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect zone list</code>
+            <span>List Edera zones and their networking/state information.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect zone destroy [OPTIONS] &lt;ZONE&gt;</code>
+            <span>Destroy an Edera zone by name or UUID.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload launch --zone &lt;zone&gt; --name &lt;name&gt; &lt;image&gt; [command]</code>
+            <span>Start a workload inside an existing ready Edera zone.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload list</code>
+            <span>List workloads and the Edera zones that contain them.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec &lt;workload&gt; &lt;command&gt;</code>
+            <span>Execute a command inside a running workload.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload destroy &lt;workload&gt; --wait</code>
+            <span>Remove a workload from its Edera zone.</span>
+          </div>
+        </div>
+
+        <div class="cli-help-section">
+          <div class="cli-help-section-title">Utilities</div>
+
+          <div class="cli-help-command">
+            <code>curl &lt;url&gt;</code>
+            <span>Send a simulated HTTP GET request through the cluster.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>clear</code>
+            <span>Clear the terminal output.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>history</code>
+            <span>Show previously entered terminal commands.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>uname -r</code>
+            <span>Show the simulated host kernel version; Edera workloads report their isolated zone kernel when executed inside the workload.</span>
+          </div>
+        </div>
+
+        <div class="cli-help-tip">
+          Tip: use the Edera Demo Guide below the terminal to walk through
+          the isolation lifecycle step-by-step.
+        </div>
+      </div>
     `;
   };
 
