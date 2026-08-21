@@ -134,6 +134,27 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     command: "protect zone list",
   },
   {
+    id: "edera-pod-apply",
+    title: "Deploy the Edera-protected pod",
+    description:
+      "Apply the nginx manifest. It requests runtimeClassName: edera, but the Edera RuntimeClass is not defined yet, so the pod should remain Pending.",
+    command: "kubectl apply -f pod-nginx.yaml",
+  },
+  {
+    id: "edera-runtimeclass-apply",
+    title: "Enable the Edera RuntimeClass",
+    description:
+      "Create the Edera RuntimeClass. The Pending pod can now be scheduled, transition to Running, and attach to the ready Edera Protect zone.",
+    command: "kubectl apply -f runtimeclass-edera.yaml",
+  },
+  {
+    id: "edera-workload-list",
+    title: "Prove the pod is Edera protected",
+    description:
+      "Before destroying the zone, list Protect workloads and verify edera-protect-pod appears as a running workload attached to test-zone.",
+    command: "protect workload list",
+  },
+  {
     id: "workload-launch",
     title: "Launch a workload inside the zone",
     description:
@@ -145,7 +166,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "workload-list",
     title: "Inspect the workload",
     description:
-      "List workloads and see which Protect zone contains the container.",
+      "List workloads and see which Protect zone contains the Alpine container.",
     command: "protect workload list",
   },
   {
@@ -2298,7 +2319,13 @@ Tip:
 
       if (subcommand === "list") {
         renderProtectWorkloadList();
-        markDemoStepComplete("workload-list");
+
+        if (!completedDemoSteps.has("edera-workload-list")) {
+          markDemoStepComplete("edera-workload-list");
+        } else {
+          markDemoStepComplete("workload-list");
+        }
+
         return true;
       }
 
@@ -2645,6 +2672,7 @@ Tip:
           printHtml(
             `<span style="color:#8b949e;">pod/${escapeHtml(podName)} unchanged</span>`,
           );
+          markDemoStepComplete("edera-pod-apply");
           return true;
         }
 
@@ -2711,6 +2739,7 @@ Tip:
           `<span style="color:#7ee787;">pod/${podName} created</span>`,
         );
 
+        markDemoStepComplete("edera-pod-apply");
         return true;
       }
 
@@ -2732,6 +2761,7 @@ Tip:
         syncEderaPodsToProtectWorkloads();
         updateDashboard();
 
+        markDemoStepComplete("edera-runtimeclass-apply");
         return true;
       }
 
