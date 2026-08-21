@@ -1765,6 +1765,82 @@ async function initTerminalDemo() {
     });
   };
 
+  const reconcileDeployments = () => {
+    for (const deployment of deployments) {
+      const managedPods = pods.filter(
+        (pod) =>
+          pod.ownerDeployment === deployment.name &&
+          pod.status !== "Failed",
+      );
+
+      while (
+        managedPods.length < deployment.replicas
+      ) {
+        const podName = `${deployment.name}-${Math.random()
+          .toString(36)
+          .slice(2, 7)}`;
+
+        const runtimeReady = activeRuntimeClasses.has(
+          deployment.runtimeClassName || "",
+        );
+
+        const assignedNode = runtimeReady
+          ? nodes.find(
+              (node) =>
+                !node.labels[
+                  "node-role.kubernetes.io/control-plane"
+                ],
+            ) || nodes[0]
+          : undefined;
+
+        const pod: LocalPod = {
+          name: podName,
+          namespace: deployment.namespace,
+          status: runtimeReady ? "Running" : "Pending",
+          age: "1s",
+          image: deployment.image,
+          ip: assignedNode
+            ? `10.244.0.${Math.floor(
+                Math.random() * 200 + 10,
+              )}`
+            : "<none>",
+          node: assignedNode?.name || "<none>",
+          labels: { app: "nginx" },
+          runtimeClassName: deployment.runtimeClassName,
+          ownerDeployment: deployment.name,
+        };
+
+        pods.push(pod);
+        managedPods.push(pod);
+
+        addEvent(
+          "Normal",
+          "Created",
+          `pod/${pod.name}`,
+          `Created replacement pod ${pod.name} for Deployment ${deployment.name}`,
+        );
+
+        if (!runtimeReady) {
+          addEvent(
+            "Warning",
+            "FailedCreatePodSandBox",
+            `pod/${pod.name}`,
+            `Waiting for RuntimeClass "${deployment.runtimeClassName || ""}" to become available`,
+          );
+        }
+      }
+
+      checkPendingPods();
+      deployment.readyReplicas = pods.filter(
+        (pod) =>
+          pod.ownerDeployment === deployment.name &&
+          pod.status === "Running",
+      ).length;
+    }
+
+    syncEderaPodsToProtectWorkloads();
+  };
+
   /*
    * -----------------------------------------------------------------------
    * EDERA PROTECT SIMULATION
@@ -3914,6 +3990,9 @@ async function initTerminalDemo() {
         return true;
       }
 
+      const deletedPod = pods[index];
+      const owningDeployment = deletedPod.ownerDeployment;
+
       pods.splice(index, 1);
 
       const attachedWorkloads = protectWorkloads.filter(
@@ -3940,6 +4019,26 @@ async function initTerminalDemo() {
         );
       }
 
+      if (owningDeployment) {
+        reconcileDeployments();
+
+        const replacement = pods.find(
+          (pod) =>
+            pod.ownerDeployment === owningDeployment &&
+            pod.name !== podName &&
+            pod.status === "Running",
+        );
+
+        if (replacement) {
+          addEvent(
+            "Normal",
+            "ReplicaCreated",
+            `deployment/${owningDeployment}`,
+            `Deployment ${owningDeployment} recreated a replacement pod ${replacement.name}`,
+          );
+        }
+      }
+
       updateDashboard();
 
       printHtml(
@@ -3947,6 +4046,14 @@ async function initTerminalDemo() {
           podName,
         )}" deleted</span>`,
       );
+
+      if (owningDeployment) {
+        printHtml(
+          `<span style="color:#58a6ff;">Deployment ${escapeHtml(
+            owningDeployment,
+          )} reconciled its desired replica count.</span>`,
+        );
+      }
 
       return true;
     }
