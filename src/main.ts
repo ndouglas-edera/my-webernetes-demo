@@ -116,7 +116,7 @@ handler: edera`;
 const NGINX_DEPLOYMENT_YAML_CONTENT = `apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-deployment
+  name: nginx
   namespace: default
 spec:
   selector:
@@ -3243,6 +3243,7 @@ async function initTerminalDemo() {
         addEvent("Normal", "Created", `deployment/${deploymentName}`, `deployment.apps/${deploymentName} created`);
         if (runtimeReady) {
           checkPendingPods();
+          syncEderaPodsToProtectWorkloads();
           deployment.readyReplicas = pods.filter((pod) => pod.ownerDeployment === deploymentName && pod.status === "Running").length;
         } else {
           addEvent("Warning", "ReplicaSetCreate", `deployment/${deploymentName}`, `Created ${deployment.replicas} Pending pods waiting for RuntimeClass "edera"`);
