@@ -1,4 +1,5 @@
 import { BaseImage, Cluster, type ProcessContext } from "@ngrok/webernetes";
+import "./style.css";
 
 class WebServerImage extends BaseImage {
   static readonly imageName = "web-server";
@@ -257,747 +258,30 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
 ];
 
 async function initTerminalDemo() {
-  const styleTag = document.createElement("style");
-
-  styleTag.textContent = `
-    html,
-    body {
-      margin: 0;
-      padding: 0;
-      background: #0d1117 !important;
-      color: #c9d1d9;
-      min-height: 100vh;
-      width: 100%;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    button {
-      font-family: inherit;
-    }
-
-    .demo-shell {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      max-width: 1200px;
-      margin: 0 auto;
-      color: #c9d1d9;
-      padding: 24px;
-      min-height: 100vh;
-      background: #0d1117;
-    }
-
-    .top-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 1px solid #30363d;
-      padding-bottom: 16px;
-    }
-
-    .top-header h1 {
-      margin: 0;
-      font-size: 22px;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .top-header p {
-      margin: 4px 0 0;
-      font-size: 13px;
-      color: #8b949e;
-    }
-
-    .panel {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .panel-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 14px;
-      border-bottom: 1px solid #30363d;
-    }
-
-    .panel-header h3 {
-      margin: 0;
-      font-size: 14px;
-      color: #f0f6fc;
-    }
-
-    .drag-handle {
-      color: #484f58;
-      cursor: grab;
-      user-select: none;
-      font-size: 14px;
-    }
-
-    .panel-subtitle {
-      font-size: 11px;
-      color: #8b949e;
-      margin-left: 4px;
-    }
-
-    .panel-count {
-      margin-left: auto;
-      font-size: 10px;
-      color: #8b949e;
-      background: #21262d;
-      border: 1px solid #30363d;
-      padding: 3px 7px;
-      border-radius: 10px;
-    }
-
-    .hide-btn {
-      margin-left: 6px;
-      background: #21262d;
-      border: 1px solid #30363d;
-      color: #c9d1d9;
-      border-radius: 5px;
-      padding: 4px 8px;
-      font-size: 10px;
-      cursor: pointer;
-    }
-
-    .hide-btn:hover {
-      background: #30363d;
-    }
-
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-
-    .resource-body {
-      padding: 10px 14px 14px;
-      min-height: 92px;
-    }
-
-    .resource-list {
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-    }
-
-    .resource-card {
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 8px 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .resource-card.running {
-      border-color: #238636;
-    }
-
-    .resource-card.pending {
-      border-color: #d29922;
-    }
-
-    .resource-name {
-      color: #58a6ff;
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .resource-meta {
-      color: #8b949e;
-      font-size: 11px;
-      margin-top: 2px;
-    }
-
-    .status-badge {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1px solid;
-      white-space: nowrap;
-    }
-
-    .status-ready {
-      color: #3fb950;
-      background: #23863622;
-      border-color: #238636;
-    }
-
-    .status-pending {
-      color: #d29922;
-      background: #bb800922;
-      border-color: #d29922;
-    }
-
-    .status-destroyed {
-      color: #8b949e;
-      background: #21262d;
-      border-color: #30363d;
-    }
-
-    .protect-panel {
-      margin-bottom: 16px;
-    }
-
-    .protect-body {
-      padding: 10px 14px 14px;
-    }
-
-    .zone-card {
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 10px 12px;
-      margin-bottom: 8px;
-    }
-
-    .zone-card:last-child {
-      margin-bottom: 0;
-    }
-
-    .zone-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .zone-name {
-      color: #58a6ff;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .zone-uuid {
-      color: #8b949e;
-      font-size: 10px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      margin-top: 2px;
-    }
-
-    .zone-meta {
-      color: #8b949e;
-      font-size: 10px;
-      margin-top: 7px;
-      display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-
-    .main-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 300px;
-      gap: 16px;
-      align-items: stretch;
-    }
-
-    .terminal-panel {
-      background: #010409;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .terminal-output {
-      height: 430px;
-      max-height: 430px;
-      overflow: auto;
-      padding: 16px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-size: 13px;
-      line-height: 1.45;
-      color: #c9d1d9;
-      white-space: normal;
-    }
-
-    .terminal-block {
-      margin: 0 0 12px;
-    }
-
-    .terminal-command {
-      color: #c9d1d9;
-      white-space: pre-wrap;
-      word-break: break-word;
-      margin-bottom: 5px;
-    }
-
-    .terminal-prompt {
-      color: #58a6ff;
-    }
-
-    .terminal-pre {
-      margin: 4px 0 0;
-      padding: 0;
-      font-family: inherit;
-      font-size: inherit;
-      line-height: inherit;
-      white-space: pre;
-      overflow-x: auto;
-    }
-
-    .cli-help {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      max-width: 100%;
-      padding: 2px 0 4px;
-    }
-
-    .cli-help-header {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      gap: 8px 12px;
-    }
-
-    .cli-help-title {
-      color: #f0f6fc;
-      font-size: 16px;
-      font-weight: 700;
-    }
-
-    .cli-help-version {
-      color: #8b949e;
-      font-size: 11px;
-    }
-
-    .cli-help-description {
-      color: #8b949e;
-      font-size: 11px;
-      line-height: 1.5;
-    }
-
-    .cli-help-section {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .cli-help-section-title {
-      color: #79c0ff;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding-bottom: 4px;
-      border-bottom: 1px solid #21262d;
-    }
-
-    .cli-help-command {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(180px, 0.95fr);
-      gap: 16px;
-      align-items: start;
-      padding: 7px 0;
-      border-bottom: 1px solid #161b22;
-    }
-
-    .cli-help-command:last-child {
-      border-bottom: none;
-    }
-
-    .cli-help-command code {
-      color: #7ee787;
-      font: inherit;
-      font-weight: 600;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
-
-    .cli-help-command span {
-      color: #8b949e;
-      font-size: 11px;
-      line-height: 1.45;
-    }
-
-    .cli-help-tip {
-      color: #8b949e;
-      font-size: 10px;
-      line-height: 1.45;
-      padding-top: 2px;
-    }
-
-    @media (max-width: 720px) {
-      .cli-help-command {
-        grid-template-columns: 1fr;
-        gap: 3px;
-      }
-    }
-
-    .terminal-input-row {
-      display: flex;
-      align-items: center;
-      border-top: 1px solid #30363d;
-      padding: 12px 16px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    }
-
-    .terminal-input-row span {
-      color: #58a6ff;
-      margin-right: 8px;
-      white-space: nowrap;
-      font-size: 13px;
-    }
-
-    .terminal-input-row input {
-      flex: 1;
-      min-width: 0;
-      background: transparent;
-      border: none;
-      color: #fff;
-      outline: none;
-      font: inherit;
-    }
-
-    .terminal-input-row input::placeholder {
-      color: #484f58;
-    }
-
-    .events-panel {
-      height: 462px;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .events-stream {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px 12px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 11px;
-    }
-
-    .event-card {
-      background: #0d1117;
-      border-left: 3px solid #238636;
-      border-radius: 4px;
-      padding: 8px;
-      margin-bottom: 7px;
-    }
-
-    .event-card.warning {
-      border-left-color: #f85149;
-    }
-
-    .event-card.info {
-      border-left-color: #388bfd;
-    }
-
-    .event-time {
-      color: #8b949e;
-    }
-
-    .event-badge {
-      float: right;
-      font-size: 8px;
-      padding: 1px 5px;
-      border-radius: 3px;
-      font-weight: 700;
-    }
-
-    .event-normal .event-badge {
-      color: #3fb950;
-      background: #23863622;
-    }
-
-    .event-warning .event-badge {
-      color: #f85149;
-      background: #da363322;
-    }
-
-    .event-info .event-badge {
-      color: #58a6ff;
-      background: #388bfd15;
-    }
-
-    .event-reason {
-      color: #f0f6fc;
-      font-weight: 600;
-      margin-top: 4px;
-    }
-
-    .event-object {
-      color: #8b949e;
-      font-weight: normal;
-    }
-
-    .event-message {
-      color: #8b949e;
-      margin-top: 2px;
-    }
-
-    .guide-panel {
-      margin-top: 16px;
-      background: linear-gradient(180deg, #161b22 0%, #11161d 100%);
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .guide-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 14px;
-      border-bottom: 1px solid #30363d;
-    }
-
-    .guide-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: #f0f6fc;
-    }
-
-    .guide-subtitle {
-      color: #8b949e;
-      font-size: 11px;
-      margin-left: 2px;
-    }
-
-    .guide-progress {
-      margin-left: auto;
-      display: flex;
-      gap: 4px;
-    }
-
-    .progress-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #30363d;
-    }
-
-    .progress-dot.done {
-      background: #3fb950;
-    }
-
-    .progress-dot.current {
-      background: #58a6ff;
-      box-shadow: 0 0 0 3px #388bfd22;
-    }
-
-    .guide-body {
-      padding: 14px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 300px;
-      gap: 16px;
-    }
-
-    .guide-current {
-      min-width: 0;
-    }
-
-    .guide-label {
-      color: #8b949e;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 6px;
-    }
-
-    .guide-step-title {
-      color: #f0f6fc;
-      font-size: 16px;
-      font-weight: 700;
-      margin-bottom: 5px;
-    }
-
-    .guide-description {
-      color: #8b949e;
-      font-size: 12px;
-      line-height: 1.5;
-      margin-bottom: 12px;
-    }
-
-    .suggested-command {
-      display: flex;
-      align-items: stretch;
-      background: #010409;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      overflow: hidden;
-    }
-
-    .suggested-command code {
-      flex: 1;
-      padding: 11px 12px;
-      color: #7ee787;
-      font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      overflow-x: auto;
-      white-space: pre;
-    }
-
-    .use-command-btn {
-      border: none;
-      border-left: 1px solid #30363d;
-      background: #21262d;
-      color: #f0f6fc;
-      padding: 0 14px;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .use-command-btn:hover {
-      background: #30363d;
-    }
-
-    .guide-side {
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 10px 12px;
-    }
-
-    .guide-side-title {
-      color: #f0f6fc;
-      font-size: 11px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .guide-step-mini {
-      width: 100%;
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-      padding: 7px 4px;
-      margin: 0;
-      border: 0;
-      border-bottom: 1px solid #21262d;
-      background: transparent;
-      color: #8b949e;
-      font: inherit;
-      font-size: 10px;
-      text-align: left;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: background 120ms ease, color 120ms ease;
-    }
-
-    .guide-step-mini:hover {
-      background: #161b22;
-      color: #f0f6fc;
-    }
-
-    .guide-step-mini:focus-visible {
-      outline: 1px solid #58a6ff;
-      outline-offset: -1px;
-    }
-
-    .guide-step-mini:last-child {
-      border-bottom: none;
-    }
-
-    .mini-number {
-      color: #58a6ff;
-      min-width: 15px;
-    }
-
-    .guide-step-mini.done {
-      color: #3fb950;
-    }
-
-    .guide-step-mini.current,
-    .guide-step-mini.selected {
-      color: #f0f6fc;
-      font-weight: 600;
-      background: #161b22;
-    }
-
-    .guide-step-mini.selected {
-      box-shadow: inset 2px 0 0 #58a6ff;
-    }
-
-    .optional-badge {
-      color: #d29922;
-      font-size: 9px;
-      margin-left: 4px;
-    }
-
-    .empty-state {
-      color: #8b949e;
-      font-size: 11px;
-      padding: 8px 0;
-    }
-
-    .edera-footer {
-      margin-top: 18px;
-      padding: 14px 0 8px;
-      border-top: 1px solid #21262d;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      color: #8b949e;
-      font-size: 11px;
-      text-align: center;
-    }
-
-    .edera-footer img {
-      width: 32px;
-      height: 32px;
-      object-fit: cover;
-      border-radius: 50%;
-      border: 1px solid #30363d;
-      flex: 0 0 auto;
-    }
-
-    .edera-footer a {
-      color: #58a6ff;
-      text-decoration: none;
-    }
-
-    .edera-footer a:hover {
-      text-decoration: underline;
-    }
-
-    @media (max-width: 900px) {
-      .main-layout,
-      .guide-body {
-        grid-template-columns: 1fr;
-      }
-
-      .events-panel {
-        height: 320px;
-      }
-    }
-
-    @media (max-width: 700px) {
-      .dashboard-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .demo-shell {
-        padding: 12px;
-      }
-    }
-  `;
-
-  document.head.appendChild(styleTag);
 
   const app = document.querySelector<HTMLDivElement>("#app")!;
 
   app.innerHTML = `
     <div class="demo-shell">
 
-      <div class="top-header">
+      <header class="top-header">
         <div>
-          <h1>Webernetes Dashboard & Terminal</h1>
-          <p>Browser-based Kubernetes cluster emulator with simulated Edera</p>
+          <h1>Webernetes × Edera Protect</h1>
+          <p>Secure workload execution, directly in your browser.</p>
         </div>
-      </div>
+      </header>
+
+      <section class="brand-hero" aria-labelledby="hero-title">
+        <div class="hero-eyebrow">ARE YOU READY TO CYA?</div>
+        <h2 id="hero-title">CONTAIN YOUR<br />WORKLOADS</h2>
+        <p>
+          Edera is the secure execution platform for all software — built so every
+          untrusted workload runs trusted, and free to move at the speed of your business.
+        </p>
+        <button id="hero-run-btn" class="hero-cta" type="button">Try it Out</button>
+      </section>
+
+      <div class="demo-kicker">Web­ernetes × Edera Protect — interactive isolation demo</div>
 
       <div class="dashboard-grid">
 
@@ -1393,7 +677,7 @@ async function initTerminalDemo() {
             <div>
               <div class="resource-name">
                 ${escapeHtml(pod.name)}
-                <span style="color:#8b949e;font-weight:400;font-size:10px;">
+                <span style="color:#a8cfca;font-weight:400;font-size:10px;">
                   (${escapeHtml(pod.namespace)})
                 </span>
               </div>
@@ -1431,7 +715,7 @@ async function initTerminalDemo() {
         (node) => `
           <div class="resource-card">
             <div>
-              <div style="font-weight:600;font-size:13px;color:#f0f6fc;">
+              <div style="font-weight:600;font-size:13px;color:#f8fffd;">
                 ${escapeHtml(node.name)}
               </div>
 
@@ -1642,6 +926,16 @@ async function initTerminalDemo() {
 
     input.setSelectionRange(input.value.length, input.value.length);
   });
+
+  document
+    .querySelector<HTMLButtonElement>("#hero-run-btn")!
+    .addEventListener("click", () => {
+      document
+        .querySelector<HTMLElement>("#guide-panel")!
+        .scrollIntoView({ behavior: "smooth", block: "start" });
+
+      input.focus();
+    });
 
   const hidePanel = (
     panelId: string,
@@ -1916,14 +1210,14 @@ async function initTerminalDemo() {
     updateDashboard();
 
     printHtml(
-      `<span style="color:#7ee787;">${escapeHtml(uuid)}</span>`,
+      `<span style="color:#b8ff3c;">${escapeHtml(uuid)}</span>`,
     );
   };
 
   const renderProtectZoneList = () => {
     if (protectZones.length === 0) {
       printHtml(
-        `<span style="color:#8b949e;">No zones have been launched.</span>`,
+        `<span style="color:#a8cfca;">No zones have been launched.</span>`,
       );
       return;
     }
@@ -1947,16 +1241,16 @@ async function initTerminalDemo() {
       "─".repeat(ipv4Width) +
       "─".repeat(28);
 
-    let html = `<span style="color:#79c0ff;font-weight:700;">${header}</span>\n`;
-    html += `<span style="color:#30363d;">${divider}</span>\n`;
+    let html = `<span style="color:#00e5d4;font-weight:700;">${header}</span>\n`;
+    html += `<span style="color:#08736d;">${divider}</span>\n`;
 
     for (const zone of protectZones) {
       const stateColor =
         zone.state === "ready"
-          ? "#7ee787"
+          ? "#b8ff3c"
           : zone.state === "destroyed"
-            ? "#8b949e"
-            : "#d29922";
+            ? "#a8cfca"
+            : "#ffd166";
 
       html +=
         `${escapeHtml(zone.name.padEnd(nameWidth))}` +
@@ -2015,7 +1309,7 @@ async function initTerminalDemo() {
     );
 
     printHtml(
-      `<span style="color:#c9d1d9;">Destruction of zone ${escapeHtml(
+      `<span style="color:#dff7f0;">Destruction of zone ${escapeHtml(
         zone.uuid,
       )} ${wait ? "completed" : "requested"}.</span>`,
     );
@@ -2059,7 +1353,7 @@ async function initTerminalDemo() {
 
     if (selector && !normalizedSelector) {
       printHtml(
-        `<span style="color:#f85149;">Invalid selector "${escapeHtml(
+        `<span style="color:#ff7373;">Invalid selector "${escapeHtml(
           selector,
         )}". Supported form: status.state=&lt;STATE&gt;.</span>`,
       );
@@ -2096,7 +1390,7 @@ async function initTerminalDemo() {
 
     if (matches.length === 0) {
       printHtml(
-        `<span style="color:#8b949e;">No active zones matched "${escapeHtml(
+        `<span style="color:#a8cfca;">No active zones matched "${escapeHtml(
           identifier,
         )}".</span>`,
       );
@@ -2112,7 +1406,7 @@ async function initTerminalDemo() {
 
     if (all && destroyedCount > 1) {
       printHtml(
-        `<span style="color:#7ee787;">Destroyed ${destroyedCount} zones matching "${escapeHtml(
+        `<span style="color:#b8ff3c;">Destroyed ${destroyedCount} zones matching "${escapeHtml(
           identifier,
         )}".</span>`,
       );
@@ -2135,7 +1429,7 @@ async function initTerminalDemo() {
 
     if (!zone) {
       printHtml(
-        `<span style="color:#f85149;">Error: zone "${escapeHtml(
+        `<span style="color:#ff7373;">Error: zone "${escapeHtml(
           zoneIdentifier,
         )}" not found.</span>`,
       );
@@ -2144,7 +1438,7 @@ async function initTerminalDemo() {
 
     if (zone.state !== "ready") {
       printHtml(
-        `<span style="color:#f85149;">Error: zone "${escapeHtml(
+        `<span style="color:#ff7373;">Error: zone "${escapeHtml(
           zone.name,
         )}" is not ready.</span>`,
       );
@@ -2158,7 +1452,7 @@ async function initTerminalDemo() {
       )
     ) {
       printHtml(
-        `<span style="color:#f85149;">Error: workload "${escapeHtml(
+        `<span style="color:#ff7373;">Error: workload "${escapeHtml(
           name,
         )}" already exists.</span>`,
       );
@@ -2195,7 +1489,7 @@ async function initTerminalDemo() {
     );
 
     printHtml(
-      `<span style="color:#7ee787;">${escapeHtml(uuid)}</span>`,
+      `<span style="color:#b8ff3c;">${escapeHtml(uuid)}</span>`,
     );
 
     updateDashboard();
@@ -2274,7 +1568,7 @@ async function initTerminalDemo() {
   const renderProtectWorkloadList = () => {
     if (protectWorkloads.length === 0) {
       printHtml(
-        `<span style="color:#8b949e;">No workloads have been launched.</span>`,
+        `<span style="color:#a8cfca;">No workloads have been launched.</span>`,
       );
       return;
     }
@@ -2296,16 +1590,16 @@ async function initTerminalDemo() {
       "─".repeat(zoneWidth) +
       "─".repeat(stateWidth);
 
-    let html = `<span style="color:#79c0ff;font-weight:700;">${header}</span>\n`;
-    html += `<span style="color:#30363d;">${divider}</span>\n`;
+    let html = `<span style="color:#00e5d4;font-weight:700;">${header}</span>\n`;
+    html += `<span style="color:#08736d;">${divider}</span>\n`;
 
     for (const workload of protectWorkloads) {
       const stateColor =
         workload.state === "running"
-          ? "#7ee787"
+          ? "#b8ff3c"
           : workload.state === "destroyed"
-            ? "#8b949e"
-            : "#d29922";
+            ? "#a8cfca"
+            : "#ffd166";
 
       html +=
         `${escapeHtml(workload.name.padEnd(nameWidth))}` +
@@ -2328,7 +1622,7 @@ async function initTerminalDemo() {
 
     if (!workload) {
       printHtml(
-        `<span style="color:#f85149;">Error: workload "${escapeHtml(
+        `<span style="color:#ff7373;">Error: workload "${escapeHtml(
           identifier,
         )}" not found.</span>`,
       );
@@ -2337,7 +1631,7 @@ async function initTerminalDemo() {
 
     if (workload.state === "destroyed") {
       printHtml(
-        `<span style="color:#8b949e;">Workload "${escapeHtml(
+        `<span style="color:#a8cfca;">Workload "${escapeHtml(
           identifier,
         )}" is already destroyed.</span>`,
       );
@@ -2367,7 +1661,7 @@ async function initTerminalDemo() {
     );
 
     printHtml(
-      `<span style="color:#7ee787;">Workload "${escapeHtml(
+      `<span style="color:#b8ff3c;">Workload "${escapeHtml(
         workload.name,
       )}" destroyed.</span>`,
     );
@@ -2387,7 +1681,7 @@ async function initTerminalDemo() {
 
     if (!workload) {
       printHtml(
-        `<span style="color:#f85149;">Error: workload "${escapeHtml(
+        `<span style="color:#ff7373;">Error: workload "${escapeHtml(
           identifier,
         )}" not found.</span>`,
       );
@@ -2396,7 +1690,7 @@ async function initTerminalDemo() {
 
     if (workload.state !== "running") {
       printHtml(
-        `<span style="color:#f85149;">Error: workload "${escapeHtml(
+        `<span style="color:#ff7373;">Error: workload "${escapeHtml(
           workload.name,
         )}" is not running.</span>`,
       );
@@ -2419,7 +1713,7 @@ async function initTerminalDemo() {
       const kernelVersion = "6.18.44-edera-zone";
 
       printPre(
-        `<span style="color:#7ee787;">${kernelVersion}</span>`,
+        `<span style="color:#b8ff3c;">${kernelVersion}</span>`,
       );
 
       addEvent(
@@ -2433,25 +1727,25 @@ async function initTerminalDemo() {
     ) {
       const kernelVersion = "6.18.44-edera-zone";
       printPre(
-        `<span style="color:#7ee787;">${kernelVersion}</span>`,
+        `<span style="color:#b8ff3c;">${kernelVersion}</span>`,
       );
     } else if (
       commandText.includes("echo Hello from inside Edera") ||
       commandText.includes("echo")
     ) {
       printHtml(
-        `<span style="color:#a5d6ff;">Hello from inside Edera</span>`,
+        `<span style="color:#dff7f0;">Hello from inside Edera</span>`,
       );
     } else if (
       commandText.includes("ls") ||
       commandText.includes("pwd")
     ) {
       printPre(
-        `<span style="color:#c9d1d9;">/bin\n/dev\n/etc\n/home\n/proc\n/root\n/tmp\n/usr\n/var</span>`,
+        `<span style="color:#dff7f0;">/bin\n/dev\n/etc\n/home\n/proc\n/root\n/tmp\n/usr\n/var</span>`,
       );
     } else {
       printHtml(
-        `<span style="color:#8b949e;">Executed inside ${escapeHtml(
+        `<span style="color:#a8cfca;">Executed inside ${escapeHtml(
           workload.name,
         )}: ${escapeHtml(commandText)}</span>`,
       );
@@ -2654,7 +1948,7 @@ async function initTerminalDemo() {
 
         <div class="cli-help-description">
           Manage isolated zones and the workloads running inside them.
-          Use <code style="color:#7ee787;">protect &lt;resource&gt; &lt;command&gt;</code>
+          Use <code style="color:#b8ff3c;">protect &lt;resource&gt; &lt;command&gt;</code>
           to work with a zone or workload.
         </div>
 
@@ -2688,7 +1982,7 @@ async function initTerminalDemo() {
 
           <div class="cli-help-command">
             <code>-l, --selector &lt;SELECTOR&gt;</code>
-            <span>Filter matches using the <code style="color:#7ee787;">status.state</code> field.</span>
+            <span>Filter matches using the <code style="color:#b8ff3c;">status.state</code> field.</span>
           </div>
         </div>
 
@@ -2726,7 +2020,7 @@ async function initTerminalDemo() {
 
           <div class="cli-help-command">
             <code>protect -h</code>
-            <span>Alias for <code style="color:#7ee787;">protect --help</code>.</span>
+            <span>Alias for <code style="color:#b8ff3c;">protect --help</code>.</span>
           </div>
         </div>
 
@@ -2794,7 +2088,7 @@ async function initTerminalDemo() {
 
         if (!name) {
           printHtml(
-            `<span style="color:#f85149;">Error: zone name required. Usage: protect zone launch -n &lt;name&gt;</span>`,
+            `<span style="color:#ff7373;">Error: zone name required. Usage: protect zone launch -n &lt;name&gt;</span>`,
           );
           return true;
         }
@@ -2830,7 +2124,7 @@ async function initTerminalDemo() {
 
         if (!identifier) {
           printHtml(`
-            <span style="color:#f85149;">Usage: protect zone destroy [OPTIONS] &lt;ZONE&gt;</span>
+            <span style="color:#ff7373;">Usage: protect zone destroy [OPTIONS] &lt;ZONE&gt;</span>
           `);
           return true;
         }
@@ -2848,7 +2142,7 @@ async function initTerminalDemo() {
       }
 
       printHtml(
-        `<span style="color:#f85149;">Unknown protect zone command: ${escapeHtml(
+        `<span style="color:#ff7373;">Unknown protect zone command: ${escapeHtml(
           tokens.slice(2).join(" "),
         )}</span>`,
       );
@@ -2915,7 +2209,7 @@ async function initTerminalDemo() {
 
         if (!zone || !name || !image) {
           printHtml(`
-            <span style="color:#f85149;">Usage:
+            <span style="color:#ff7373;">Usage:
   protect workload launch --zone &lt;zone&gt; --name &lt;name&gt; &lt;image&gt; [command...]</span>
           `);
 
@@ -2947,7 +2241,7 @@ async function initTerminalDemo() {
 
         if (!identifier || tokens.length <= commandStart) {
           printHtml(`
-            <span style="color:#f85149;">Usage:
+            <span style="color:#ff7373;">Usage:
   protect workload exec &lt;workload&gt; &lt;command&gt; [args...]</span>
           `);
 
@@ -2969,7 +2263,7 @@ async function initTerminalDemo() {
 
         if (!identifier) {
           printHtml(
-            `<span style="color:#f85149;">Usage: protect workload destroy &lt;workload&gt; [--wait]</span>`,
+            `<span style="color:#ff7373;">Usage: protect workload destroy &lt;workload&gt; [--wait]</span>`,
           );
           return true;
         }
@@ -2982,7 +2276,7 @@ async function initTerminalDemo() {
       }
 
       printHtml(
-        `<span style="color:#f85149;">Unknown protect workload command: ${escapeHtml(
+        `<span style="color:#ff7373;">Unknown protect workload command: ${escapeHtml(
           tokens.slice(2).join(" "),
         )}</span>`,
       );
@@ -2991,7 +2285,7 @@ async function initTerminalDemo() {
     }
 
     printHtml(
-      `<span style="color:#f85149;">Unknown protect command. Type "protect --help".</span>`,
+      `<span style="color:#ff7373;">Unknown protect command. Type "protect --help".</span>`,
     );
 
     return true;
@@ -3013,7 +2307,7 @@ async function initTerminalDemo() {
 
       if (!podName || podName.startsWith("-")) {
         printHtml(
-          `<span style="color:#f85149;">Error: pod name required.</span>`,
+          `<span style="color:#ff7373;">Error: pod name required.</span>`,
         );
         return true;
       }
@@ -3058,7 +2352,7 @@ async function initTerminalDemo() {
         )
       ) {
         printHtml(
-          `<span style="color:#f85149;">Error from server (NotFound): namespaces "${escapeHtml(
+          `<span style="color:#ff7373;">Error from server (NotFound): namespaces "${escapeHtml(
             targetNamespace,
           )}" not found</span>`,
         );
@@ -3073,7 +2367,7 @@ async function initTerminalDemo() {
         )
       ) {
         printHtml(
-          `<span style="color:#f85149;">Error from server (AlreadyExists): pods "${escapeHtml(
+          `<span style="color:#ff7373;">Error from server (AlreadyExists): pods "${escapeHtml(
             podName,
           )}" already exists</span>`,
         );
@@ -3125,7 +2419,7 @@ async function initTerminalDemo() {
       updateDashboard();
 
       printHtml(
-        `<span style="color:#7ee787;">pod/${escapeHtml(
+        `<span style="color:#b8ff3c;">pod/${escapeHtml(
           podName,
         )} created</span>`,
       );
@@ -3145,7 +2439,7 @@ async function initTerminalDemo() {
 
       if (!namespaceName) {
         printHtml(
-          `<span style="color:#f85149;">Error: namespace name required.</span>`,
+          `<span style="color:#ff7373;">Error: namespace name required.</span>`,
         );
         return true;
       }
@@ -3156,7 +2450,7 @@ async function initTerminalDemo() {
         )
       ) {
         printHtml(
-          `<span style="color:#f85149;">Error from server (AlreadyExists): namespaces "${escapeHtml(
+          `<span style="color:#ff7373;">Error from server (AlreadyExists): namespaces "${escapeHtml(
             namespaceName,
           )}" already exists</span>`,
         );
@@ -3177,7 +2471,7 @@ async function initTerminalDemo() {
       );
 
       printHtml(
-        `<span style="color:#7ee787;">namespace/${escapeHtml(
+        `<span style="color:#b8ff3c;">namespace/${escapeHtml(
           namespaceName,
         )} created</span>`,
       );
@@ -3193,7 +2487,7 @@ async function initTerminalDemo() {
 
       if (!fileName || !localFiles[fileName]) {
         printHtml(
-          `<span style="color:#f85149;">error: the path "${escapeHtml(
+          `<span style="color:#ff7373;">error: the path "${escapeHtml(
             fileName || "",
           )}" does not exist</span>`,
         );
@@ -3206,7 +2500,7 @@ async function initTerminalDemo() {
         const existing = deployments.find((deployment) => deployment.name === deploymentName);
 
         if (existing) {
-          printHtml(`<span style="color:#8b949e;">deployment.apps/${deploymentName} unchanged</span>`);
+          printHtml(`<span style="color:#a8cfca;">deployment.apps/${deploymentName} unchanged</span>`);
           return true;
         }
 
@@ -3250,7 +2544,7 @@ async function initTerminalDemo() {
         }
 
         updateDashboard();
-        printHtml(`<span style="color:#7ee787;">deployment.apps/${deploymentName} created</span>`);
+        printHtml(`<span style="color:#b8ff3c;">deployment.apps/${deploymentName} created</span>`);
         markDemoStepComplete("deployment-apply");
         return true;
       }
@@ -3274,11 +2568,11 @@ async function initTerminalDemo() {
             syncEderaPodsToProtectWorkloads();
             updateDashboard();
             printHtml(
-              `<span style="color:#7ee787;">pod/${escapeHtml(podName)} re-applied and recovered</span>`,
+              `<span style="color:#b8ff3c;">pod/${escapeHtml(podName)} re-applied and recovered</span>`,
             );
           } else {
             printHtml(
-              `<span style="color:#8b949e;">pod/${escapeHtml(podName)} unchanged</span>`,
+              `<span style="color:#a8cfca;">pod/${escapeHtml(podName)} unchanged</span>`,
             );
           }
           markDemoStepComplete("edera-pod-apply");
@@ -3345,7 +2639,7 @@ async function initTerminalDemo() {
         updateDashboard();
 
         printHtml(
-          `<span style="color:#7ee787;">pod/${podName} created</span>`,
+          `<span style="color:#b8ff3c;">pod/${podName} created</span>`,
         );
 
         markDemoStepComplete("edera-pod-apply");
@@ -3363,7 +2657,7 @@ async function initTerminalDemo() {
         );
 
         printHtml(
-          `<span style="color:#7ee787;">runtimeclass.node.k8s.io/edera created</span>`,
+          `<span style="color:#b8ff3c;">runtimeclass.node.k8s.io/edera created</span>`,
         );
 
         checkPendingPods();
@@ -3398,11 +2692,11 @@ async function initTerminalDemo() {
             syncEderaPodsToProtectWorkloads();
             updateDashboard();
             printHtml(
-              `<span style="color:#7ee787;">pod/${podName} re-applied and recovered</span>`,
+              `<span style="color:#b8ff3c;">pod/${podName} re-applied and recovered</span>`,
             );
           } else {
             printHtml(
-              `<span style="color:#8b949e;">pod/${podName} unchanged</span>`,
+              `<span style="color:#a8cfca;">pod/${podName} unchanged</span>`,
             );
           }
           return true;
@@ -3464,7 +2758,7 @@ async function initTerminalDemo() {
         updateDashboard();
 
         printHtml(
-          `<span style="color:#7ee787;">pod/${podName} created</span>`,
+          `<span style="color:#b8ff3c;">pod/${podName} created</span>`,
         );
 
         return true;
@@ -3481,7 +2775,7 @@ async function initTerminalDemo() {
       const name = tokens[3];
 
       if (!resource || !name) {
-        printHtml(`<span style="color:#f85149;">Usage: kubectl describe pod|node &lt;name&gt;</span>`);
+        printHtml(`<span style="color:#ff7373;">Usage: kubectl describe pod|node &lt;name&gt;</span>`);
         return true;
       }
 
@@ -3492,7 +2786,7 @@ async function initTerminalDemo() {
 
         if (!pod) {
           printHtml(
-            `<span style="color:#f85149;">Error from server (NotFound): pods "${escapeHtml(name)}" not found</span>`,
+            `<span style="color:#ff7373;">Error from server (NotFound): pods "${escapeHtml(name)}" not found</span>`,
           );
           return true;
         }
@@ -3504,20 +2798,20 @@ async function initTerminalDemo() {
           "Ready=False\nContainersReady=False";
 
         const html = `
-          <div style="color:#8b949e;">Name:</div> ${escapeHtml(pod.name)}
-          <div style="color:#8b949e;">Namespace:</div> ${escapeHtml(pod.namespace)}
-          <div style="color:#8b949e;">Status:</div> <span style="color:${pod.status === "Running" ? "#7ee787" : "#d29922"};">${escapeHtml(pod.status)}</span>
-          <div style="color:#8b949e;">Node:</div> ${escapeHtml(pod.node || "&lt;none>")}
-          <div style="color:#8b949e;">Pod IP:</div> ${escapeHtml(pod.ip || "&lt;none>")}
-          <div style="color:#8b949e;">Image:</div> ${escapeHtml(pod.image)}
-          <div style="color:#8b949e;">RuntimeClass:</div> ${escapeHtml(pod.runtimeClassName || "&lt;none>")}
-          <div style="color:#8b949e;">Labels:</div> ${escapeHtml(formatLabels(pod.labels))}
-          <div style="color:#8b949e;">Edera workload:</div> ${workload ? escapeHtml(`${workload.name} → zone ${workload.zone}`) : "&lt;none>"}
+          <div style="color:#a8cfca;">Name:</div> ${escapeHtml(pod.name)}
+          <div style="color:#a8cfca;">Namespace:</div> ${escapeHtml(pod.namespace)}
+          <div style="color:#a8cfca;">Status:</div> <span style="color:${pod.status === "Running" ? "#b8ff3c" : "#ffd166"};">${escapeHtml(pod.status)}</span>
+          <div style="color:#a8cfca;">Node:</div> ${escapeHtml(pod.node || "&lt;none>")}
+          <div style="color:#a8cfca;">Pod IP:</div> ${escapeHtml(pod.ip || "&lt;none>")}
+          <div style="color:#a8cfca;">Image:</div> ${escapeHtml(pod.image)}
+          <div style="color:#a8cfca;">RuntimeClass:</div> ${escapeHtml(pod.runtimeClassName || "&lt;none>")}
+          <div style="color:#a8cfca;">Labels:</div> ${escapeHtml(formatLabels(pod.labels))}
+          <div style="color:#a8cfca;">Edera workload:</div> ${workload ? escapeHtml(`${workload.name} → zone ${workload.zone}`) : "&lt;none>"}
 
-          <div style="color:#79c0ff;font-weight:700;">Conditions</div>
+          <div style="color:#00e5d4;font-weight:700;">Conditions</div>
           ${escapeHtml(conditions)}
 
-          <div style="color:#79c0ff;font-weight:700;">Events</div>
+          <div style="color:#00e5d4;font-weight:700;">Events</div>
           ${podEvents.length ? podEvents.slice(-8).map((ev) => `${escapeHtml(ev.type)}   ${escapeHtml(ev.reason)}   ${escapeHtml(ev.message)}`).join("\n") : "No events."}
         `;
 
@@ -3530,7 +2824,7 @@ async function initTerminalDemo() {
 
         if (!node) {
           printHtml(
-            `<span style="color:#f85149;">Error from server (NotFound): nodes "${escapeHtml(name)}" not found</span>`,
+            `<span style="color:#ff7373;">Error from server (NotFound): nodes "${escapeHtml(name)}" not found</span>`,
           );
           return true;
         }
@@ -3540,16 +2834,16 @@ async function initTerminalDemo() {
         const nodeEvents = clusterEvents.filter((ev) => ev.object === `node/${node.name}`);
 
         const html = `
-          <div style="color:#8b949e;">Name:</div> ${escapeHtml(node.name)}
-          <div style="color:#8b949e;">Roles:</div> ${escapeHtml(roles)}
-          <div style="color:#8b949e;">Status:</div> <span style="color:#7ee787;">${escapeHtml(node.status)}</span>
-          <div style="color:#8b949e;">Kubelet Version:</div> ${escapeHtml(node.version)}
-          <div style="color:#8b949e;">Labels:</div> ${escapeHtml(formatLabels(node.labels))}
+          <div style="color:#a8cfca;">Name:</div> ${escapeHtml(node.name)}
+          <div style="color:#a8cfca;">Roles:</div> ${escapeHtml(roles)}
+          <div style="color:#a8cfca;">Status:</div> <span style="color:#b8ff3c;">${escapeHtml(node.status)}</span>
+          <div style="color:#a8cfca;">Kubelet Version:</div> ${escapeHtml(node.version)}
+          <div style="color:#a8cfca;">Labels:</div> ${escapeHtml(formatLabels(node.labels))}
 
-          <div style="color:#79c0ff;font-weight:700;">Pods</div>
+          <div style="color:#00e5d4;font-weight:700;">Pods</div>
           ${nodePods.length ? nodePods.map((pod) => `${escapeHtml(pod.namespace)}/${escapeHtml(pod.name)}   ${escapeHtml(pod.status)}`).join("\n") : "No pods assigned."}
 
-          <div style="color:#79c0ff;font-weight:700;">Events</div>
+          <div style="color:#00e5d4;font-weight:700;">Events</div>
           ${nodeEvents.length ? nodeEvents.slice(-8).map((ev) => `${escapeHtml(ev.type)}   ${escapeHtml(ev.reason)}   ${escapeHtml(ev.message)}`).join("\n") : "No events."}
         `;
 
@@ -3557,7 +2851,7 @@ async function initTerminalDemo() {
         return true;
       }
 
-      printHtml(`<span style="color:#f85149;">Error: describe for resource "${escapeHtml(resource)}" is not supported.</span>`);
+      printHtml(`<span style="color:#ff7373;">Error: describe for resource "${escapeHtml(resource)}" is not supported.</span>`);
       return true;
     }
 
@@ -3599,26 +2893,26 @@ async function initTerminalDemo() {
 
         if (filtered.length === 0) {
           printHtml(
-            `<span style="color:#8b949e;">No resources found.</span>`,
+            `<span style="color:#a8cfca;">No resources found.</span>`,
           );
           return true;
         }
 
         let html =
-          `<span style="color:#79c0ff;font-weight:700;">` +
+          `<span style="color:#00e5d4;font-weight:700;">` +
           `${allNamespaces ? "NAMESPACE   " : ""}` +
           `NAME                 READY   STATUS     NODE` +
           `</span>\n`;
 
-        html += `<span style="color:#30363d;">${"─".repeat(
+        html += `<span style="color:#08736d;">${"─".repeat(
           70,
         )}</span>\n`;
 
         for (const pod of filtered) {
           const statusColor =
             pod.status === "Running"
-              ? "#7ee787"
-              : "#d29922";
+              ? "#b8ff3c"
+              : "#ffd166";
 
           html +=
             `${allNamespaces ? escapeHtml(
@@ -3642,18 +2936,18 @@ async function initTerminalDemo() {
         resource === "node"
       ) {
         let html =
-          `<span style="color:#79c0ff;font-weight:700;">` +
+          `<span style="color:#00e5d4;font-weight:700;">` +
           `NAME       STATUS     ROLES          VERSION` +
           `</span>\n`;
 
-        html += `<span style="color:#30363d;">${"─".repeat(
+        html += `<span style="color:#08736d;">${"─".repeat(
           60,
         )}</span>\n`;
 
         for (const node of nodes) {
           html +=
             `${escapeHtml(node.name.padEnd(11))}` +
-            `<span style="color:#7ee787;">${escapeHtml(
+            `<span style="color:#b8ff3c;">${escapeHtml(
               node.status.padEnd(11),
             )}</span>` +
             `${escapeHtml(
@@ -3673,12 +2967,12 @@ async function initTerminalDemo() {
         resource === "deploy"
       ) {
         if (deployments.length === 0) {
-          printHtml(`<span style="color:#8b949e;">No resources found.</span>`);
+          printHtml(`<span style="color:#a8cfca;">No resources found.</span>`);
           return true;
         }
 
-        let html = `<span style="color:#79c0ff;font-weight:700;">NAME                 READY   UP-TO-DATE   AVAILABLE</span>\n`;
-        html += `<span style="color:#30363d;">${"─".repeat(65)}</span>\n`;
+        let html = `<span style="color:#00e5d4;font-weight:700;">NAME                 READY   UP-TO-DATE   AVAILABLE</span>\n`;
+        html += `<span style="color:#08736d;">${"─".repeat(65)}</span>\n`;
 
         for (const deployment of deployments) {
           html += `${escapeHtml(deployment.name.padEnd(21))}${deployment.readyReplicas}/${deployment.replicas}     ${String(deployment.replicas).padEnd(11)}${deployment.readyReplicas}\n`;
@@ -3695,11 +2989,11 @@ async function initTerminalDemo() {
         resource === "ns"
       ) {
         let html =
-          `<span style="color:#79c0ff;font-weight:700;">` +
+          `<span style="color:#00e5d4;font-weight:700;">` +
           `NAME                  STATUS     AGE` +
           `</span>\n`;
 
-        html += `<span style="color:#30363d;">${"─".repeat(
+        html += `<span style="color:#08736d;">${"─".repeat(
           45,
         )}</span>\n`;
 
@@ -3708,7 +3002,7 @@ async function initTerminalDemo() {
             `${escapeHtml(
               namespace.name.padEnd(22),
             )}` +
-            `<span style="color:#7ee787;">${escapeHtml(
+            `<span style="color:#b8ff3c;">${escapeHtml(
               namespace.status.padEnd(11),
             )}</span>` +
             `${escapeHtml(namespace.age)}\n`;
@@ -3737,7 +3031,7 @@ async function initTerminalDemo() {
 
       if (!node) {
         printHtml(
-          `<span style="color:#f85149;">Error from server (NotFound): nodes "${escapeHtml(
+          `<span style="color:#ff7373;">Error from server (NotFound): nodes "${escapeHtml(
             nodeName || "",
           )}" not found</span>`,
         );
@@ -3746,7 +3040,7 @@ async function initTerminalDemo() {
 
       if (!labelExpression) {
         printHtml(
-          `<span style="color:#f85149;">Error: label required.</span>`,
+          `<span style="color:#ff7373;">Error: label required.</span>`,
         );
         return true;
       }
@@ -3768,7 +3062,7 @@ async function initTerminalDemo() {
       );
 
       printHtml(
-        `<span style="color:#7ee787;">node/${escapeHtml(
+        `<span style="color:#b8ff3c;">node/${escapeHtml(
           node.name,
         )} labeled</span>`,
       );
@@ -3787,7 +3081,7 @@ async function initTerminalDemo() {
 
       if (!fileName || !localFiles[fileName]) {
         printHtml(
-          `<span style="color:#f85149;">error: the path "${escapeHtml(
+          `<span style="color:#ff7373;">error: the path "${escapeHtml(
             fileName || "",
           )}" does not exist</span>`,
         );
@@ -3797,7 +3091,7 @@ async function initTerminalDemo() {
       if (fileName === "runtimeclass-edera.yaml") {
         if (!activeRuntimeClasses.has("edera")) {
           printHtml(
-            `<span style="color:#8b949e;">runtimeclass.node.k8s.io/edera not found</span>`,
+            `<span style="color:#a8cfca;">runtimeclass.node.k8s.io/edera not found</span>`,
           );
           return true;
         }
@@ -3868,12 +3162,12 @@ async function initTerminalDemo() {
         }
 
         printHtml(
-          `<span style="color:#7ee787;">runtimeclass.node.k8s.io/edera deleted</span>`,
+          `<span style="color:#b8ff3c;">runtimeclass.node.k8s.io/edera deleted</span>`,
         );
 
         if (affectedPods.length > 0) {
           printHtml(
-            `<span style="color:#d29922;">${affectedPods.length} Edera pod${
+            `<span style="color:#ffd166;">${affectedPods.length} Edera pod${
               affectedPods.length === 1 ? "" : "s"
             } moved to Failed because RuntimeClass "edera" is no longer available. Recreate the RuntimeClass to recover the pod, or re-apply its manifest.</span>`,
           );
@@ -3887,7 +3181,7 @@ async function initTerminalDemo() {
         const deploymentName = "nginx";
         const index = deployments.findIndex((deployment) => deployment.name === deploymentName);
         if (index === -1) {
-          printHtml(`<span style="color:#8b949e;">deployment.apps/${deploymentName} not found</span>`);
+          printHtml(`<span style="color:#a8cfca;">deployment.apps/${deploymentName} not found</span>`);
           return true;
         }
         const ownedPods = pods.filter((pod) => pod.ownerDeployment === deploymentName);
@@ -3896,7 +3190,7 @@ async function initTerminalDemo() {
         protectWorkloads = protectWorkloads.filter((workload) => !ownedPods.some((pod) => pod.name === workload.sourcePodName));
         addEvent("Normal", "Deleted", `deployment/${deploymentName}`, `deployment.apps/${deploymentName} deleted`);
         updateDashboard();
-        printHtml(`<span style="color:#7ee787;">deployment.apps/${deploymentName} deleted</span>`);
+        printHtml(`<span style="color:#b8ff3c;">deployment.apps/${deploymentName} deleted</span>`);
         return true;
       }
 
@@ -3916,7 +3210,7 @@ async function initTerminalDemo() {
 
         if (index === -1) {
           printHtml(
-            `<span style="color:#8b949e;">pod/${escapeHtml(
+            `<span style="color:#a8cfca;">pod/${escapeHtml(
               manifestPodName,
             )} not found</span>`,
           );
@@ -3952,7 +3246,7 @@ async function initTerminalDemo() {
         updateDashboard();
 
         printHtml(
-          `<span style="color:#7ee787;">pod/${escapeHtml(
+          `<span style="color:#b8ff3c;">pod/${escapeHtml(
             deletedPod.name,
           )} deleted</span>`,
         );
@@ -3961,7 +3255,7 @@ async function initTerminalDemo() {
       }
 
       printHtml(
-        `<span style="color:#f85149;">error: delete for "${escapeHtml(
+        `<span style="color:#ff7373;">error: delete for "${escapeHtml(
           fileName,
         )}" is not supported by this simulator</span>`,
       );
@@ -3986,7 +3280,7 @@ async function initTerminalDemo() {
 
       if (index === -1) {
         printHtml(
-          `<span style="color:#f85149;">Error from server (NotFound): pods "${escapeHtml(
+          `<span style="color:#ff7373;">Error from server (NotFound): pods "${escapeHtml(
             podName || "",
           )}" not found</span>`,
         );
@@ -4045,14 +3339,14 @@ async function initTerminalDemo() {
       updateDashboard();
 
       printHtml(
-        `<span style="color:#7ee787;">pod "${escapeHtml(
+        `<span style="color:#b8ff3c;">pod "${escapeHtml(
           podName,
         )}" deleted</span>`,
       );
 
       if (owningDeployment) {
         printHtml(
-          `<span style="color:#58a6ff;">Deployment ${escapeHtml(
+          `<span style="color:#00e5d4;">Deployment ${escapeHtml(
             owningDeployment,
           )} reconciled its desired replica count.</span>`,
         );
@@ -4077,7 +3371,7 @@ async function initTerminalDemo() {
 
       if (index === -1) {
         printHtml(
-          `<span style="color:#f85149;">Error from server (NotFound): nodes "${escapeHtml(
+          `<span style="color:#ff7373;">Error from server (NotFound): nodes "${escapeHtml(
             nodeName || "",
           )}" not found</span>`,
         );
@@ -4119,7 +3413,7 @@ async function initTerminalDemo() {
       updateDashboard();
 
       printHtml(
-        `<span style="color:#7ee787;">node "${escapeHtml(
+        `<span style="color:#b8ff3c;">node "${escapeHtml(
           nodeName,
         )}" deleted</span>`,
       );
@@ -4225,13 +3519,13 @@ async function initTerminalDemo() {
 
     output.innerHTML = `
       <div class="terminal-block">
-        <div style="color:#f0f6fc;">
+        <div style="color:#f8fffd;">
           Webernetes cluster online!
         </div>
 
-        <div style="color:#8b949e;margin-top:5px;">
+        <div style="color:#a8cfca;margin-top:5px;">
           Try the suggested Edera command below,
-          or type <span style="color:#7ee787;">help</span>.
+          or type <span style="color:#b8ff3c;">help</span>.
         </div>
       </div>
     `;
@@ -4316,7 +3610,7 @@ async function initTerminalDemo() {
         if (tokens[0] === "history") {
           if (commandHistory.length === 0) {
             printHtml(
-              `<span style="color:#8b949e;">No command history.</span>`,
+              `<span style="color:#a8cfca;">No command history.</span>`,
             );
             return;
           }
@@ -4324,7 +3618,7 @@ async function initTerminalDemo() {
           const historyHtml = commandHistory
             .map(
               (command, index) =>
-                `<span style="color:#8b949e;">${String(
+                `<span style="color:#a8cfca;">${String(
                   index + 1,
                 ).padStart(3, " ")}</span>  ${escapeHtml(
                   command,
@@ -4344,7 +3638,7 @@ async function initTerminalDemo() {
           const files = Object.keys(localFiles)
             .map(
               (file) =>
-                `<span style="color:#56d364;font-weight:600;">${escapeHtml(
+                `<span style="color:#5e9f2d;font-weight:600;">${escapeHtml(
                   file,
                 )}</span>`,
             )
@@ -4363,7 +3657,7 @@ async function initTerminalDemo() {
 
           if (!fileName) {
             printHtml(
-              `<span style="color:#f85149;">cat: missing file operand</span>`,
+              `<span style="color:#ff7373;">cat: missing file operand</span>`,
             );
           } else if (localFiles[fileName]) {
             printPre(
@@ -4371,7 +3665,7 @@ async function initTerminalDemo() {
             );
           } else {
             printHtml(
-              `<span style="color:#f85149;">cat: ${escapeHtml(
+              `<span style="color:#ff7373;">cat: ${escapeHtml(
                 fileName,
               )}: No such file or directory</span>`,
             );
@@ -4392,7 +3686,7 @@ async function initTerminalDemo() {
           if (requestsRelease) {
             const hostKernelVersion = "6.18.44-edera-host";
             printPre(
-              `<span style="color:#7ee787;">${hostKernelVersion}</span>`,
+              `<span style="color:#b8ff3c;">${hostKernelVersion}</span>`,
             );
             addEvent(
               "Normal",
@@ -4404,7 +3698,7 @@ async function initTerminalDemo() {
             markDemoStepComplete("host-kernel");
           } else {
             printHtml(
-              `<span style="color:#f85149;">uname: unsupported option. Try: uname -r</span>`,
+              `<span style="color:#ff7373;">uname: unsupported option. Try: uname -r</span>`,
             );
           }
 
@@ -4474,7 +3768,7 @@ async function initTerminalDemo() {
                 : response?.body || response;
 
             printHtml(
-              `<span style="color:#a5d6ff;">${escapeHtml(
+              `<span style="color:#dff7f0;">${escapeHtml(
                 String(text),
               )}</span>`,
             );
@@ -4487,7 +3781,7 @@ async function initTerminalDemo() {
             );
           } catch (error: any) {
             printHtml(
-              `<span style="color:#f85149;">curl: (7) Failed to connect: ${escapeHtml(
+              `<span style="color:#ff7373;">curl: (7) Failed to connect: ${escapeHtml(
                 error?.message || String(error),
               )}</span>`,
             );
@@ -4507,7 +3801,7 @@ async function initTerminalDemo() {
          * Unknown command
          */
         printHtml(
-          `<span style="color:#f85149;">command not found: ${escapeHtml(
+          `<span style="color:#ff7373;">command not found: ${escapeHtml(
             rawCmd,
           )}. Type 'help' to see supported commands.</span>`,
         );
@@ -4522,7 +3816,7 @@ async function initTerminalDemo() {
     );
   } catch (error: any) {
     output.innerHTML = `
-      <div style="color:#f85149;">
+      <div style="color:#ff7373;">
         Error initializing cluster:
         ${escapeHtml(error?.message || String(error))}
       </div>
