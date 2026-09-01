@@ -740,3 +740,68 @@ input { font-family: inherit; }
     transition: none !important;
   }
 }
+
+/* =========================================================
+   Edera accessibility override
+   Keep text black on light/white UI surfaces
+   ========================================================= */
+
+.panel,
+.guide-panel {
+  color: #000;
+}
+
+.panel h3,
+.guide-title,
+.guide-step-title,
+.guide-side-title,
+.resource-name,
+.zone-name,
+.event-reason {
+  color: #000;
+}
+
+/* Secondary text on white/mint surfaces */
+.panel-subtitle,
+.guide-subtitle,
+.resource-meta,
+.zone-uuid,
+.zone-meta,
+.guide-description,
+.guide-label,
+.event-time,
+.event-message,
+.event-object,
+.empty-state {
+  color: #000;
+  opacity: 0.72;
+}
+
+/* Guide navigation */
+.guide-step-mini {
+  color: #000;
+}
+
+.guide-step-mini:hover,
+.guide-step-mini.current,
+.guide-step-mini.selected {
+  color: #000;
+}
+
+/* Keep the small status/category colors intentional */
+.panel-count {
+  color: #000;
+}
+
+.hide-btn {
+  color: #000;
+}
+
+/* Footer is on the dark background, so DON'T make it black */
+.edera-footer {
+  color: var(--edera-muted);
+}
+
+.edera-footer a {
+  color: var(--edera-cyan);
+}
