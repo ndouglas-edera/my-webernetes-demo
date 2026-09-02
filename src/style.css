@@ -935,3 +935,54 @@ input { font-family: inherit; }
     font-size: 9px;
   }
 }
+
+/* =========================================================
+   Demo completion modal actions
+   ========================================================= */
+
+.completion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.completion-restart-btn,
+.completion-license-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 13px 22px;
+  border-radius: 8px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.completion-restart-btn {
+  border: 1px solid rgba(0, 229, 212, 0.45);
+  background: transparent;
+  color: #f8fffd;
+}
+
+.completion-restart-btn:hover {
+  background: rgba(0, 229, 212, 0.12);
+}
+
+.completion-license-link {
+  border: 0;
+  background: #b8ff3c;
+  color: #081716;
+}
+
+@media (max-width: 560px) {
+  .completion-actions {
+    flex-direction: column;
+  }
+
+  .completion-restart-btn,
+  .completion-license-link {
+    width: 100%;
+  }
+}
