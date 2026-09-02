@@ -1,5 +1,5 @@
 import { BaseImage, Cluster, type ProcessContext } from "@ngrok/webernetes";
-import "./edera-webernetes.css";
+import "./style.css";
 
 class WebServerImage extends BaseImage {
   static readonly imageName = "web-server";
