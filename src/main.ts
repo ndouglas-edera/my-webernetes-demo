@@ -254,6 +254,8 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     description:
       "List the zones one final time and observe the destroyed tombstone.",
     command: "protect zone list",
+    description:
+      "Congrats! You've completed the Webernetes demo. Why not sign up for a free license at <b>demo.edera.dev</b>",    
   },
 ];
 
