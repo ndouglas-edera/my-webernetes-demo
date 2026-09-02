@@ -265,6 +265,7 @@ async function initTerminalDemo() {
     <div class="demo-shell">
 
       <header class="top-header">
+        <a href="https://edera.dev" class="logo-link">EDERA</a>
         <div>
           <h1>Webernetes × Edera</h1>
           <p>Secure workload execution, directly in your browser.</p>
