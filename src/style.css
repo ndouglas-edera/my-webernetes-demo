@@ -80,8 +80,7 @@ input { font-family: inherit; }
   box-shadow: 0 16px 45px rgba(0, 0, 0, .12);
 }
 
-.top-header::before {
-  content: "EDERA";
+.top-header .logo-link {
   display: grid;
   place-items: center;
   width: 112px;
@@ -91,6 +90,8 @@ input { font-family: inherit; }
   font-size: 23px;
   font-weight: 800;
   letter-spacing: -.04em;
+  text-decoration: none; /* Removes default link underline */
+  cursor: pointer;
 }
 
 .top-header > div {
