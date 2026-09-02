@@ -406,7 +406,7 @@ async function initTerminalDemo() {
           alt="Ivy from Edera"
           loading="lazy"
         />
-        <span>Made with love by the team at <a href="https://edera.dev/" target="_blank" rel="noopener noreferrer">Edera</a></span>
+        <span>Made with love by the team at <a href="https://edera.dev/love" target="_blank" rel="noopener noreferrer">Edera</a></span>
       </div>
 
     </div>
