@@ -409,6 +409,37 @@ async function initTerminalDemo() {
         <span>Made with love by the team at <a href="https://edera.dev/love" target="_blank" rel="noopener noreferrer">Edera</a></span>
       </div>
 
+      <!-- Lab completion modal -->
+      <div
+        id="completion-modal"
+        hidden
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="completion-title"
+        style="position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px;"
+      >
+        <div
+          id="completion-modal-backdrop"
+          aria-hidden="true"
+          style="position:absolute;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);"
+        ></div>
+        <div
+          style="position:relative;width:min(520px,100%);padding:42px;border:1px solid rgba(184,255,60,.35);border-radius:20px;background:#081716;box-shadow:0 24px 80px rgba(0,0,0,.5);text-align:center;"
+        >
+          <button
+            id="completion-close"
+            type="button"
+            aria-label="Close completion message"
+            style="position:absolute;top:12px;right:16px;border:0;background:transparent;color:#a8cfca;font-size:28px;line-height:1;cursor:pointer;"
+          >×</button>
+          <div style="width:64px;height:64px;margin:0 auto 20px;display:grid;place-items:center;border-radius:50%;background:#b8ff3c;color:#081716;font-size:32px;font-weight:800;">✓</div>
+          <div style="margin-bottom:10px;color:#00e5d4;font-size:12px;font-weight:800;letter-spacing:.16em;">LAB COMPLETE</div>
+          <h2 id="completion-title" style="margin:0 0 14px;color:#f8fffd;font-size:30px;">Thank you for completing the lab!</h2>
+          <p style="margin:0 0 28px;color:#a8cfca;line-height:1.6;">You've completed the Edera isolation walkthrough. Ready to try Edera for yourself?</p>
+          <a href="https://demo.edera.dev" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;padding:13px 22px;border-radius:8px;background:#b8ff3c;color:#081716;font-weight:800;text-decoration:none;">Sign up for a free Edera license →</a>
+        </div>
+      </div>
+
     </div>
   `;
 
@@ -444,6 +475,17 @@ async function initTerminalDemo() {
 
   const useCommandBtn =
     document.querySelector<HTMLButtonElement>("#use-command-btn")!;
+
+  const completionModal =
+    document.querySelector<HTMLDivElement>("#completion-modal")!;
+
+  const completionClose =
+    document.querySelector<HTMLButtonElement>("#completion-close")!;
+
+  const completionModalBackdrop =
+    document.querySelector<HTMLDivElement>("#completion-modal-backdrop")!;
+
+  let completionModalShown = false;
 
   let cluster: Cluster;
 
@@ -525,6 +567,34 @@ async function initTerminalDemo() {
    * useful even if someone explores commands out of order.
    */
   let completedDemoSteps = new Set<string>();
+
+  // Optional guide steps are useful for exploration, but they should not
+  // prevent the lab from being considered complete.
+  const REQUIRED_DEMO_STEP_IDS = PROTECT_DEMO_STEPS
+    .filter((step) => !step.optional)
+    .map((step) => step.id);
+
+  const isDemoComplete = (): boolean =>
+    REQUIRED_DEMO_STEP_IDS.every((stepId) =>
+      completedDemoSteps.has(stepId),
+    );
+
+  const showCompletionModal = () => {
+    if (completionModalShown || !isDemoComplete()) {
+      return;
+    }
+
+    completionModalShown = true;
+    completionModal.hidden = false;
+    completionClose.focus();
+  };
+
+  const hideCompletionModal = () => {
+    completionModal.hidden = true;
+  };
+
+  completionClose.addEventListener("click", hideCompletionModal);
+  completionModalBackdrop.addEventListener("click", hideCompletionModal);
 
   const escapeHtml = (str: string) =>
     str
@@ -902,6 +972,9 @@ async function initTerminalDemo() {
     }
 
     renderGuide();
+
+    // Show the completion CTA once all required guide steps are complete.
+    showCompletionModal();
   };
 
   guideStepList.addEventListener("click", (event) => {
