@@ -412,11 +412,10 @@ async function initTerminalDemo() {
       <!-- Lab completion modal -->
       <div
         id="completion-modal"
-        hidden
         role="dialog"
         aria-modal="true"
         aria-labelledby="completion-title"
-        style="position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px;"
+        style="position:fixed;inset:0;z-index:1000;display:none;place-items:center;padding:24px;"
       >
         <div
           id="completion-modal-backdrop"
@@ -485,7 +484,17 @@ async function initTerminalDemo() {
   const completionModalBackdrop =
     document.querySelector<HTMLDivElement>("#completion-modal-backdrop")!;
 
-  let completionModalShown = false;
+  // This flag prevents the completion popup from reappearing after a page
+  // refresh during the same browser session. It is deliberately session-only
+  // so a new lab session can show the completion message again.
+  const COMPLETION_MODAL_SESSION_KEY = "edera-demo-completion-shown";
+  let completionModalShown =
+    sessionStorage.getItem(COMPLETION_MODAL_SESSION_KEY) === "true";
+
+  const closeCompletionModal = () => {
+    completionModal.hidden = true;
+    completionModal.style.display = "none";
+  };
 
   let cluster: Cluster;
 
@@ -585,16 +594,29 @@ async function initTerminalDemo() {
     }
 
     completionModalShown = true;
+    sessionStorage.setItem(COMPLETION_MODAL_SESSION_KEY, "true");
+
     completionModal.hidden = false;
+    completionModal.style.display = "grid";
     completionClose.focus();
   };
 
   const hideCompletionModal = () => {
-    completionModal.hidden = true;
+    closeCompletionModal();
   };
+
+  // Always start with the modal closed. This protects against browsers or
+  // dev servers restoring the previous DOM state after a refresh.
+  closeCompletionModal();
 
   completionClose.addEventListener("click", hideCompletionModal);
   completionModalBackdrop.addEventListener("click", hideCompletionModal);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !completionModal.hidden) {
+      hideCompletionModal();
+    }
+  });
 
   const escapeHtml = (str: string) =>
     str
@@ -953,6 +975,8 @@ async function initTerminalDemo() {
   };
 
   const markDemoStepComplete = (stepId: string) => {
+    const wasComplete = isDemoComplete();
+
     completedDemoSteps.add(stepId);
 
     // Once the selected step has completed, advance the selection to the next
@@ -973,8 +997,11 @@ async function initTerminalDemo() {
 
     renderGuide();
 
-    // Show the completion CTA once all required guide steps are complete.
-    showCompletionModal();
+    // Only trigger the popup on the transition from incomplete -> complete.
+    // This prevents unrelated/repeated commands from opening it again.
+    if (!wasComplete && isDemoComplete()) {
+      showCompletionModal();
+    }
   };
 
   guideStepList.addEventListener("click", (event) => {
@@ -2132,7 +2159,14 @@ async function initTerminalDemo() {
 
       if (subcommand === "list") {
         renderProtectZoneList();
-        markDemoStepComplete("zone-list");
+
+        const hasDestroyedZone = protectZones.some(
+          (zone) => zone.state === "destroyed",
+        );
+
+        markDemoStepComplete(
+          hasDestroyedZone ? "final-list" : "zone-list",
+        );
         return true;
       }
 
