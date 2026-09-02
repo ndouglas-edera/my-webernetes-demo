@@ -266,7 +266,7 @@ async function initTerminalDemo() {
 
       <header class="top-header">
         <div>
-          <h1>Webernetes × Edera Protect</h1>
+          <h1>Webernetes × Edera</h1>
           <p>Secure workload execution, directly in your browser.</p>
         </div>
       </header>
@@ -281,7 +281,7 @@ async function initTerminalDemo() {
         <button id="hero-run-btn" class="hero-cta" type="button">Try it Out</button>
       </section>
 
-      <div class="demo-kicker">Web­ernetes × Edera Protect — interactive isolation demo</div>
+      <div class="demo-kicker">Web­ernetes × Edera - interactive isolation demo</div>
 
       <div class="dashboard-grid">
 
@@ -316,7 +316,7 @@ async function initTerminalDemo() {
           <span class="drag-handle">⋮⋮</span>
           <div>
             <h3>🛡️ Edera Zones</h3>
-            <div class="panel-subtitle">Simulated Protect isolation boundaries</div>
+            <div class="panel-subtitle">Simulated Edera isolation boundaries</div>
           </div>
           <span id="zone-count" class="panel-count">0 Zones</span>
           <button class="hide-btn" id="hide-protect-btn">Hide</button>
@@ -1823,7 +1823,7 @@ async function initTerminalDemo() {
 
           <div class="cli-help-command">
             <code>kubectl describe pod &lt;name&gt;</code>
-            <span>Show detailed simulated Pod configuration, status, events, runtime class, and networking.</span>
+            <span>Show detailed simulated Pod config, status, events, and runtimeClass.</span>
           </div>
 
           <div class="cli-help-command">
