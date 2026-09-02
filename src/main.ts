@@ -435,7 +435,10 @@ async function initTerminalDemo() {
           <div style="margin-bottom:10px;color:#00e5d4;font-size:12px;font-weight:800;letter-spacing:.16em;">LAB COMPLETE</div>
           <h2 id="completion-title" style="margin:0 0 14px;color:#f8fffd;font-size:30px;">Thank you for completing the lab!</h2>
           <p style="margin:0 0 28px;color:#a8cfca;line-height:1.6;">You've completed the Edera isolation walkthrough. Ready to try Edera for yourself?</p>
-          <a href="https://demo.edera.dev" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;padding:13px 22px;border-radius:8px;background:#b8ff3c;color:#081716;font-weight:800;text-decoration:none;">Sign up for a free Edera license →</a>
+          <div class="completion-actions">
+            <button id="restart-demo-btn" type="button" class="completion-restart-btn">Start a new session</button>
+            <a href="https://demo.edera.dev" target="_blank" rel="noopener noreferrer" class="completion-license-link">Sign up for a free Edera license →</a>
+          </div>
         </div>
       </div>
 
@@ -483,13 +486,10 @@ async function initTerminalDemo() {
 
   const completionModalBackdrop =
     document.querySelector<HTMLDivElement>("#completion-modal-backdrop")!;
-
-  // This flag prevents the completion popup from reappearing after a page
-  // refresh during the same browser session. It is deliberately session-only
-  // so a new lab session can show the completion message again.
-  const COMPLETION_MODAL_SESSION_KEY = "edera-demo-completion-shown";
-  let completionModalShown =
-    sessionStorage.getItem(COMPLETION_MODAL_SESSION_KEY) === "true";
+  const restartDemoBtn =
+    document.querySelector<HTMLButtonElement>("#restart-demo-btn")!;
+  // Keep completion state in memory so each fresh page load can complete the lab again.
+  let completionModalShown = false;
 
   const closeCompletionModal = () => {
     completionModal.hidden = true;
@@ -503,6 +503,27 @@ async function initTerminalDemo() {
     "runtimeclass-edera.yaml": RUNTIMECLASS_EDERA_YAML_CONTENT,
     "pod-hardened-vessel.yaml": HARDENED_VESSEL_YAML_CONTENT,
     "nginx-deployment.yaml": NGINX_DEPLOYMENT_YAML_CONTENT,
+  };
+
+
+  const startNewDemoSession = () => {
+    // Reset the demo walkthrough and the in-memory UI state.
+    completedDemoSteps = new Set<string>();
+    selectedDemoStepIndex = null;
+    completionModalShown = false;
+    commandHistory.length = 0;
+    historyIndex = -1;
+
+    // Rebuild the simulated cluster so every lab starts from a clean state.
+    protectZones = [];
+    protectWorkloads = [];
+    clusterEvents = [];
+
+    closeCompletionModal();
+
+    // A full reload is the safest way to restore all simulator state,
+    // including the Webernetes cluster, pods, terminal output, and guide.
+    window.location.reload();
   };
 
   const activeRuntimeClasses = new Set<string>();
@@ -594,7 +615,6 @@ async function initTerminalDemo() {
     }
 
     completionModalShown = true;
-    sessionStorage.setItem(COMPLETION_MODAL_SESSION_KEY, "true");
 
     completionModal.hidden = false;
     completionModal.style.display = "grid";
@@ -611,6 +631,7 @@ async function initTerminalDemo() {
 
   completionClose.addEventListener("click", hideCompletionModal);
   completionModalBackdrop.addEventListener("click", hideCompletionModal);
+  restartDemoBtn.addEventListener("click", startNewDemoSession);
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !completionModal.hidden) {
@@ -1000,7 +1021,9 @@ async function initTerminalDemo() {
     // Only trigger the popup on the transition from incomplete -> complete.
     // This prevents unrelated/repeated commands from opening it again.
     if (!wasComplete && isDemoComplete()) {
-      showCompletionModal();
+      requestAnimationFrame(() => {
+        showCompletionModal();
+      });
     }
   };
 
