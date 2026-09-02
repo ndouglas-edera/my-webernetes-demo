@@ -437,7 +437,7 @@ async function initTerminalDemo() {
           <p style="margin:0 0 28px;color:#a8cfca;line-height:1.6;">You've completed the Edera isolation walkthrough. Ready to try Edera for yourself?</p>
           <div class="completion-actions">
             <button id="restart-demo-btn" type="button" class="completion-restart-btn">Start a new session</button>
-            <a href="https://demo.edera.dev" target="_blank" rel="noopener noreferrer" class="completion-license-link">Sign up for a free Edera license →</a>
+            <a href="https://on.edera.dev" target="_blank" rel="noopener noreferrer" class="completion-license-link">Sign up for a free Edera license →</a>
           </div>
         </div>
       </div>
