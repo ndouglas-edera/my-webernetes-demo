@@ -272,136 +272,6 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
    * completion criteria remain unchanged.
    */
   {
-    id: "gpu-lspci",
-    title: "Discover the NVIDIA GPU",
-    description:
-      "Inspect PCI display-class devices and note the PCI address (0000:18:00.0) and vendor/device ID ([10de:1eb8]). The simulated GPU starts unbound so the KVM VFIO flow can be demonstrated.",
-    command: "sudo lspci -Dknn -d ::03xx",
-    optional: true,
-  },
-  {
-    id: "gpu-daemon-config",
-    title: "Inspect the Protect GPU configuration",
-    description:
-      "Inspect the Protect daemon configuration. The simulator models gpu0 as the primary Edera device identifier and maps it to the Tesla T4 PCI address.",
-    command: "sudo cat /var/lib/edera/protect/daemon.toml",
-    optional: true,
-  },
-  {
-    id: "gpu-kernel-variant",
-    title: "Verify the NVIDIA kernel variant",
-    description:
-      "Confirm that the pre-defined nvidia kernel variant resolves to the Edera NVIDIA GPU kernel image.",
-    command: "sudo protect image list-kernel-variants",
-    optional: true,
-  },
-  {
-    id: "gpu-daemon-restart",
-    title: "Restart Protect",
-    description:
-      "Restart the Protect daemon after changing daemon.toml and verify that the configuration is active.",
-    command: "sudo systemctl restart protect-daemon",
-    optional: true,
-  },
-  {
-    id: "gpu-vfio-config",
-    title: "Configure VFIO for KVM",
-    description:
-      "Inspect the simulated VFIO module configuration using the NVIDIA vendor/device ID. This is required when KVM is used as the hypervisor.",
-    command: "sudo cat /etc/modprobe.d/gpu-vfio.conf",
-    optional: true,
-  },
-  {
-    id: "gpu-vfio-load",
-    title: "Load the VFIO modules",
-    description:
-      "Load the VFIO kernel modules. The simulator binds the Tesla T4 to vfio-pci when vfio_pci is loaded.",
-    command: "sudo modprobe vfio_iommu_type1 && sudo modprobe vfio_pci",
-    optional: true,
-  },
-  {
-    id: "gpu-vfio-verify",
-    title: "Verify VFIO binding",
-    description:
-      "Run lspci again and confirm that Kernel driver in use: vfio-pci is shown for the GPU.",
-    command: "sudo lspci -Dknn -d ::03xx",
-    optional: true,
-  },
-  {
-    id: "gpu-zone-launch",
-    title: "Launch an NVIDIA GPU zone",
-    description:
-      "Launch a zone with gpu0 passed through and the nvidia kernel variant. The --device value must match the identifier in daemon.toml.",
-    command:
-      "sudo protect zone launch --name zone-gpu --device gpu0 --kernel-verbose --target-memory 2048 --resource-adjustment-policy static --kernel-variant nvidia --pull-overwrite-cache",
-    optional: true,
-  },
-  {
-    id: "gpu-zone-list",
-    title: "Verify the GPU zone",
-    description:
-      "Confirm that zone-gpu reached the ready state.",
-    command: "sudo protect zone list",
-    optional: true,
-  },
-  {
-    id: "gpu-zone-logs",
-    title: "Confirm the NVIDIA driver",
-    description:
-      "Inspect the zone logs and verify that the NVIDIA kernel modules loaded successfully.",
-    command: "sudo protect zone logs zone-gpu",
-    optional: true,
-  },
-  {
-    id: "gpu-workload-launch",
-    title: "Launch a CUDA workload",
-    description:
-      "Start a privileged CUDA development workload inside zone-gpu.",
-    command:
-      "sudo protect workload launch --name workload-gpu --zone zone-gpu --privileged nvidia/cuda:13.3.0-devel-ubuntu26.04 -- /bin/bash",
-    optional: true,
-  },
-  {
-    id: "gpu-workload-list",
-    title: "Inspect the GPU workload",
-    description:
-      "Confirm that workload-gpu is running and attached to zone-gpu.",
-    command: "sudo protect workload list",
-    optional: true,
-  },
-  {
-    id: "gpu-workload-pci",
-    title: "Verify GPU visibility",
-    description:
-      "Inspect PCI devices from inside the workload. The passed-through GPU appears at the guest PCI address 0000:00:07.0 and uses the nvidia driver.",
-    command:
-      "sudo protect workload exec workload-gpu -- /bin/bash -c 'DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y pciutils && lspci -Dknn'",
-    optional: true,
-  },
-  {
-    id: "gpu-nvidia-smi",
-    title: "Verify NVIDIA access",
-    description:
-      "Run nvidia-smi inside the workload and verify the Tesla T4 is visible with the NVIDIA 610.43.02 driver and CUDA 13.3.",
-    command: "sudo protect workload exec workload-gpu nvidia-smi",
-    optional: true,
-  },
-  {
-    id: "gpu-workload-destroy",
-    title: "Clean up the GPU workload",
-    description:
-      "Destroy the CUDA workload.",
-    command: "sudo protect workload destroy workload-gpu",
-    optional: true,
-  },
-  {
-    id: "gpu-zone-destroy",
-    title: "Clean up the GPU zone",
-    description:
-      "Destroy the GPU-enabled Edera zone.",
-    command: "sudo protect zone destroy zone-gpu",
-    optional: true,
-  },
 ];
 
 async function initTerminalDemo() {
@@ -918,8 +788,9 @@ vfio_pci`;
    */
   let completedDemoSteps = new Set<string>();
 
-  // Optional guide steps are useful for exploration, but they should not
-  // prevent the lab from being considered complete.
+  // GPU passthrough is supported by the terminal simulator, but it is
+  // intentionally not part of the core demo guide. The guided flow ends
+  // after the existing zone-lifecycle verification.
   const REQUIRED_DEMO_STEP_IDS = PROTECT_DEMO_STEPS
     .filter((step) => !step.optional)
     .map((step) => step.id);
