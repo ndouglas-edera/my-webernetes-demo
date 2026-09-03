@@ -79,6 +79,8 @@ interface ProtectZone {
   minCpus: number;
   maxCpus: number;
   targetCpus: number;
+  device?: string;
+  kernelVariant?: string;
 }
 
 interface ProtectWorkload {
@@ -262,6 +264,143 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     description:
       "List the zones one final time and observe the destroyed tombstone.",
     command: "protect zone list",
+  },
+
+  /*
+   * GPU passthrough is an optional extension to the original demo. Keeping
+   * these steps optional means the existing isolation walkthrough and its
+   * completion criteria remain unchanged.
+   */
+  {
+    id: "gpu-lspci",
+    title: "Discover the NVIDIA GPU",
+    description:
+      "Inspect PCI display-class devices and note the PCI address (0000:18:00.0) and vendor/device ID ([10de:1eb8]). The simulated GPU starts unbound so the KVM VFIO flow can be demonstrated.",
+    command: "sudo lspci -Dknn -d ::03xx",
+    optional: true,
+  },
+  {
+    id: "gpu-daemon-config",
+    title: "Inspect the Protect GPU configuration",
+    description:
+      "Inspect the Protect daemon configuration. The simulator models gpu0 as the primary Edera device identifier and maps it to the Tesla T4 PCI address.",
+    command: "sudo cat /var/lib/edera/protect/daemon.toml",
+    optional: true,
+  },
+  {
+    id: "gpu-kernel-variant",
+    title: "Verify the NVIDIA kernel variant",
+    description:
+      "Confirm that the pre-defined nvidia kernel variant resolves to the Edera NVIDIA GPU kernel image.",
+    command: "sudo protect image list-kernel-variants",
+    optional: true,
+  },
+  {
+    id: "gpu-daemon-restart",
+    title: "Restart Protect",
+    description:
+      "Restart the Protect daemon after changing daemon.toml and verify that the configuration is active.",
+    command: "sudo systemctl restart protect-daemon",
+    optional: true,
+  },
+  {
+    id: "gpu-vfio-config",
+    title: "Configure VFIO for KVM",
+    description:
+      "Inspect the simulated VFIO module configuration using the NVIDIA vendor/device ID. This is required when KVM is used as the hypervisor.",
+    command: "sudo cat /etc/modprobe.d/gpu-vfio.conf",
+    optional: true,
+  },
+  {
+    id: "gpu-vfio-load",
+    title: "Load the VFIO modules",
+    description:
+      "Load the VFIO kernel modules. The simulator binds the Tesla T4 to vfio-pci when vfio_pci is loaded.",
+    command: "sudo modprobe vfio_iommu_type1 && sudo modprobe vfio_pci",
+    optional: true,
+  },
+  {
+    id: "gpu-vfio-verify",
+    title: "Verify VFIO binding",
+    description:
+      "Run lspci again and confirm that Kernel driver in use: vfio-pci is shown for the GPU.",
+    command: "sudo lspci -Dknn -d ::03xx",
+    optional: true,
+  },
+  {
+    id: "gpu-zone-launch",
+    title: "Launch an NVIDIA GPU zone",
+    description:
+      "Launch a zone with gpu0 passed through and the nvidia kernel variant. The --device value must match the identifier in daemon.toml.",
+    command:
+      "sudo protect zone launch --name zone-gpu --device gpu0 --kernel-verbose --target-memory 2048 --resource-adjustment-policy static --kernel-variant nvidia --pull-overwrite-cache",
+    optional: true,
+  },
+  {
+    id: "gpu-zone-list",
+    title: "Verify the GPU zone",
+    description:
+      "Confirm that zone-gpu reached the ready state.",
+    command: "sudo protect zone list",
+    optional: true,
+  },
+  {
+    id: "gpu-zone-logs",
+    title: "Confirm the NVIDIA driver",
+    description:
+      "Inspect the zone logs and verify that the NVIDIA kernel modules loaded successfully.",
+    command: "sudo protect zone logs zone-gpu",
+    optional: true,
+  },
+  {
+    id: "gpu-workload-launch",
+    title: "Launch a CUDA workload",
+    description:
+      "Start a privileged CUDA development workload inside zone-gpu.",
+    command:
+      "sudo protect workload launch --name workload-gpu --zone zone-gpu --privileged nvidia/cuda:13.3.0-devel-ubuntu26.04 -- /bin/bash",
+    optional: true,
+  },
+  {
+    id: "gpu-workload-list",
+    title: "Inspect the GPU workload",
+    description:
+      "Confirm that workload-gpu is running and attached to zone-gpu.",
+    command: "sudo protect workload list",
+    optional: true,
+  },
+  {
+    id: "gpu-workload-pci",
+    title: "Verify GPU visibility",
+    description:
+      "Inspect PCI devices from inside the workload. The passed-through GPU appears at the guest PCI address 0000:00:07.0 and uses the nvidia driver.",
+    command:
+      "sudo protect workload exec workload-gpu -- /bin/bash -c 'DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y pciutils && lspci -Dknn'",
+    optional: true,
+  },
+  {
+    id: "gpu-nvidia-smi",
+    title: "Verify NVIDIA access",
+    description:
+      "Run nvidia-smi inside the workload and verify the Tesla T4 is visible with the NVIDIA 610.43.02 driver and CUDA 13.3.",
+    command: "sudo protect workload exec workload-gpu nvidia-smi",
+    optional: true,
+  },
+  {
+    id: "gpu-workload-destroy",
+    title: "Clean up the GPU workload",
+    description:
+      "Destroy the CUDA workload.",
+    command: "sudo protect workload destroy workload-gpu",
+    optional: true,
+  },
+  {
+    id: "gpu-zone-destroy",
+    title: "Clean up the GPU zone",
+    description:
+      "Destroy the GPU-enabled Edera zone.",
+    command: "sudo protect zone destroy zone-gpu",
+    optional: true,
   },
 ];
 
@@ -555,6 +694,74 @@ async function initTerminalDemo() {
   };
 
   /*
+   * GPU passthrough is simulated independently of the existing Kubernetes
+   * state. The values mirror the NVIDIA Tesla T4 example used by the GPU lab.
+   */
+  const GPU_PCI_LOCATION = "0000:18:00.0";
+  const GPU_PCI_ID = "10de:1eb8";
+  const GPU_GUEST_PCI_LOCATION = "0000:00:07.0";
+  const NVIDIA_KERNEL_VARIANT =
+    "ghcr.io/edera-dev/zone-nvidiagpu-kernel:6.18.38-nvidia-610.43.02@sha256:dc968f8664d41abb75e44aa7bb3eb12e02d928c1358e5f1a8435c51d1d30f239";
+
+  const GPU_DAEMON_TOML = `[pci.devices]
+[pci.devices.gpu0]
+locations = [
+  "${GPU_PCI_LOCATION}",
+]
+permissive = true
+msi_translate = false
+power_management = true
+rdm_reserve_policy = "relaxed"
+
+[zone.kernel-variants]
+nvidia = "${NVIDIA_KERNEL_VARIANT}"`;
+
+  const GPU_VFIO_MODPROBE = `options vfio_iommu_type1 allow_unsafe_interrupts
+options vfio_pci ids=${GPU_PCI_ID}`;
+
+  const GPU_MODULES_LOAD = `vfio_iommu_type1
+vfio_pci`;
+
+  const GPU_LSPCI_UNBOUND = `0000:18:00.0 3D controller [0302]: NVIDIA Corporation TU104GL [Tesla T4] [10de:1eb8] (rev a1)
+    Subsystem: NVIDIA Corporation Device [10de:12a2]`;
+
+  const GPU_LSPCI_VFIO = `${GPU_LSPCI_UNBOUND}
+    Kernel driver in use: vfio-pci`;
+
+  const NVIDIA_ZONE_LOGS = `[2026-07-16T16:32:21.011030Z INFO  edera_protect_zone::hooks] running setup hook: load modules [nvidia, nvidia_drm, nvidia_uvm] and execute [/usr/bin/nvidia-smi, -pm, 1]
+[    1.403876] nvidia: loading out-of-tree module taints kernel.
+[    1.515369] nvidia-nvlink: Nvlink Core is being initialized, major device number 239
+[    1.516039]
+[    1.568563] NVRM: loading NVIDIA UNIX Open Kernel Module for x86_64  610.43.02  Release Build  (build@01c4f9ab348e)  Mon Jul 13 01:02:13 UTC 2026
+[    1.619087] nvidia-modeset: Loading NVIDIA UNIX Open Kernel Mode Setting Driver for x86_64  610.43.02  Release Build  (build@01c4f9ab348e)  Mon Jul 13 01:02:08 UTC 2026
+[    1.676402] [drm] [nvidia-drm] [GPU ID 0x00000007] Loading driver
+[    3.362604] [drm] Initialized nvidia-drm 0.0.0 for 0000:00:07.0 on minor 0`;
+
+  const NVIDIA_WORKLOAD_LSPCI = `0000:00:07.0 3D controller [0302]: NVIDIA Corporation TU104GL [Tesla T4] [10de:1eb8] (rev a1)
+    Subsystem: NVIDIA Corporation Device [10de:12a2]
+    Kernel driver in use: nvidia`;
+
+  const NVIDIA_SMI_OUTPUT = `+-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 610.43.02              KMD Version: 610.43.02     CUDA UMD Version: 13.3     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  Tesla T4                       On  |   00000000:00:07.0 Off |                    0 |
+| N/A   32C    P8             11W /   70W |       0MiB /  15360MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+`;
+
+  /*
    * The demo filesystem is intentionally read-only.
    *
    * These files can still be read with `cat` and consumed by supported
@@ -598,6 +805,8 @@ async function initTerminalDemo() {
     protectZones = [];
     protectWorkloads = [];
     clusterEvents = [];
+    gpuVfioBound = false;
+    protectDaemonRestarted = false;
 
     closeCompletionModal();
 
@@ -605,6 +814,9 @@ async function initTerminalDemo() {
     // including the Webernetes cluster, pods, terminal output, and guide.
     window.location.reload();
   };
+
+  let gpuVfioBound = false;
+  let protectDaemonRestarted = false;
 
   const activeRuntimeClasses = new Set<string>();
 
@@ -1401,6 +1613,8 @@ async function initTerminalDemo() {
     minCpus = 1,
     maxCpus = 2,
     targetCpus = 2,
+    device?: string,
+    kernelVariant?: string,
   ) => {
     // Zone names are labels, not unique identifiers. Multiple zones may
     // legitimately share the same name; the UUID uniquely identifies each
@@ -1416,6 +1630,8 @@ async function initTerminalDemo() {
       minCpus,
       maxCpus,
       targetCpus,
+      device,
+      kernelVariant,
     };
 
     protectZones.push(zone);
@@ -1938,7 +2154,21 @@ async function initTerminalDemo() {
       `Executing "${commandText}"`,
     );
 
-    if (
+    if (/\blspci\b.*-Dknn|\b-Dknn\b.*\blspci\b/i.test(commandText)) {
+      printPre(
+        `<span style="color:#dff7f0;">${escapeHtml(
+          NVIDIA_WORKLOAD_LSPCI,
+        )}</span>`,
+      );
+      markDemoStepComplete("gpu-workload-pci");
+    } else if (/\bnvidia-smi\b/i.test(commandText)) {
+      printPre(
+        `<span style="color:#dff7f0;">${escapeHtml(
+          NVIDIA_SMI_OUTPUT,
+        )}</span>`,
+      );
+      markDemoStepComplete("gpu-nvidia-smi");
+    } else if (
       /\buname\s+-r\b/i.test(commandText) &&
       /grep.*edera|edera.*grep/i.test(commandText)
     ) {
@@ -2165,6 +2395,31 @@ async function initTerminalDemo() {
             <code>uname -r</code>
             <span>Show the simulated host kernel version; Edera workloads report their isolated zone kernel when executed inside the workload.</span>
           </div>
+
+          <div class="cli-help-command">
+            <code>sudo lspci -Dknn -d ::03xx</code>
+            <span>Inspect simulated GPU PCI devices and their current driver binding.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>sudo cat /var/lib/edera/protect/daemon.toml</code>
+            <span>Inspect the simulated Protect GPU and NVIDIA kernel-variant configuration.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>sudo protect image list-kernel-variants</code>
+            <span>Verify that the NVIDIA kernel variant is resolvable.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>sudo systemctl restart protect-daemon</code>
+            <span>Restart the simulated Protect daemon after configuration changes.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>sudo modprobe vfio_iommu_type1 && sudo modprobe vfio_pci</code>
+            <span>Simulate loading VFIO modules for KVM GPU passthrough.</span>
+          </div>
         </div>
 
         <div class="cli-help-tip">
@@ -2245,6 +2500,35 @@ async function initTerminalDemo() {
             <code>protect workload destroy &lt;workload&gt; --wait</code>
             <span>Remove a workload from its Edera zone.</span>
           </div>
+
+          <div class="cli-help-command">
+            <code>protect zone logs &lt;zone&gt;</code>
+            <span>Show simulated zone boot and NVIDIA driver logs.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect image list-kernel-variants</code>
+            <span>List configured zone kernel variants and their resolved images.</span>
+          </div>
+        </div>
+
+        <div class="cli-help-section">
+          <div class="cli-help-section-title">GPU passthrough</div>
+
+          <div class="cli-help-command">
+            <code>--device gpu0</code>
+            <span>Attach the GPU named gpu0 in daemon.toml to a zone.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>--kernel-variant nvidia</code>
+            <span>Launch the NVIDIA-enabled zone kernel variant.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec &lt;workload&gt; nvidia-smi</code>
+            <span>Verify Tesla T4 access from inside a GPU workload.</span>
+          </div>
         </div>
 
         <div class="cli-help-section">
@@ -2290,8 +2574,79 @@ async function initTerminalDemo() {
       return true;
     }
 
+    if (tokens[1] === "image") {
+      if (tokens[2] === "list-kernel-variants") {
+        printPre(
+          `<span style="color:#dff7f0;">nvidia    ${escapeHtml(
+            NVIDIA_KERNEL_VARIANT,
+          )}    resolvable</span>`,
+        );
+
+        addEvent(
+          "Normal",
+          "KernelVariantResolved",
+          "image/nvidia",
+          "NVIDIA kernel variant is resolvable",
+        );
+
+        markDemoStepComplete("gpu-kernel-variant");
+        return true;
+      }
+
+      printHtml(
+        `<span style="color:#ff7373;">Unknown protect image command: ${escapeHtml(
+          tokens.slice(2).join(" "),
+        )}</span>`,
+      );
+      return true;
+    }
+
     if (tokens[1] === "zone") {
       const subcommand = tokens[2];
+
+      if (subcommand === "logs") {
+        const zoneIdentifier = tokens[3];
+
+        const zone = protectZones.find(
+          (item) =>
+            item.name === zoneIdentifier ||
+            item.uuid === zoneIdentifier,
+        );
+
+        if (!zone) {
+          printHtml(
+            `<span style="color:#ff7373;">Error: zone "${escapeHtml(
+              zoneIdentifier || "",
+            )}" not found.</span>`,
+          );
+          return true;
+        }
+
+        if (zone.name !== "zone-gpu" || zone.kernelVariant !== "nvidia") {
+          printHtml(
+            `<span style="color:#a8cfca;">No NVIDIA driver logs are available for zone "${escapeHtml(
+              zone.name,
+            )}".</span>`,
+          );
+          return true;
+        }
+
+        printPre(
+          `<span style="color:#dff7f0;">${escapeHtml(
+            NVIDIA_ZONE_LOGS,
+          )}</span>`,
+        );
+
+        addEvent(
+          "Normal",
+          "NvidiaDriverVerified",
+          `zone/${zone.name}`,
+          "NVIDIA driver initialized successfully",
+        );
+
+        markDemoStepComplete("gpu-zone-logs");
+        return true;
+      }
 
       if (subcommand === "list") {
         renderProtectZoneList();
@@ -2303,6 +2658,11 @@ async function initTerminalDemo() {
         markDemoStepComplete(
           hasDestroyedZone ? "final-list" : "zone-list",
         );
+
+        if (protectZones.some((zone) => zone.name === "zone-gpu")) {
+          markDemoStepComplete("gpu-zone-list");
+        }
+
         return true;
       }
 
@@ -2311,6 +2671,8 @@ async function initTerminalDemo() {
         let minCpus = 1;
         let maxCpus = 2;
         let targetCpus = 2;
+        let device = "";
+        let kernelVariant = "";
 
         for (let i = 3; i < tokens.length; i++) {
           const token = tokens[i];
@@ -2327,6 +2689,14 @@ async function initTerminalDemo() {
             maxCpus = Number(tokens[++i]) || 2;
           } else if (token === "-c") {
             targetCpus = Number(tokens[++i]) || 2;
+          } else if (token === "--device") {
+            device = tokens[++i] || "";
+          } else if (token.startsWith("--device=")) {
+            device = token.slice("--device=".length);
+          } else if (token === "--kernel-variant") {
+            kernelVariant = tokens[++i] || "";
+          } else if (token.startsWith("--kernel-variant=")) {
+            kernelVariant = token.slice("--kernel-variant=".length);
           }
         }
 
@@ -2337,7 +2707,46 @@ async function initTerminalDemo() {
           return true;
         }
 
-        launchProtectZone(name, minCpus, maxCpus, targetCpus);
+        if (device) {
+          if (device !== "gpu0") {
+            printHtml(
+              `<span style="color:#ff7373;">Error: PCI device "${escapeHtml(
+                device,
+              )}" is not configured.</span>`,
+            );
+            return true;
+          }
+
+          if (!protectDaemonRestarted) {
+            printHtml(
+              `<span style="color:#ff7373;">Error: Protect daemon configuration has not been restarted. Run: sudo systemctl restart protect-daemon</span>`,
+            );
+            return true;
+          }
+
+          if (!gpuVfioBound) {
+            printHtml(
+              `<span style="color:#ff7373;">Error: GPU ${GPU_PCI_LOCATION} is not bound to vfio-pci. Complete the KVM VFIO setup first.</span>`,
+            );
+            return true;
+          }
+
+          if (kernelVariant !== "nvidia") {
+            printHtml(
+              `<span style="color:#ff7373;">Error: GPU zones require --kernel-variant nvidia.</span>`,
+            );
+            return true;
+          }
+        }
+
+        launchProtectZone(
+          name,
+          minCpus,
+          maxCpus,
+          targetCpus,
+          device || undefined,
+          kernelVariant || undefined,
+        );
 
         markDemoStepComplete("zone-launch");
 
@@ -2380,6 +2789,10 @@ async function initTerminalDemo() {
           selector || undefined,
         );
 
+        if (identifier === "zone-gpu") {
+          markDemoStepComplete("gpu-zone-destroy");
+        }
+
         markDemoStepComplete("zone-destroy");
 
         return true;
@@ -2404,6 +2817,10 @@ async function initTerminalDemo() {
           markDemoStepComplete("edera-workload-list");
         } else {
           markDemoStepComplete("workload-list");
+        }
+
+        if (protectWorkloads.some((workload) => workload.name === "workload-gpu")) {
+          markDemoStepComplete("gpu-workload-list");
         }
 
         return true;
@@ -2467,6 +2884,16 @@ async function initTerminalDemo() {
           command,
         );
 
+        if (name === "workload-gpu" && zone === "zone-gpu") {
+          addEvent(
+            "Normal",
+            "GpuWorkloadStarted",
+            `workload/${name}`,
+            "CUDA workload started with gpu0 attached",
+          );
+          markDemoStepComplete("gpu-workload-launch");
+        }
+
         markDemoStepComplete("workload-launch");
 
         return true;
@@ -2513,6 +2940,10 @@ async function initTerminalDemo() {
         }
 
         destroyProtectWorkload(identifier);
+
+        if (identifier === "workload-gpu") {
+          markDemoStepComplete("gpu-workload-destroy");
+        }
 
         markDemoStepComplete("workload-destroy");
 
@@ -4213,7 +4644,14 @@ async function initTerminalDemo() {
 
         printCommand(rawCmd);
 
-        const tokens = tokenize(rawCmd);
+        let tokens = tokenize(rawCmd);
+
+        // The real commands in the GPU walkthrough are documented with sudo.
+        // Keep sudo visible in command history/output while simulating the
+        // underlying command itself.
+        if (tokens[0] === "sudo") {
+          tokens = tokens.slice(1);
+        }
 
         /*
          * clear
@@ -4270,6 +4708,85 @@ async function initTerminalDemo() {
             `${tokens[0]} attempted to modify a read-only demo file`,
           );
 
+          return;
+        }
+
+        /*
+         * GPU / host utilities
+         *
+         * These commands are simulated so the browser demo can demonstrate
+         * the complete GPU passthrough workflow without touching the user's
+         * actual host or filesystem.
+         */
+        if (
+          tokens[0] === "lspci" &&
+          tokens.includes("-Dknn") &&
+          tokens.includes("-d") &&
+          tokens.includes("::03xx")
+        ) {
+          printPre(
+            `<span style="color:#dff7f0;">${escapeHtml(
+              gpuVfioBound ? GPU_LSPCI_VFIO : GPU_LSPCI_UNBOUND,
+            )}</span>`,
+          );
+
+          addEvent(
+            "Normal",
+            "GpuPciInspected",
+            "pci/gpu0",
+            gpuVfioBound
+              ? `GPU ${GPU_PCI_LOCATION} is bound to vfio-pci`
+              : `GPU ${GPU_PCI_LOCATION} detected with vendor/device ID ${GPU_PCI_ID}`,
+          );
+
+          markDemoStepComplete("gpu-lspci");
+          if (gpuVfioBound) {
+            markDemoStepComplete("gpu-vfio-verify");
+          }
+
+          return;
+        }
+
+        if (
+          tokens[0] === "systemctl" &&
+          tokens[1] === "restart" &&
+          tokens[2] === "protect-daemon"
+        ) {
+          protectDaemonRestarted = true;
+
+          printHtml(
+            `<span style="color:#b8ff3c;">Protect daemon restarted successfully.</span>`,
+          );
+
+          addEvent(
+            "Normal",
+            "ProtectDaemonRestarted",
+            "protect-daemon",
+            "Protect daemon restarted with the current GPU configuration",
+          );
+
+          markDemoStepComplete("gpu-daemon-restart");
+          return;
+        }
+
+        if (
+          tokens[0] === "modprobe" &&
+          (tokens.includes("vfio_pci") || tokens.includes("vfio-pci"))
+        ) {
+          gpuVfioBound = true;
+
+          printHtml(
+            `<span style="color:#b8ff3c;">vfio_pci loaded; ${GPU_PCI_LOCATION} bound to vfio-pci.</span>`,
+          );
+
+          addEvent(
+            "Normal",
+            "VfioBound",
+            `pci/${GPU_PCI_LOCATION}`,
+            `NVIDIA GPU ${GPU_PCI_ID} is now bound to vfio-pci`,
+          );
+
+          markDemoStepComplete("gpu-vfio-load");
           return;
         }
 
@@ -4358,6 +4875,39 @@ async function initTerminalDemo() {
          */
         if (tokens[0] === "cat") {
           const fileName = tokens[1];
+
+          if (fileName === "/var/lib/edera/protect/daemon.toml") {
+            printPre(
+              `<span style="color:#dff7f0;">${escapeHtml(
+                GPU_DAEMON_TOML,
+              )}</span>`,
+            );
+
+            markDemoStepComplete("gpu-daemon-config");
+            return;
+          }
+
+          if (fileName === "/etc/modprobe.d/gpu-vfio.conf") {
+            printPre(
+              `<span style="color:#dff7f0;">${escapeHtml(
+                GPU_VFIO_MODPROBE,
+              )}</span>`,
+            );
+
+            markDemoStepComplete("gpu-vfio-config");
+            return;
+          }
+
+          if (fileName === "/etc/modules-load.d/gpu-vfio.conf") {
+            printPre(
+              `<span style="color:#dff7f0;">${escapeHtml(
+                GPU_MODULES_LOAD,
+              )}</span>`,
+            );
+
+            markDemoStepComplete("gpu-vfio-config");
+            return;
+          }
 
           if (!fileName) {
             printHtml(
