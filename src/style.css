@@ -52,20 +52,17 @@ input {
 }
 
 /* =========================================================
-   DEMO SHELL
+   Main shell
    ========================================================= */
 
 .demo-shell {
   position: relative;
   isolation: isolate;
-
   width: 100%;
   max-width: 1440px;
   min-height: 100vh;
-
   margin: 0 auto;
   padding: 32px clamp(18px, 4vw, 64px) 42px;
-
   overflow: hidden;
 
   background:
@@ -82,16 +79,12 @@ input {
 
 .demo-shell::before {
   content: "";
-
   position: absolute;
   z-index: -1;
-
   top: 100px;
   left: 5%;
-
   width: 90%;
   height: 700px;
-
   opacity: 0.48;
 
   background-image:
@@ -115,31 +108,25 @@ input {
 }
 
 /* =========================================================
-   HEADER
+   Header
    ========================================================= */
 
 .top-header {
   position: relative;
-
   display: grid;
   grid-template-columns: auto 1fr;
-
   align-items: center;
-
   gap: 28px;
 
   width: min(100%, 1180px);
-
   margin: 0 auto 62px;
   padding: 13px 24px;
-
   min-height: 76px;
 
   border: 1px solid rgba(0, 63, 61, 0.08);
   border-radius: 999px;
 
   background: var(--edera-mint);
-
   color: var(--edera-ink);
 
   box-shadow:
@@ -159,7 +146,6 @@ input {
 
   font-size: 23px;
   font-weight: 800;
-
   letter-spacing: -0.04em;
 
   text-decoration: none;
@@ -168,52 +154,40 @@ input {
 
 .top-header > div {
   display: flex;
-
   align-items: center;
   justify-content: space-between;
-
   gap: 28px;
-
   min-width: 0;
 }
 
 .top-header h1 {
   margin: 0;
-
   color: var(--edera-ink);
-
   font-size: 15px;
   font-weight: 700;
-
   letter-spacing: 0.01em;
 }
 
 .top-header p {
   margin: 0;
-
   color: rgba(5, 47, 45, 0.72);
-
   font-size: 12px;
-
   text-align: right;
 }
 
 /* =========================================================
-   HERO
+   Hero
    ========================================================= */
 
 .brand-hero {
   width: min(100%, 980px);
-
   margin: 0 auto 58px;
   padding: 4px 0 0;
-
   text-align: center;
 }
 
 .hero-eyebrow {
   display: inline-flex;
-
   align-items: center;
   justify-content: center;
 
@@ -242,30 +216,25 @@ input {
     var(--font-mono);
 
   letter-spacing: -0.065em;
-
   text-transform: uppercase;
 }
 
 .brand-hero p {
   max-width: 980px;
-
   margin: 34px auto 0;
 
   color: rgba(239, 255, 251, 0.88);
 
   font-size: clamp(16px, 1.55vw, 22px);
-
   line-height: 1.55;
 }
 
 .hero-cta {
   display: inline-flex;
-
   align-items: center;
   justify-content: center;
 
   min-width: 220px;
-
   margin-top: 36px;
   padding: 17px 28px;
 
@@ -273,12 +242,9 @@ input {
   border-radius: 999px;
 
   background: var(--edera-lime);
-
   color: var(--edera-ink);
 
-  font:
-    700 15px
-    var(--font-body);
+  font: 700 15px var(--font-body);
 
   cursor: pointer;
 
@@ -295,36 +261,28 @@ input {
   filter: brightness(1.05);
 }
 
+/* =========================================================
+   Demo dashboard
+   ========================================================= */
+
 .demo-kicker {
   width: min(100%, 1180px);
-
   margin: 0 auto 12px;
 
   color: var(--edera-cyan);
 
-  font:
-    700 10px
-    var(--font-mono);
+  font: 700 10px var(--font-mono);
 
   letter-spacing: 0.14em;
-
   text-transform: uppercase;
 }
 
-/* =========================================================
-   DASHBOARD
-   ========================================================= */
-
 .dashboard-grid {
   display: grid;
-
-  grid-template-columns:
-    repeat(2, minmax(0, 1fr));
-
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 
   width: min(100%, 1180px);
-
   margin: 0 auto 16px;
 }
 
@@ -334,7 +292,6 @@ input {
   border-radius: 18px;
 
   background: var(--edera-mint);
-
   color: var(--edera-ink);
 
   box-shadow:
@@ -346,17 +303,13 @@ input {
 .panel-header,
 .guide-header {
   display: flex;
-
   align-items: center;
-
   gap: 10px;
 
   min-height: 58px;
-
   padding: 12px 16px;
 
-  border-bottom:
-    1px solid var(--edera-line);
+  border-bottom: 1px solid var(--edera-line);
 }
 
 .panel-header h3,
@@ -371,10 +324,8 @@ input {
 
 .drag-handle {
   color: rgba(5, 47, 45, 0.32);
-
   cursor: grab;
   user-select: none;
-
   font-size: 13px;
 }
 
@@ -391,13 +342,10 @@ input {
   margin-left: auto;
   padding: 4px 8px;
 
-  border:
-    1px solid rgba(0, 90, 87, 0.18);
-
+  border: 1px solid rgba(0, 90, 87, 0.18);
   border-radius: 999px;
 
   background: var(--edera-mint-2);
-
   color: var(--edera-teal);
 
   font-size: 9px;
@@ -408,13 +356,10 @@ input {
   margin-left: 4px;
   padding: 6px 9px;
 
-  border:
-    1px solid rgba(0, 90, 87, 0.2);
-
+  border: 1px solid rgba(0, 90, 87, 0.2);
   border-radius: 999px;
 
   background: transparent;
-
   color: var(--edera-teal);
 
   font-size: 9px;
@@ -433,7 +378,7 @@ input {
 }
 
 /* =========================================================
-   RESOURCE PANELS
+   Resources
    ========================================================= */
 
 .resource-body,
@@ -444,29 +389,23 @@ input {
 .resource-list {
   display: flex;
   flex-direction: column;
-
   gap: 7px;
 }
 
 .resource-card,
 .zone-card {
-  border:
-    1px solid rgba(0, 90, 87, 0.13);
-
+  border: 1px solid rgba(0, 90, 87, 0.13);
   border-radius: 11px;
 
-  background:
-    rgba(255, 255, 255, 0.46);
+  background: rgba(255, 255, 255, 0.46);
 
   padding: 10px 11px;
 }
 
 .resource-card {
   display: flex;
-
   align-items: center;
   justify-content: space-between;
-
   gap: 12px;
 
   transition:
@@ -476,26 +415,21 @@ input {
 
 .resource-card:hover,
 .zone-card:hover {
-  border-color:
-    rgba(0, 90, 87, 0.28);
-
+  border-color: rgba(0, 90, 87, 0.28);
   transform: translateY(-1px);
 }
 
 .resource-card.running {
-  border-left:
-    3px solid var(--edera-lime);
+  border-left: 3px solid var(--edera-lime);
 }
 
 .resource-card.pending {
-  border-left:
-    3px solid var(--edera-warning);
+  border-left: 3px solid var(--edera-warning);
 }
 
 .resource-name,
 .zone-name {
   color: var(--edera-teal);
-
   font-size: 12px;
   font-weight: 700;
 }
@@ -503,11 +437,8 @@ input {
 .resource-meta,
 .zone-uuid,
 .zone-meta {
-  color:
-    rgba(5, 47, 45, 0.58);
-
+  color: rgba(5, 47, 45, 0.58);
   font-size: 10px;
-
   line-height: 1.4;
 }
 
@@ -515,57 +446,41 @@ input {
   margin-top: 2px;
 }
 
-/* =========================================================
-   STATUS BADGES
-   ========================================================= */
-
 .status-badge {
   padding: 4px 7px;
 
-  border:
-    1px solid currentColor;
-
+  border: 1px solid currentColor;
   border-radius: 999px;
 
   font-size: 8px;
   font-weight: 700;
-
   letter-spacing: 0.05em;
 
   text-transform: uppercase;
-
   white-space: nowrap;
 }
 
 .status-ready {
   color: #3c7d17;
-
-  background:
-    rgba(184, 255, 60, 0.28);
+  background: rgba(184, 255, 60, 0.28);
 }
 
 .status-pending {
   color: #9a6700;
-
-  background:
-    rgba(255, 209, 102, 0.25);
+  background: rgba(255, 209, 102, 0.25);
 }
 
 .status-destroyed {
-  color:
-    rgba(5, 47, 45, 0.52);
-
-  background:
-    rgba(5, 47, 45, 0.06);
+  color: rgba(5, 47, 45, 0.52);
+  background: rgba(5, 47, 45, 0.06);
 }
 
 /* =========================================================
-   ZONES
+   Protection panel
    ========================================================= */
 
 .protect-panel {
   width: min(100%, 1180px);
-
   margin: 0 auto 16px;
 }
 
@@ -579,60 +494,48 @@ input {
 
 .zone-top {
   display: flex;
-
   align-items: center;
   justify-content: space-between;
-
   gap: 12px;
 }
 
 .zone-uuid {
   margin-top: 3px;
-
-  font-family:
-    var(--font-mono);
-
+  font-family: var(--font-mono);
   font-size: 9px;
 }
 
 .zone-meta {
   display: flex;
   flex-wrap: wrap;
-
   gap: 14px;
 
   margin-top: 8px;
 }
 
 /* =========================================================
-   MAIN LAYOUT
+   Main layout
    ========================================================= */
 
 .main-layout {
   display: grid;
-
-  grid-template-columns:
-    minmax(0, 1fr) 300px;
-
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 16px;
 
   width: min(100%, 1180px);
-
   margin: 0 auto;
 
   align-items: stretch;
 }
 
 /* =========================================================
-   TERMINAL
+   Terminal
    ========================================================= */
 
 .terminal-panel {
   min-width: 0;
 
-  border:
-    1px solid rgba(0, 229, 212, 0.28);
-
+  border: 1px solid rgba(0, 229, 212, 0.28);
   border-radius: 18px;
 
   background: #012f2d;
@@ -666,11 +569,9 @@ input {
 
 .terminal-command {
   margin-bottom: 5px;
-
   color: #dff7f0;
 
   white-space: pre-wrap;
-
   word-break: break-word;
 }
 
@@ -687,62 +588,52 @@ input {
   color: #dff7f0;
 
   font: inherit;
-
   white-space: pre;
 }
 
 .terminal-input-row {
   display: flex;
-
   align-items: center;
 
   min-height: 56px;
-
   padding: 12px 16px;
 
   border-top:
     1px solid rgba(0, 229, 212, 0.22);
 
-  font:
-    12px
-    var(--font-mono);
+  font: 12px var(--font-mono);
 }
 
 .terminal-input-row span {
   margin-right: 8px;
 
   color: var(--edera-cyan);
-
   white-space: nowrap;
 }
 
 .terminal-input-row input {
   flex: 1;
-
   min-width: 0;
 
   border: none;
   outline: none;
 
   background: transparent;
-
   color: var(--edera-white);
 
   font: inherit;
 }
 
 .terminal-input-row input::placeholder {
-  color:
-    rgba(168, 207, 202, 0.48);
+  color: rgba(168, 207, 202, 0.48);
 }
 
 /* =========================================================
-   EVENTS
+   Events
    ========================================================= */
 
 .events-panel {
   height: 462px;
-
   display: flex;
   flex-direction: column;
 }
@@ -751,7 +642,6 @@ input {
   flex: 1;
 
   overflow-y: auto;
-
   padding: 12px;
 
   font:
@@ -763,33 +653,25 @@ input {
   margin-bottom: 7px;
   padding: 9px;
 
-  border:
-    1px solid rgba(0, 90, 87, 0.11);
-
-  border-left:
-    3px solid #4f9d26;
-
+  border: 1px solid rgba(0, 90, 87, 0.11);
+  border-left: 3px solid #4f9d26;
   border-radius: 9px;
 
-  background:
-    rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.48);
 }
 
 .event-card.warning {
-  border-left-color:
-    var(--edera-danger);
+  border-left-color: var(--edera-danger);
 }
 
 .event-card.info {
-  border-left-color:
-    var(--edera-cyan);
+  border-left-color: var(--edera-cyan);
 }
 
 .event-time,
 .event-message,
 .event-object {
-  color:
-    rgba(5, 47, 45, 0.54);
+  color: rgba(5, 47, 45, 0.54);
 }
 
 .event-badge {
@@ -805,30 +687,22 @@ input {
 
 .event-normal .event-badge {
   color: #3c7d17;
-
-  background:
-    rgba(184, 255, 60, 0.28);
+  background: rgba(184, 255, 60, 0.28);
 }
 
 .event-warning .event-badge {
   color: #a23a3a;
-
-  background:
-    rgba(255, 115, 115, 0.18);
+  background: rgba(255, 115, 115, 0.18);
 }
 
 .event-info .event-badge {
   color: var(--edera-teal);
-
-  background:
-    rgba(0, 229, 212, 0.14);
+  background: rgba(0, 229, 212, 0.14);
 }
 
 .event-reason {
   margin-top: 4px;
-
   color: var(--edera-ink);
-
   font-weight: 700;
 }
 
@@ -841,20 +715,17 @@ input {
 }
 
 /* =========================================================
-   GUIDE
+   Guide
    ========================================================= */
 
 .guide-panel {
   width: min(100%, 1180px);
-
   margin: 16px auto 0;
 }
 
 .guide-progress {
   display: flex;
-
   gap: 5px;
-
   margin-left: auto;
 }
 
@@ -864,8 +735,7 @@ input {
 
   border-radius: 50%;
 
-  background:
-    rgba(0, 90, 87, 0.16);
+  background: rgba(0, 90, 87, 0.16);
 }
 
 .progress-dot.done {
@@ -881,10 +751,7 @@ input {
 
 .guide-body {
   display: grid;
-
-  grid-template-columns:
-    minmax(0, 1fr) 300px;
-
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 16px;
 
   padding: 16px;
@@ -897,12 +764,10 @@ input {
 .guide-label {
   margin-bottom: 7px;
 
-  color:
-    rgba(5, 47, 45, 0.55);
+  color: rgba(5, 47, 45, 0.55);
 
   font-size: 9px;
   font-weight: 700;
-
   letter-spacing: 0.09em;
 
   text-transform: uppercase;
@@ -920,57 +785,48 @@ input {
 .guide-description {
   margin-bottom: 13px;
 
-  color:
-    rgba(5, 47, 45, 0.65);
+  color: rgba(5, 47, 45, 0.65);
 
   font-size: 12px;
-
   line-height: 1.5;
 }
 
 /* =========================================================
-   SUGGESTED COMMAND
-   Desktop:
-   [ command ][ Use command ]
-
+   Suggested command
    ========================================================= */
 
+/*
+  DESKTOP:
+  Command and button sit next to each other.
+*/
+
 .suggested-command {
-  display: grid;
-
-  grid-template-columns:
-    minmax(0, 1fr) auto;
-
-  grid-template-areas:
-    "command button";
-
+  display: flex;
+  flex-direction: row;
   align-items: stretch;
 
   width: 100%;
   min-width: 0;
 
-  min-height: 56px;
-
   overflow: hidden;
 
-  border:
-    1px solid rgba(0, 90, 87, 0.22);
-
+  border: 1px solid rgba(0, 90, 87, 0.22);
   border-radius: 11px;
 
-  background:
-    var(--edera-deep);
+  background: var(--edera-deep);
 }
 
-.suggested-command code {
-  grid-area: command;
+/*
+  The command itself can shrink and scroll horizontally.
+*/
 
+.suggested-command code {
   display: block;
 
+  flex: 1 1 auto;
   min-width: 0;
-  width: 100%;
 
-  padding: 17px 12px;
+  padding: 12px;
 
   overflow-x: auto;
   overflow-y: hidden;
@@ -983,72 +839,61 @@ input {
 
   white-space: pre;
 
-  word-break: normal;
-  overflow-wrap: normal;
-
   -webkit-overflow-scrolling: touch;
 }
 
-#use-command-btn,
-.use-command-btn {
-  grid-area: button;
+/*
+  Button on desktop.
+*/
 
-  display: flex;
-
+.use-command-btn,
+#use-command-btn {
+  display: flex !important;
   align-items: center;
   justify-content: center;
 
-  align-self: stretch;
+  flex: 0 0 auto;
 
   min-width: 108px;
 
-  margin: 0;
-  padding: 0 15px;
-
   border: 0;
-
   border-left:
     1px solid rgba(0, 229, 212, 0.25);
 
-  background:
-    var(--edera-lime);
+  padding: 0 15px;
 
+  background: var(--edera-lime);
   color: var(--edera-ink);
-
-  font-family:
-    var(--font-body);
 
   font-size: 10px;
   font-weight: 700;
 
-  white-space: nowrap;
-
   cursor: pointer;
+
+  visibility: visible !important;
+  opacity: 1 !important;
 
   transition:
     filter 140ms ease,
     transform 140ms ease;
 }
 
-#use-command-btn:hover,
-.use-command-btn:hover {
+.use-command-btn:hover,
+#use-command-btn:hover {
   filter: brightness(1.04);
 }
 
 /* =========================================================
-   GUIDE SIDEBAR
+   Guide side navigation
    ========================================================= */
 
 .guide-side {
   padding: 11px 12px;
 
-  border:
-    1px solid rgba(0, 90, 87, 0.13);
-
+  border: 1px solid rgba(0, 90, 87, 0.13);
   border-radius: 11px;
 
-  background:
-    rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.42);
 }
 
 .guide-side-title {
@@ -1064,16 +909,13 @@ input {
   width: 100%;
 
   display: flex;
-
   gap: 8px;
-
   align-items: flex-start;
 
   margin: 0;
   padding: 7px 4px;
 
   border: 0;
-
   border-bottom:
     1px solid rgba(0, 90, 87, 0.11);
 
@@ -1081,15 +923,11 @@ input {
 
   background: transparent;
 
-  color:
-    rgba(5, 47, 45, 0.58);
+  color: rgba(5, 47, 45, 0.58);
 
-  font:
-    10px
-    var(--font-body);
+  font: 10px var(--font-body);
 
   text-align: left;
-
   cursor: pointer;
 
   transition:
@@ -1104,25 +942,19 @@ input {
 .guide-step-mini:hover,
 .guide-step-mini.current,
 .guide-step-mini.selected {
-  background:
-    var(--edera-mint-2);
-
-  color:
-    var(--edera-ink);
+  background: var(--edera-mint-2);
+  color: var(--edera-ink);
 }
 
 .guide-step-mini.selected {
   box-shadow:
-    inset 2px 0 0
-    var(--edera-cyan);
+    inset 2px 0 0 var(--edera-cyan);
 }
 
 .mini-number {
   min-width: 15px;
 
-  color:
-    var(--edera-teal);
-
+  color: var(--edera-teal);
   font-weight: 700;
 }
 
@@ -1142,37 +974,32 @@ input {
 .empty-state {
   padding: 8px 0;
 
-  color:
-    rgba(5, 47, 45, 0.5);
+  color: rgba(5, 47, 45, 0.5);
 
   font-size: 10px;
 }
 
 /* =========================================================
-   FOOTER
+   Footer
    ========================================================= */
 
 .edera-footer {
   display: flex;
-
   align-items: center;
   justify-content: center;
-
   gap: 9px;
+
+  width: min(100%, 1180px);
 
   margin: 28px auto 0;
   padding: 18px 0 4px;
 
-  width: min(100%, 1180px);
-
   border-top:
     1px solid rgba(0, 229, 212, 0.18);
 
-  color:
-    var(--edera-muted);
+  color: var(--edera-muted);
 
   font-size: 10px;
-
   text-align: center;
 }
 
@@ -1184,16 +1011,12 @@ input {
 
   object-fit: cover;
 
-  border:
-    1px solid rgba(0, 229, 212, 0.25);
-
+  border: 1px solid rgba(0, 229, 212, 0.25);
   border-radius: 50%;
 }
 
 .edera-footer a {
-  color:
-    var(--edera-cyan);
-
+  color: var(--edera-cyan);
   text-decoration: none;
 }
 
@@ -1215,6 +1038,66 @@ input {
   .events-panel {
     height: 320px;
   }
+
+  /*
+    On tablet, stack the command and button.
+
+    This matches the design you liked in your screenshot.
+  */
+
+  .suggested-command {
+    flex-direction: column;
+    align-items: stretch;
+
+    overflow: hidden;
+  }
+
+  .suggested-command code {
+    display: block;
+
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+
+    padding: 18px;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    white-space: pre;
+
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .use-command-btn,
+  #use-command-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    min-width: 0;
+    min-height: 58px;
+
+    flex: 0 0 58px;
+
+    margin: 0;
+
+    border: 0;
+    border-top:
+      1px solid rgba(0, 229, 212, 0.25);
+
+    border-left: 0;
+
+    padding: 14px 20px;
+
+    visibility: visible !important;
+    opacity: 1 !important;
+
+    position: static !important;
+
+    transform: none !important;
+  }
 }
 
 /* =========================================================
@@ -1225,7 +1108,6 @@ input {
 
   .top-header {
     grid-template-columns: 1fr;
-
     gap: 8px;
 
     border-radius: 28px;
@@ -1236,15 +1118,12 @@ input {
   .top-header::before {
     width: 98px;
     height: 36px;
-
     font-size: 20px;
   }
 
   .top-header > div {
     align-items: flex-start;
-
     flex-direction: column;
-
     gap: 4px;
   }
 
@@ -1258,19 +1137,16 @@ input {
 
   .hero-eyebrow {
     margin-bottom: 24px;
-
     padding: 9px 16px;
   }
 
   .brand-hero p {
     margin-top: 22px;
-
     font-size: 15px;
   }
 
   .hero-cta {
     width: 100%;
-
     margin-top: 26px;
   }
 
@@ -1282,130 +1158,119 @@ input {
     padding: 20px 12px 32px;
   }
 
-  /* =====================================================
-     MOBILE SUGGESTED COMMAND
-
-     FIXED LAYOUT:
-
-     [ USE COMMAND ][ SCROLLABLE COMMAND → ]
-
-     The entire component has a fixed height.
-     The button cannot grow vertically.
-     ===================================================== */
-
-  .suggested-command {
-    display: grid !important;
-
-    grid-template-columns:
-      118px minmax(0, 1fr) !important;
-
-    grid-template-areas:
-      "button command" !important;
-
-    align-items: stretch !important;
-
-    width: 100% !important;
-    min-width: 0 !important;
-
-    height: 58px !important;
-    min-height: 58px !important;
-    max-height: 58px !important;
-
-    overflow: hidden !important;
+  .cli-help-command {
+    grid-template-columns: 1fr;
+    gap: 3px;
   }
 
-  .suggested-command code {
-    grid-area: command !important;
+  /*
+    MOBILE COMMAND FIX
 
+    Explicitly force the same structure as tablet:
+
+    ┌───────────────────────────────┐
+    │ command → horizontally scroll │
+    ├───────────────────────────────┤
+    │         Use command           │
+    └───────────────────────────────┘
+  */
+
+  .guide-current {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .suggested-command {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+
+    width: 100%;
+    min-width: 0;
+
+    overflow: hidden !important;
+
+    border-radius: 18px;
+  }
+
+  .suggested-command code,
+  #suggested-command {
     display: block !important;
+
+    order: 1 !important;
+
+    flex: 0 0 auto !important;
 
     width: 100% !important;
     min-width: 0 !important;
+    max-width: 100% !important;
 
-    height: 58px !important;
-    min-height: 58px !important;
-    max-height: 58px !important;
+    min-height: 88px;
 
-    margin: 0 !important;
-
-    padding: 18px 12px !important;
+    padding: 18px !important;
 
     overflow-x: auto !important;
     overflow-y: hidden !important;
 
     white-space: pre !important;
-
     word-break: normal !important;
     overflow-wrap: normal !important;
-
-    font-size: 10px !important;
 
     -webkit-overflow-scrolling: touch;
   }
 
-  #use-command-btn,
-  .use-command-btn {
-    grid-area: button !important;
-
+  .use-command-btn,
+  #use-command-btn {
     display: flex !important;
+
+    order: 2 !important;
 
     align-items: center !important;
     justify-content: center !important;
 
-    align-self: stretch !important;
-    justify-self: stretch !important;
+    position: static !important;
 
-    width: 118px !important;
-    min-width: 118px !important;
-    max-width: 118px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
 
     height: 58px !important;
     min-height: 58px !important;
-    max-height: 58px !important;
+
+    flex: 0 0 58px !important;
 
     margin: 0 !important;
-    padding: 0 10px !important;
+    padding: 14px 20px !important;
 
     border: 0 !important;
-
-    border-right:
+    border-top:
       1px solid rgba(0, 229, 212, 0.25) !important;
 
     border-left: 0 !important;
 
     border-radius: 0 !important;
 
-    background:
-      var(--edera-lime) !important;
+    background: var(--edera-lime) !important;
+    color: var(--edera-ink) !important;
 
-    color:
-      var(--edera-ink) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
 
-    white-space: nowrap !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 
-    flex: none !important;
+    pointer-events: auto !important;
 
-    order: initial !important;
+    transform: none !important;
+  }
+
+  .guide-description {
+    font-size: 11px;
   }
 }
 
 /* =========================================================
-   REDUCED MOTION
-   ========================================================= */
-
-@media (prefers-reduced-motion: reduce) {
-
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition: none !important;
-  }
-}
-
-/* =========================================================
-   EDERA ACCESSIBILITY OVERRIDE
-   Keep text black on light/white UI surfaces
+   Accessibility override
    ========================================================= */
 
 .panel,
@@ -1456,8 +1321,6 @@ input {
   color: #000;
 }
 
-/* Footer remains on dark background */
-
 .edera-footer {
   color: var(--edera-muted);
 }
@@ -1467,8 +1330,7 @@ input {
 }
 
 /* =========================================================
-   WEBERNETES CLI HELP
-   Edera-styled command reference
+   Webernetes CLI Help
    ========================================================= */
 
 .cli-help {
@@ -1476,9 +1338,7 @@ input {
   padding: 4px 0;
 
   color: #f8fffd;
-
-  font-family:
-    var(--font-mono);
+  font-family: var(--font-mono);
 }
 
 .cli-help-header {
@@ -1490,34 +1350,28 @@ input {
 }
 
 .cli-help-title {
-  color:
-    var(--edera-cyan);
+  color: var(--edera-cyan);
 
   font-size: 15px;
   font-weight: 700;
-
   line-height: 1.3;
 }
 
 .cli-help-version {
   margin-top: 4px;
 
-  color:
-    rgba(223, 247, 240, 0.62);
+  color: rgba(223, 247, 240, 0.62);
 
   font-size: 10px;
 }
 
 .cli-help-description {
   max-width: 780px;
-
   margin-bottom: 22px;
 
-  color:
-    rgba(223, 247, 240, 0.78);
+  color: rgba(223, 247, 240, 0.78);
 
   font-size: 11px;
-
   line-height: 1.6;
 }
 
@@ -1526,7 +1380,6 @@ input {
   flex-direction: column;
 
   gap: 0;
-
   margin-bottom: 22px;
 }
 
@@ -1537,15 +1390,13 @@ input {
   border-bottom:
     1px solid rgba(0, 229, 212, 0.22);
 
-  color:
-    var(--edera-cyan);
+  color: var(--edera-cyan);
 
   font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.12em;
 
   text-transform: uppercase;
-
-  letter-spacing: 0.12em;
 }
 
 .cli-help-command {
@@ -1556,7 +1407,6 @@ input {
     minmax(180px, 1.1fr);
 
   gap: 24px;
-
   align-items: start;
 
   padding: 9px 10px;
@@ -1572,8 +1422,7 @@ input {
 }
 
 .cli-help-command:hover {
-  background:
-    rgba(0, 229, 212, 0.055);
+  background: rgba(0, 229, 212, 0.055);
 
   border-color:
     rgba(0, 229, 212, 0.18);
@@ -1582,21 +1431,18 @@ input {
 .cli-help-command code {
   display: inline-block;
 
-  color:
-    var(--edera-lime);
+  color: var(--edera-lime);
 
   font:
     700 10px / 1.5
     var(--font-mono);
 
   white-space: pre-wrap;
-
   overflow-wrap: anywhere;
 }
 
 .cli-help-command span {
-  color:
-    rgba(223, 247, 240, 0.72);
+  color: rgba(223, 247, 240, 0.72);
 
   font:
     400 10px / 1.5
@@ -1610,8 +1456,7 @@ input {
   border-left:
     2px solid var(--edera-cyan);
 
-  border-radius:
-    0 6px 6px 0;
+  border-radius: 0 6px 6px 0;
 
   background:
     rgba(0, 229, 212, 0.055);
@@ -1624,13 +1469,10 @@ input {
     var(--font-body);
 }
 
-/* CLI Help Mobile */
-
 @media (max-width: 720px) {
 
   .cli-help-command {
     grid-template-columns: 1fr;
-
     gap: 3px;
 
     padding: 9px 6px;
@@ -1646,14 +1488,12 @@ input {
 }
 
 /* =========================================================
-   DEMO COMPLETION MODAL ACTIONS
+   Demo completion modal actions
    ========================================================= */
 
 .completion-actions {
   display: flex;
-
   flex-wrap: wrap;
-
   justify-content: center;
 
   gap: 10px;
@@ -1662,18 +1502,15 @@ input {
 .completion-restart-btn,
 .completion-license-link {
   display: inline-flex;
-
   align-items: center;
   justify-content: center;
 
   min-height: 46px;
-
   padding: 13px 22px;
 
   border-radius: 8px;
 
   font-weight: 800;
-
   text-decoration: none;
 
   cursor: pointer;
@@ -1684,7 +1521,6 @@ input {
     1px solid rgba(0, 229, 212, 0.45);
 
   background: transparent;
-
   color: #f8fffd;
 }
 
@@ -1696,11 +1532,8 @@ input {
 .completion-license-link {
   border: 0;
 
-  background:
-    #b8ff3c;
-
-  color:
-    #081716;
+  background: #b8ff3c;
+  color: #081716;
 }
 
 @media (max-width: 560px) {
@@ -1712,5 +1545,19 @@ input {
   .completion-restart-btn,
   .completion-license-link {
     width: 100%;
+  }
+}
+
+/* =========================================================
+   Reduced motion
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
   }
 }
