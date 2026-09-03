@@ -344,11 +344,7 @@ async function initTerminalDemo() {
               placeholder="Type 'help' or use Up/Down arrow keys for command history..."
               disabled
               autocomplete="off"
-              autocapitalize="none"
-              autocorrect="off"
               spellcheck="false"
-              enterkeyhint="send"
-              inputmode="text"
             />
           </div>
         </div>
@@ -389,25 +385,10 @@ async function initTerminalDemo() {
             <div id="guide-description" class="guide-description"></div>
 
             <div class="suggested-command">
-              <div class="suggested-command-code-wrap">
-                <code id="suggested-command"></code>
-              </div>
-              <div class="suggested-command-actions">
-                <button
-                  id="copy-command-btn"
-                  class="use-command-btn copy-command-btn"
-                  type="button"
-                >
-                  Copy
-                </button>
-                <button
-                  id="use-command-btn"
-                  class="use-command-btn"
-                  type="button"
-                >
-                  Use command
-                </button>
-              </div>
+              <code id="suggested-command"></code>
+              <button id="use-command-btn" class="use-command-btn">
+                Use command
+              </button>
             </div>
           </div>
 
@@ -497,8 +478,108 @@ async function initTerminalDemo() {
   const useCommandBtn =
     document.querySelector<HTMLButtonElement>("#use-command-btn")!;
 
-  const copyCommandBtn =
-    document.querySelector<HTMLButtonElement>("#copy-command-btn")!;
+  /*
+   * Mobile-only layout fixes.
+   *
+   * Keep the original desktop UI unchanged. On small screens, a long
+   * suggested command must not push the existing "Use command" button
+   * outside the viewport. The command remains one line and can be
+   * horizontally scrolled, while the original button moves underneath it.
+   */
+  const mobileDemoStyle = document.createElement("style");
+  mobileDemoStyle.id = "webernetes-mobile-demo-fixes";
+  mobileDemoStyle.textContent = `
+    @media (max-width: 768px) {
+      .suggested-command {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
+      }
+
+      .suggested-command > code,
+      #suggested-command {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        white-space: pre !important;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x;
+        user-select: text !important;
+        -webkit-user-select: text !important;
+        -webkit-touch-callout: default;
+        scrollbar-width: thin;
+      }
+
+      .suggested-command .use-command-btn {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        align-self: flex-start;
+        width: auto !important;
+        min-width: 112px;
+        min-height: 44px;
+        padding: 10px 16px;
+        white-space: nowrap;
+        flex: 0 0 auto !important;
+        touch-action: manipulation;
+      }
+
+      .terminal-input-row input,
+      .terminal-input-row #cmd {
+        font-size: 16px !important;
+        min-width: 0;
+      }
+    }
+  `;
+  document.head.appendChild(mobileDemoStyle);
+
+  const rootShell =
+    document.querySelector<HTMLElement>(".demo-shell") || app;
+  const mainLayout =
+    document.querySelector<HTMLElement>(".main-layout")!;
+  const guidePanel =
+    document.querySelector<HTMLElement>("#guide-panel")!;
+  const eventsPanel =
+    document.querySelector<HTMLElement>("#events-panel")!;
+
+  const syncMobilePanelOrder = () => {
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+
+    if (isMobile) {
+      // Mobile: Terminal -> Edera Demo Guide -> Lifecycle Events.
+      if (eventsPanel.parentElement !== rootShell ||
+          eventsPanel.previousElementSibling !== guidePanel) {
+        rootShell.insertBefore(eventsPanel, guidePanel.nextSibling);
+      }
+    } else {
+      // Desktop: restore the original Terminal + Lifecycle Events layout.
+      if (eventsPanel.parentElement !== mainLayout) {
+        mainLayout.appendChild(eventsPanel);
+      }
+    }
+  };
+
+  syncMobilePanelOrder();
+
+  const mobileLayoutMediaQuery = window.matchMedia("(max-width: 768px)");
+  const handleMobileLayoutChange = () => syncMobilePanelOrder();
+
+  if (typeof mobileLayoutMediaQuery.addEventListener === "function") {
+    mobileLayoutMediaQuery.addEventListener("change", handleMobileLayoutChange);
+  } else {
+    mobileLayoutMediaQuery.addListener(handleMobileLayoutChange);
+  }
+
+  window.addEventListener("resize", syncMobilePanelOrder);
 
   const completionModal =
     document.querySelector<HTMLDivElement>("#completion-modal")!;
@@ -510,222 +591,6 @@ async function initTerminalDemo() {
     document.querySelector<HTMLDivElement>("#completion-modal-backdrop")!;
   const restartDemoBtn =
     document.querySelector<HTMLButtonElement>("#restart-demo-btn")!;
-
-  /*
-   * Mobile command/guide layout
-   * -----------------------------------------------------------------------
-   * Keep desktop styling/layout untouched, but make the long suggested
-   * command usable on phones and place Lifecycle Events after the guide.
-   *
-   * The command itself stays on one line and can be horizontally scrolled.
-   * The action buttons live in their own row so they can never be pushed
-   * outside the viewport by a long command.
-   */
-  const mobileDemoStyle = document.createElement("style");
-  mobileDemoStyle.id = "webernetes-mobile-demo-fixes";
-  mobileDemoStyle.textContent = `
-    .suggested-command-code-wrap {
-      min-width: 0;
-      flex: 1 1 auto;
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: thin;
-    }
-
-    .suggested-command-code-wrap code {
-      display: inline-block;
-      min-width: max-content;
-      white-space: pre;
-      user-select: text;
-      -webkit-user-select: text;
-      -webkit-touch-callout: default;
-    }
-
-    .suggested-command-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex: 0 0 auto;
-    }
-
-    .suggested-command .use-command-btn {
-      white-space: nowrap;
-      min-height: 42px;
-      min-width: 112px;
-      touch-action: manipulation;
-    }
-
-    @media (max-width: 768px) {
-      .main-layout {
-        display: block !important;
-      }
-
-      .terminal-panel,
-      .guide-panel,
-      .events-panel {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        box-sizing: border-box;
-      }
-
-      .terminal-input-row {
-        display: flex !important;
-        align-items: center;
-        gap: 8px;
-        width: 100%;
-        box-sizing: border-box;
-      }
-
-      .terminal-input-row > span {
-        flex: 0 0 auto;
-        white-space: nowrap;
-      }
-
-      .terminal-input-row input,
-      .terminal-input-row #cmd {
-        min-width: 0;
-        width: 100%;
-        flex: 1 1 auto;
-        font-size: 16px !important;
-        line-height: 1.4;
-        -webkit-appearance: none;
-        appearance: none;
-        touch-action: manipulation;
-      }
-
-      .suggested-command {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 12px !important;
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-      }
-
-      .suggested-command-code-wrap {
-        width: 100%;
-        max-width: 100%;
-        min-height: 54px;
-        box-sizing: border-box;
-        overflow-x: auto !important;
-        overflow-y: hidden;
-        border-radius: 14px;
-        -webkit-overflow-scrolling: touch;
-        touch-action: pan-x;
-      }
-
-      .suggested-command-code-wrap code {
-        display: block !important;
-        width: max-content;
-        min-width: max-content;
-        padding-right: 18px;
-        user-select: text !important;
-        -webkit-user-select: text !important;
-      }
-
-      .suggested-command-actions {
-        display: flex !important;
-        width: 100%;
-        gap: 10px;
-      }
-
-      .suggested-command-actions .use-command-btn {
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        flex: 1 1 0;
-        min-width: 0;
-        min-height: 46px;
-        padding: 10px 14px;
-        font-size: 15px;
-        line-height: 1.2;
-        touch-action: manipulation;
-      }
-
-      .copy-command-btn {
-        display: inline-flex !important;
-      }
-
-      #events-panel {
-        margin-top: 24px;
-      }
-
-      .events-panel .panel-header {
-        flex-wrap: wrap;
-      }
-
-      .events-panel .events-stream {
-        max-width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-      }
-    }
-  `;
-  document.head.appendChild(mobileDemoStyle);
-
-  const rootShell =
-    document.querySelector<HTMLElement>(".demo-shell") || app;
-
-  const mainLayout =
-    document.querySelector<HTMLElement>(".main-layout")!;
-
-  const guidePanel =
-    document.querySelector<HTMLElement>("#guide-panel")!;
-
-  const eventsPanel =
-    document.querySelector<HTMLElement>("#events-panel")!;
-
-  const syncMobilePanelOrder = () => {
-    const isMobile = window.matchMedia("(max-width: 768px)").matches;
-
-    if (isMobile) {
-      /*
-       * Move Lifecycle Events out of .main-layout and directly after the
-       * Edera Demo Guide. This gives mobile the requested:
-       * Terminal -> Guide -> Lifecycle Events
-       */
-      if (eventsPanel.parentElement !== rootShell) {
-        rootShell.insertBefore(eventsPanel, guidePanel.nextSibling);
-      } else if (eventsPanel.previousElementSibling !== guidePanel) {
-        rootShell.insertBefore(eventsPanel, guidePanel.nextSibling);
-      }
-    } else {
-      /*
-       * Restore the original desktop structure:
-       * Terminal + Lifecycle Events inside .main-layout.
-       */
-      if (eventsPanel.parentElement !== mainLayout) {
-        mainLayout.appendChild(eventsPanel);
-      } else if (eventsPanel.previousElementSibling !== mainLayout.firstElementChild) {
-        mainLayout.appendChild(eventsPanel);
-      }
-    }
-  };
-
-  syncMobilePanelOrder();
-
-  const mobileLayoutMediaQuery = window.matchMedia(
-    "(max-width: 768px)",
-  );
-
-  const handleMobileLayoutChange = () => {
-    syncMobilePanelOrder();
-  };
-
-  if (typeof mobileLayoutMediaQuery.addEventListener === "function") {
-    mobileLayoutMediaQuery.addEventListener(
-      "change",
-      handleMobileLayoutChange,
-    );
-  } else {
-    mobileLayoutMediaQuery.addListener(handleMobileLayoutChange);
-  }
-
-  window.addEventListener("resize", syncMobilePanelOrder);
-
   // Keep completion state in memory so each fresh page load can complete the lab again.
   let completionModalShown = false;
 
@@ -1279,91 +1144,14 @@ async function initTerminalDemo() {
     }
   });
 
-  const getSelectedCommand = () => {
-    const index = getSelectedDemoStepIndex();
-    return PROTECT_DEMO_STEPS[index]?.command || "";
-  };
-
-  const copyTextToClipboard = async (text: string): Promise<boolean> => {
-    try {
-      if (
-        navigator.clipboard &&
-        typeof navigator.clipboard.writeText === "function"
-      ) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch {
-      // Fall through to the selection-based fallback below.
-    }
-
-    try {
-      const helper = document.createElement("textarea");
-      helper.value = text;
-      helper.setAttribute("readonly", "");
-      helper.style.position = "fixed";
-      helper.style.left = "-9999px";
-      helper.style.top = "0";
-      helper.style.opacity = "0";
-      document.body.appendChild(helper);
-      helper.select();
-      helper.setSelectionRange(0, helper.value.length);
-      const copied = document.execCommand("copy");
-      helper.remove();
-      return copied;
-    } catch {
-      return false;
-    }
-  };
-
-  copyCommandBtn.addEventListener("click", async () => {
-    const command = getSelectedCommand();
-    if (!command) {
-      return;
-    }
-
-    const originalLabel = copyCommandBtn.innerText;
-    const copied = await copyTextToClipboard(command);
-
-    copyCommandBtn.innerText = copied ? "Copied!" : "Select to copy";
-
-    if (!copied) {
-      suggestedCommand.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
-
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(suggestedCommand);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-    }
-
-    window.setTimeout(() => {
-      copyCommandBtn.innerText = originalLabel;
-    }, 1400);
-  });
-
   useCommandBtn.addEventListener("click", () => {
-    const command = getSelectedCommand();
-    if (!command) {
-      return;
-    }
+    const index = getSelectedDemoStepIndex();
+    const step = PROTECT_DEMO_STEPS[index];
 
-    input.value = command;
+    input.value = step.command;
     input.focus();
 
     input.setSelectionRange(input.value.length, input.value.length);
-
-    // On phones, bring the actual command input into view so the user can
-    // immediately tap/press Enter without hunting for it.
-    if (window.matchMedia("(max-width: 768px)").matches) {
-      input.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }
   });
 
   document
