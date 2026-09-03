@@ -15,11 +15,22 @@
   --edera-warning: #ffd166;
   --edera-line: rgba(0, 72, 69, 0.18);
 
-  --font-body: "Space Grotesk", system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body:
+    "Space Grotesk",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 
-  --font-mono: "Space Mono", ui-monospace, SFMono-Regular,
-    Menlo, Monaco, Consolas, monospace;
+  --font-mono:
+    "Space Mono",
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
 }
 
 html,
@@ -40,18 +51,22 @@ input {
   font-family: inherit;
 }
 
+
 /* =========================================================
-   Main shell
+   MAIN SHELL
    ========================================================= */
 
 .demo-shell {
   position: relative;
   isolation: isolate;
+
   width: 100%;
   max-width: 1440px;
   min-height: 100vh;
+
   margin: 0 auto;
   padding: 32px clamp(18px, 4vw, 64px) 42px;
+
   overflow: hidden;
 
   background:
@@ -68,12 +83,16 @@ input {
 
 .demo-shell::before {
   content: "";
+
   position: absolute;
   z-index: -1;
+
   top: 100px;
   left: 5%;
+
   width: 90%;
   height: 700px;
+
   opacity: 0.48;
 
   background-image:
@@ -96,21 +115,26 @@ input {
   pointer-events: none;
 }
 
+
 /* =========================================================
-   Header
+   TOP HEADER
    ========================================================= */
 
 .top-header {
   position: relative;
+
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 28px;
 
   width: min(100%, 1180px);
+  min-width: 0;
+
+  min-height: 76px;
+
   margin: 0 auto 62px;
   padding: 13px 24px;
-  min-height: 76px;
 
   border: 1px solid rgba(0, 63, 61, 0.08);
   border-radius: 999px;
@@ -146,6 +170,7 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 28px;
+
   min-width: 0;
 }
 
@@ -168,12 +193,14 @@ input {
   text-align: right;
 }
 
+
 /* =========================================================
-   Hero
+   HERO
    ========================================================= */
 
 .brand-hero {
   width: min(100%, 980px);
+
   margin: 0 auto 58px;
   padding: 4px 0 0;
 
@@ -215,6 +242,7 @@ input {
 
 .brand-hero p {
   max-width: 980px;
+
   margin: 34px auto 0;
 
   color: rgba(239, 255, 251, 0.88);
@@ -229,6 +257,7 @@ input {
   justify-content: center;
 
   min-width: 220px;
+
   margin-top: 36px;
   padding: 17px 28px;
 
@@ -255,12 +284,14 @@ input {
   filter: brightness(1.05);
 }
 
+
 /* =========================================================
-   Dashboard
+   DASHBOARD
    ========================================================= */
 
 .demo-kicker {
   width: min(100%, 1180px);
+
   margin: 0 auto 12px;
 
   color: var(--edera-cyan);
@@ -277,6 +308,7 @@ input {
   gap: 16px;
 
   width: min(100%, 1180px);
+
   margin: 0 auto 16px;
 }
 
@@ -301,6 +333,7 @@ input {
   gap: 10px;
 
   min-height: 58px;
+
   padding: 12px 16px;
 
   border-bottom: 1px solid var(--edera-line);
@@ -318,8 +351,10 @@ input {
 
 .drag-handle {
   color: rgba(5, 47, 45, 0.32);
+
   cursor: grab;
   user-select: none;
+
   font-size: 13px;
 }
 
@@ -335,6 +370,7 @@ input {
 
 .panel-count {
   margin-left: auto;
+
   padding: 4px 8px;
 
   border: 1px solid rgba(0, 90, 87, 0.18);
@@ -349,6 +385,7 @@ input {
 
 .hide-btn {
   margin-left: 4px;
+
   padding: 6px 9px;
 
   border: 1px solid rgba(0, 90, 87, 0.20);
@@ -372,8 +409,9 @@ input {
   transform: translateY(-1px);
 }
 
+
 /* =========================================================
-   Resources
+   RESOURCE CARDS
    ========================================================= */
 
 .resource-body,
@@ -389,12 +427,12 @@ input {
 
 .resource-card,
 .zone-card {
+  padding: 10px 11px;
+
   border: 1px solid rgba(0, 90, 87, 0.13);
   border-radius: 11px;
 
   background: rgba(255, 255, 255, 0.46);
-
-  padding: 10px 11px;
 }
 
 .resource-card {
@@ -425,6 +463,7 @@ input {
 .resource-name,
 .zone-name {
   color: #000;
+
   font-size: 12px;
   font-weight: 700;
 }
@@ -473,8 +512,9 @@ input {
   background: rgba(5, 47, 45, 0.06);
 }
 
+
 /* =========================================================
-   Zone cards
+   ZONE CARDS
    ========================================================= */
 
 .protect-panel {
@@ -512,8 +552,9 @@ input {
   margin-top: 8px;
 }
 
+
 /* =========================================================
-   Main layout / terminal
+   MAIN LAYOUT
    ========================================================= */
 
 .main-layout {
@@ -522,6 +563,7 @@ input {
   gap: 16px;
 
   width: min(100%, 1180px);
+
   margin: 0 auto;
 
   align-items: stretch;
@@ -593,9 +635,11 @@ input {
   align-items: center;
 
   min-height: 56px;
+
   padding: 12px 16px;
 
-  border-top: 1px solid rgba(0, 229, 212, 0.22);
+  border-top:
+    1px solid rgba(0, 229, 212, 0.22);
 
   font: 12px var(--font-mono);
 }
@@ -625,19 +669,21 @@ input {
   color: rgba(168, 207, 202, 0.48);
 }
 
+
 /* =========================================================
-   Events
+   EVENTS
    ========================================================= */
 
 .events-panel {
-  height: 462px;
-
   display: flex;
   flex-direction: column;
+
+  height: 462px;
 }
 
 .events-stream {
   flex: 1;
+
   overflow-y: auto;
 
   padding: 12px;
@@ -715,8 +761,9 @@ input {
   margin-top: 2px;
 }
 
+
 /* =========================================================
-   Demo guide
+   GUIDE PANEL
    ========================================================= */
 
 .guide-panel {
@@ -759,6 +806,10 @@ input {
   padding: 16px;
 }
 
+.guide-current {
+  min-width: 0;
+}
+
 .guide-label {
   margin-bottom: 7px;
 
@@ -791,17 +842,23 @@ input {
   line-height: 1.5;
 }
 
+
 /* =========================================================
-   Suggested command
-   Button stays on the RIGHT on desktop and mobile
+   SUGGESTED COMMAND
+   Force command + button onto one row.
+   Button ALWAYS remains on the right.
    ========================================================= */
 
 .suggested-command {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: stretch;
+  display: grid !important;
 
+  grid-template-columns:
+    minmax(0, 1fr)
+    max-content !important;
+
+  grid-template-rows: auto !important;
+
+  width: 100%;
   min-width: 0;
 
   overflow: hidden;
@@ -812,13 +869,22 @@ input {
   background: var(--edera-deep);
 }
 
-.suggested-command code {
-  flex: 1 1 auto;
+
+/* Command */
+
+.suggested-command > #suggested-command {
+  display: block;
+
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+
+  width: 100%;
   min-width: 0;
 
   padding: 12px;
 
   overflow-x: auto;
+  overflow-y: hidden;
 
   color: var(--edera-lime);
 
@@ -829,21 +895,40 @@ input {
   white-space: pre;
 }
 
-.use-command-btn {
-  flex: 0 0 auto;
 
-  white-space: nowrap;
+/* Use command button */
 
-  border: 0;
-  border-left: 1px solid rgba(0, 229, 212, 0.25);
+.suggested-command > #use-command-btn,
+#use-command-btn.use-command-btn {
+  display: flex !important;
 
-  padding: 0 15px;
+  grid-column: 2 !important;
+  grid-row: 1 !important;
 
-  background: var(--edera-lime);
-  color: var(--edera-ink);
+  align-items: center;
+  justify-content: center;
 
+  width: auto !important;
+  min-width: max-content !important;
+
+  margin: 0 !important;
+
+  padding: 0 15px !important;
+
+  border: 0 !important;
+  border-left:
+    1px solid rgba(0, 229, 212, 0.25) !important;
+
+  border-radius: 0 !important;
+
+  background: var(--edera-lime) !important;
+  color: var(--edera-ink) !important;
+
+  font-family: var(--font-body);
   font-size: 10px;
   font-weight: 700;
+
+  white-space: nowrap !important;
 
   cursor: pointer;
 
@@ -852,12 +937,14 @@ input {
     transform 140ms ease;
 }
 
-.use-command-btn:hover {
+.suggested-command > #use-command-btn:hover,
+#use-command-btn.use-command-btn:hover {
   filter: brightness(1.04);
 }
 
+
 /* =========================================================
-   Guide navigation
+   GUIDE NAVIGATION
    ========================================================= */
 
 .guide-side {
@@ -879,17 +966,19 @@ input {
 }
 
 .guide-step-mini {
-  width: 100%;
-
   display: flex;
-  gap: 8px;
   align-items: flex-start;
+  gap: 8px;
+
+  width: 100%;
 
   margin: 0;
   padding: 7px 4px;
 
   border: 0;
-  border-bottom: 1px solid rgba(0, 90, 87, 0.11);
+  border-bottom:
+    1px solid rgba(0, 90, 87, 0.11);
+
   border-radius: 5px;
 
   background: transparent;
@@ -955,8 +1044,9 @@ input {
   font-size: 10px;
 }
 
+
 /* =========================================================
-   Footer
+   FOOTER
    ========================================================= */
 
 .edera-footer {
@@ -966,10 +1056,12 @@ input {
   gap: 9px;
 
   width: min(100%, 1180px);
+
   margin: 28px auto 0;
   padding: 18px 0 4px;
 
-  border-top: 1px solid rgba(0, 229, 212, 0.18);
+  border-top:
+    1px solid rgba(0, 229, 212, 0.18);
 
   color: var(--edera-muted);
 
@@ -985,7 +1077,9 @@ input {
 
   object-fit: cover;
 
-  border: 1px solid rgba(0, 229, 212, 0.25);
+  border:
+    1px solid rgba(0, 229, 212, 0.25);
+
   border-radius: 50%;
 }
 
@@ -998,8 +1092,9 @@ input {
   text-decoration: underline;
 }
 
+
 /* =========================================================
-   CLI Help
+   CLI HELP
    ========================================================= */
 
 .cli-help {
@@ -1037,6 +1132,7 @@ input {
 
 .cli-help-description {
   max-width: 780px;
+
   margin-bottom: 22px;
 
   color: rgba(223, 247, 240, 0.78);
@@ -1071,6 +1167,7 @@ input {
 
 .cli-help-command {
   display: grid;
+
   grid-template-columns:
     minmax(260px, 0.9fr)
     minmax(180px, 1.1fr);
@@ -1091,7 +1188,8 @@ input {
 }
 
 .cli-help-command:hover {
-  background: rgba(0, 229, 212, 0.055);
+  background:
+    rgba(0, 229, 212, 0.055);
 
   border-color:
     rgba(0, 229, 212, 0.18);
@@ -1122,7 +1220,9 @@ input {
   margin-top: 4px;
   padding: 12px 14px;
 
-  border-left: 2px solid var(--edera-cyan);
+  border-left:
+    2px solid var(--edera-cyan);
+
   border-radius: 0 6px 6px 0;
 
   background:
@@ -1136,8 +1236,9 @@ input {
     var(--font-body);
 }
 
+
 /* =========================================================
-   Completion modal
+   COMPLETION MODAL
    ========================================================= */
 
 .completion-actions {
@@ -1154,12 +1255,12 @@ input {
   justify-content: center;
 
   min-height: 46px;
+
   padding: 13px 22px;
 
   border-radius: 8px;
 
   font-weight: 800;
-
   text-decoration: none;
 
   cursor: pointer;
@@ -1181,12 +1282,13 @@ input {
 .completion-license-link {
   border: 0;
 
-  background: #b8ff3c;
+  background: var(--edera-lime);
   color: #081716;
 }
 
+
 /* =========================================================
-   Tablet
+   TABLET
    ========================================================= */
 
 @media (max-width: 900px) {
@@ -1200,8 +1302,9 @@ input {
   }
 }
 
+
 /* =========================================================
-   Mobile
+   MOBILE
    ========================================================= */
 
 @media (max-width: 720px) {
@@ -1209,9 +1312,9 @@ input {
     grid-template-columns: 1fr;
     gap: 8px;
 
-    border-radius: 28px;
-
     padding: 14px 18px;
+
+    border-radius: 28px;
   }
 
   .top-header::before {
@@ -1222,8 +1325,8 @@ input {
   }
 
   .top-header > div {
-    align-items: flex-start;
     flex-direction: column;
+    align-items: flex-start;
     gap: 4px;
   }
 
@@ -1242,11 +1345,13 @@ input {
 
   .brand-hero p {
     margin-top: 22px;
+
     font-size: 15px;
   }
 
   .hero-cta {
     width: 100%;
+
     margin-top: 26px;
   }
 
@@ -1260,7 +1365,9 @@ input {
 
   .cli-help-command {
     grid-template-columns: 1fr;
+
     gap: 3px;
+
     padding: 9px 6px;
   }
 
@@ -1272,29 +1379,64 @@ input {
     font-size: 9px;
   }
 
-  /*
-    Keep the suggested command horizontal.
-    Command scrolls if necessary;
-    button remains fixed on the RIGHT.
-  */
+
+  /* -------------------------------------------------------
+     CRITICAL MOBILE FIX
+
+     Never stack #suggested-command and #use-command-btn.
+     The command shrinks and scrolls horizontally.
+     The button stays fixed on the right.
+     ------------------------------------------------------- */
+
   .suggested-command {
-    flex-direction: row;
-    flex-wrap: nowrap;
+    display: grid !important;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      max-content !important;
+
+    grid-template-rows: auto !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+
+    overflow: hidden !important;
   }
 
-  .suggested-command code {
-    min-width: 0;
-    flex: 1 1 auto;
+  .suggested-command > #suggested-command {
+    display: block !important;
+
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+
+    white-space: pre !important;
   }
 
-  .use-command-btn {
-    flex: 0 0 auto;
-    white-space: nowrap;
+  .suggested-command > #use-command-btn,
+  #use-command-btn.use-command-btn {
+    display: flex !important;
+
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+
+    width: auto !important;
+    min-width: max-content !important;
+
+    margin: 0 !important;
+
+    white-space: nowrap !important;
   }
 }
 
+
 /* =========================================================
-   Small mobile
+   SMALL MOBILE
    ========================================================= */
 
 @media (max-width: 560px) {
@@ -1307,31 +1449,54 @@ input {
     width: 100%;
   }
 
-  /*
-    Still keep the command and button on one row.
-    The command itself can horizontally scroll.
-  */
+
+  /* Final safeguard for the command button */
+
   .suggested-command {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    min-width: 0;
+    display: grid !important;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      max-content !important;
+
+    grid-template-rows: auto !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
   }
 
-  .suggested-command code {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow-x: auto;
+  .suggested-command > #suggested-command {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+
+    overflow-x: auto !important;
+
+    white-space: pre !important;
   }
 
-  .use-command-btn {
-    flex: 0 0 auto;
-    white-space: nowrap;
+  .suggested-command > #use-command-btn,
+  #use-command-btn.use-command-btn {
+    display: flex !important;
+
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+
+    width: auto !important;
+    min-width: max-content !important;
+
+    margin: 0 !important;
+    padding: 0 15px !important;
+
+    white-space: nowrap !important;
   }
 }
 
+
 /* =========================================================
-   Reduced motion
+   REDUCED MOTION
    ========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
