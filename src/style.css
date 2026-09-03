@@ -52,17 +52,20 @@ input {
 }
 
 /* =========================================================
-   Demo shell
+   DEMO SHELL
    ========================================================= */
 
 .demo-shell {
   position: relative;
   isolation: isolate;
+
   width: 100%;
   max-width: 1440px;
   min-height: 100vh;
+
   margin: 0 auto;
   padding: 32px clamp(18px, 4vw, 64px) 42px;
+
   overflow: hidden;
 
   background:
@@ -79,12 +82,16 @@ input {
 
 .demo-shell::before {
   content: "";
+
   position: absolute;
   z-index: -1;
+
   top: 100px;
   left: 5%;
+
   width: 90%;
   height: 700px;
+
   opacity: 0.48;
 
   background-image:
@@ -108,28 +115,35 @@ input {
 }
 
 /* =========================================================
-   Header
+   HEADER
    ========================================================= */
 
 .top-header {
   position: relative;
+
   display: grid;
   grid-template-columns: auto 1fr;
+
   align-items: center;
+
   gap: 28px;
 
   width: min(100%, 1180px);
+
   margin: 0 auto 62px;
   padding: 13px 24px;
+
   min-height: 76px;
 
   border: 1px solid rgba(0, 63, 61, 0.08);
   border-radius: 999px;
 
   background: var(--edera-mint);
+
   color: var(--edera-ink);
 
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.12);
+  box-shadow:
+    0 16px 45px rgba(0, 0, 0, 0.12);
 }
 
 .top-header .logo-link {
@@ -145,6 +159,7 @@ input {
 
   font-size: 23px;
   font-weight: 800;
+
   letter-spacing: -0.04em;
 
   text-decoration: none;
@@ -153,40 +168,52 @@ input {
 
 .top-header > div {
   display: flex;
+
   align-items: center;
   justify-content: space-between;
+
   gap: 28px;
+
   min-width: 0;
 }
 
 .top-header h1 {
   margin: 0;
+
   color: var(--edera-ink);
+
   font-size: 15px;
   font-weight: 700;
+
   letter-spacing: 0.01em;
 }
 
 .top-header p {
   margin: 0;
+
   color: rgba(5, 47, 45, 0.72);
+
   font-size: 12px;
+
   text-align: right;
 }
 
 /* =========================================================
-   Hero
+   HERO
    ========================================================= */
 
 .brand-hero {
   width: min(100%, 980px);
+
   margin: 0 auto 58px;
   padding: 4px 0 0;
+
   text-align: center;
 }
 
 .hero-eyebrow {
   display: inline-flex;
+
   align-items: center;
   justify-content: center;
 
@@ -215,25 +242,30 @@ input {
     var(--font-mono);
 
   letter-spacing: -0.065em;
+
   text-transform: uppercase;
 }
 
 .brand-hero p {
   max-width: 980px;
+
   margin: 34px auto 0;
 
   color: rgba(239, 255, 251, 0.88);
 
   font-size: clamp(16px, 1.55vw, 22px);
+
   line-height: 1.55;
 }
 
 .hero-cta {
   display: inline-flex;
+
   align-items: center;
   justify-content: center;
 
   min-width: 220px;
+
   margin-top: 36px;
   padding: 17px 28px;
 
@@ -241,6 +273,7 @@ input {
   border-radius: 999px;
 
   background: var(--edera-lime);
+
   color: var(--edera-ink);
 
   font:
@@ -262,12 +295,9 @@ input {
   filter: brightness(1.05);
 }
 
-/* =========================================================
-   Demo
-   ========================================================= */
-
 .demo-kicker {
   width: min(100%, 1180px);
+
   margin: 0 auto 12px;
 
   color: var(--edera-cyan);
@@ -277,21 +307,26 @@ input {
     var(--font-mono);
 
   letter-spacing: 0.14em;
+
   text-transform: uppercase;
 }
 
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
   gap: 16px;
 
   width: min(100%, 1180px);
+
   margin: 0 auto 16px;
 }
-
-/* =========================================================
-   Panels
-   ========================================================= */
 
 .panel,
 .guide-panel {
@@ -299,6 +334,7 @@ input {
   border-radius: 18px;
 
   background: var(--edera-mint);
+
   color: var(--edera-ink);
 
   box-shadow:
@@ -310,13 +346,17 @@ input {
 .panel-header,
 .guide-header {
   display: flex;
+
   align-items: center;
+
   gap: 10px;
 
   min-height: 58px;
+
   padding: 12px 16px;
 
-  border-bottom: 1px solid var(--edera-line);
+  border-bottom:
+    1px solid var(--edera-line);
 }
 
 .panel-header h3,
@@ -331,8 +371,10 @@ input {
 
 .drag-handle {
   color: rgba(5, 47, 45, 0.32);
+
   cursor: grab;
   user-select: none;
+
   font-size: 13px;
 }
 
@@ -349,10 +391,13 @@ input {
   margin-left: auto;
   padding: 4px 8px;
 
-  border: 1px solid rgba(0, 90, 87, 0.18);
+  border:
+    1px solid rgba(0, 90, 87, 0.18);
+
   border-radius: 999px;
 
   background: var(--edera-mint-2);
+
   color: var(--edera-teal);
 
   font-size: 9px;
@@ -363,10 +408,13 @@ input {
   margin-left: 4px;
   padding: 6px 9px;
 
-  border: 1px solid rgba(0, 90, 87, 0.2);
+  border:
+    1px solid rgba(0, 90, 87, 0.2);
+
   border-radius: 999px;
 
   background: transparent;
+
   color: var(--edera-teal);
 
   font-size: 9px;
@@ -385,7 +433,7 @@ input {
 }
 
 /* =========================================================
-   Resources
+   RESOURCE PANELS
    ========================================================= */
 
 .resource-body,
@@ -396,23 +444,29 @@ input {
 .resource-list {
   display: flex;
   flex-direction: column;
+
   gap: 7px;
 }
 
 .resource-card,
 .zone-card {
-  border: 1px solid rgba(0, 90, 87, 0.13);
+  border:
+    1px solid rgba(0, 90, 87, 0.13);
+
   border-radius: 11px;
 
-  background: rgba(255, 255, 255, 0.46);
+  background:
+    rgba(255, 255, 255, 0.46);
 
   padding: 10px 11px;
 }
 
 .resource-card {
   display: flex;
+
   align-items: center;
   justify-content: space-between;
+
   gap: 12px;
 
   transition:
@@ -422,21 +476,26 @@ input {
 
 .resource-card:hover,
 .zone-card:hover {
-  border-color: rgba(0, 90, 87, 0.28);
+  border-color:
+    rgba(0, 90, 87, 0.28);
+
   transform: translateY(-1px);
 }
 
 .resource-card.running {
-  border-left: 3px solid var(--edera-lime);
+  border-left:
+    3px solid var(--edera-lime);
 }
 
 .resource-card.pending {
-  border-left: 3px solid var(--edera-warning);
+  border-left:
+    3px solid var(--edera-warning);
 }
 
 .resource-name,
 .zone-name {
   color: var(--edera-teal);
+
   font-size: 12px;
   font-weight: 700;
 }
@@ -444,8 +503,11 @@ input {
 .resource-meta,
 .zone-uuid,
 .zone-meta {
-  color: rgba(5, 47, 45, 0.58);
+  color:
+    rgba(5, 47, 45, 0.58);
+
   font-size: 10px;
+
   line-height: 1.4;
 }
 
@@ -454,19 +516,22 @@ input {
 }
 
 /* =========================================================
-   Status badges
+   STATUS BADGES
    ========================================================= */
 
 .status-badge {
   padding: 4px 7px;
 
-  border: 1px solid currentColor;
+  border:
+    1px solid currentColor;
+
   border-radius: 999px;
 
   font-size: 8px;
   font-weight: 700;
 
   letter-spacing: 0.05em;
+
   text-transform: uppercase;
 
   white-space: nowrap;
@@ -474,25 +539,33 @@ input {
 
 .status-ready {
   color: #3c7d17;
-  background: rgba(184, 255, 60, 0.28);
+
+  background:
+    rgba(184, 255, 60, 0.28);
 }
 
 .status-pending {
   color: #9a6700;
-  background: rgba(255, 209, 102, 0.25);
+
+  background:
+    rgba(255, 209, 102, 0.25);
 }
 
 .status-destroyed {
-  color: rgba(5, 47, 45, 0.52);
-  background: rgba(5, 47, 45, 0.06);
+  color:
+    rgba(5, 47, 45, 0.52);
+
+  background:
+    rgba(5, 47, 45, 0.06);
 }
 
 /* =========================================================
-   Zones
+   ZONES
    ========================================================= */
 
 .protect-panel {
   width: min(100%, 1180px);
+
   margin: 0 auto 16px;
 }
 
@@ -506,49 +579,60 @@ input {
 
 .zone-top {
   display: flex;
+
   align-items: center;
   justify-content: space-between;
+
   gap: 12px;
 }
 
 .zone-uuid {
   margin-top: 3px;
 
-  font-family: var(--font-mono);
+  font-family:
+    var(--font-mono);
+
   font-size: 9px;
 }
 
 .zone-meta {
   display: flex;
   flex-wrap: wrap;
+
   gap: 14px;
 
   margin-top: 8px;
 }
 
 /* =========================================================
-   Main layout
+   MAIN LAYOUT
    ========================================================= */
 
 .main-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+
+  grid-template-columns:
+    minmax(0, 1fr) 300px;
+
   gap: 16px;
 
   width: min(100%, 1180px);
+
   margin: 0 auto;
 
   align-items: stretch;
 }
 
 /* =========================================================
-   Terminal
+   TERMINAL
    ========================================================= */
 
 .terminal-panel {
   min-width: 0;
 
-  border: 1px solid rgba(0, 229, 212, 0.28);
+  border:
+    1px solid rgba(0, 229, 212, 0.28);
+
   border-radius: 18px;
 
   background: #012f2d;
@@ -586,6 +670,7 @@ input {
   color: #dff7f0;
 
   white-space: pre-wrap;
+
   word-break: break-word;
 }
 
@@ -602,17 +687,21 @@ input {
   color: #dff7f0;
 
   font: inherit;
+
   white-space: pre;
 }
 
 .terminal-input-row {
   display: flex;
+
   align-items: center;
 
   min-height: 56px;
+
   padding: 12px 16px;
 
-  border-top: 1px solid rgba(0, 229, 212, 0.22);
+  border-top:
+    1px solid rgba(0, 229, 212, 0.22);
 
   font:
     12px
@@ -629,23 +718,26 @@ input {
 
 .terminal-input-row input {
   flex: 1;
+
   min-width: 0;
 
   border: none;
   outline: none;
 
   background: transparent;
+
   color: var(--edera-white);
 
   font: inherit;
 }
 
 .terminal-input-row input::placeholder {
-  color: rgba(168, 207, 202, 0.48);
+  color:
+    rgba(168, 207, 202, 0.48);
 }
 
 /* =========================================================
-   Events
+   EVENTS
    ========================================================= */
 
 .events-panel {
@@ -671,25 +763,33 @@ input {
   margin-bottom: 7px;
   padding: 9px;
 
-  border: 1px solid rgba(0, 90, 87, 0.11);
-  border-left: 3px solid #4f9d26;
+  border:
+    1px solid rgba(0, 90, 87, 0.11);
+
+  border-left:
+    3px solid #4f9d26;
+
   border-radius: 9px;
 
-  background: rgba(255, 255, 255, 0.48);
+  background:
+    rgba(255, 255, 255, 0.48);
 }
 
 .event-card.warning {
-  border-left-color: var(--edera-danger);
+  border-left-color:
+    var(--edera-danger);
 }
 
 .event-card.info {
-  border-left-color: var(--edera-cyan);
+  border-left-color:
+    var(--edera-cyan);
 }
 
 .event-time,
 .event-message,
 .event-object {
-  color: rgba(5, 47, 45, 0.54);
+  color:
+    rgba(5, 47, 45, 0.54);
 }
 
 .event-badge {
@@ -705,17 +805,23 @@ input {
 
 .event-normal .event-badge {
   color: #3c7d17;
-  background: rgba(184, 255, 60, 0.28);
+
+  background:
+    rgba(184, 255, 60, 0.28);
 }
 
 .event-warning .event-badge {
   color: #a23a3a;
-  background: rgba(255, 115, 115, 0.18);
+
+  background:
+    rgba(255, 115, 115, 0.18);
 }
 
 .event-info .event-badge {
   color: var(--edera-teal);
-  background: rgba(0, 229, 212, 0.14);
+
+  background:
+    rgba(0, 229, 212, 0.14);
 }
 
 .event-reason {
@@ -735,17 +841,20 @@ input {
 }
 
 /* =========================================================
-   Guide
+   GUIDE
    ========================================================= */
 
 .guide-panel {
   width: min(100%, 1180px);
+
   margin: 16px auto 0;
 }
 
 .guide-progress {
   display: flex;
+
   gap: 5px;
+
   margin-left: auto;
 }
 
@@ -755,7 +864,8 @@ input {
 
   border-radius: 50%;
 
-  background: rgba(0, 90, 87, 0.16);
+  background:
+    rgba(0, 90, 87, 0.16);
 }
 
 .progress-dot.done {
@@ -771,21 +881,30 @@ input {
 
 .guide-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+
+  grid-template-columns:
+    minmax(0, 1fr) 300px;
+
   gap: 16px;
 
   padding: 16px;
 }
 
+.guide-current {
+  min-width: 0;
+}
+
 .guide-label {
   margin-bottom: 7px;
 
-  color: rgba(5, 47, 45, 0.55);
+  color:
+    rgba(5, 47, 45, 0.55);
 
   font-size: 9px;
   font-weight: 700;
 
   letter-spacing: 0.09em;
+
   text-transform: uppercase;
 }
 
@@ -801,76 +920,104 @@ input {
 .guide-description {
   margin-bottom: 13px;
 
-  color: rgba(5, 47, 45, 0.65);
+  color:
+    rgba(5, 47, 45, 0.65);
 
   font-size: 12px;
+
   line-height: 1.5;
 }
 
 /* =========================================================
-   Suggested command
-   Desktop: command on the left, button on the right
-   Mobile: button on the left, horizontally scrollable command
+   SUGGESTED COMMAND
+   Desktop:
+   [ command ][ Use command ]
+
    ========================================================= */
 
 .suggested-command {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+
+  grid-template-columns:
+    minmax(0, 1fr) auto;
+
+  grid-template-areas:
+    "command button";
+
   align-items: stretch;
 
   width: 100%;
   min-width: 0;
+
   min-height: 56px;
 
   overflow: hidden;
 
-  border: 1px solid rgba(0, 90, 87, 0.22);
+  border:
+    1px solid rgba(0, 90, 87, 0.22);
+
   border-radius: 11px;
-  background: var(--edera-deep);
+
+  background:
+    var(--edera-deep);
 }
 
 .suggested-command code {
+  grid-area: command;
+
   display: block;
 
   min-width: 0;
   width: 100%;
 
-  padding: 12px;
+  padding: 17px 12px;
 
   overflow-x: auto;
   overflow-y: hidden;
 
   color: var(--edera-lime);
 
-  font: 11px/1.4 var(--font-mono);
+  font:
+    11px / 1.4
+    var(--font-mono);
 
   white-space: pre;
+
   word-break: normal;
   overflow-wrap: normal;
 
   -webkit-overflow-scrolling: touch;
 }
 
+#use-command-btn,
 .use-command-btn {
+  grid-area: button;
+
   display: flex;
+
   align-items: center;
   justify-content: center;
 
   align-self: stretch;
 
   min-width: 108px;
-  min-height: 56px;
 
   margin: 0;
   padding: 0 15px;
 
   border: 0;
-  border-left: 1px solid rgba(0, 229, 212, 0.25);
 
-  background: var(--edera-lime);
+  border-left:
+    1px solid rgba(0, 229, 212, 0.25);
+
+  background:
+    var(--edera-lime);
+
   color: var(--edera-ink);
 
-  font-family: var(--font-body);
+  font-family:
+    var(--font-body);
+
   font-size: 10px;
   font-weight: 700;
 
@@ -883,106 +1030,25 @@ input {
     transform 140ms ease;
 }
 
+#use-command-btn:hover,
 .use-command-btn:hover {
   filter: brightness(1.04);
 }
 
-
 /* =========================================================
-   Mobile suggested command
-   Button fixed on LEFT
-   Command scrolls horizontally on RIGHT
-   ========================================================= */
-
-@media (max-width: 720px) {
-
-  .suggested-command {
-    display: grid !important;
-
-    grid-template-columns: 118px minmax(0, 1fr) !important;
-
-    grid-template-areas: "button command" !important;
-
-    align-items: stretch;
-
-    width: 100%;
-    min-width: 0;
-
-    min-height: 58px;
-    height: 58px;
-
-    overflow: hidden;
-  }
-
-  .suggested-command code {
-    grid-area: command !important;
-
-    display: block;
-
-    min-width: 0;
-    width: 100%;
-    height: 58px;
-
-    padding: 18px 12px;
-
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-
-    white-space: pre !important;
-    word-break: normal !important;
-    overflow-wrap: normal !important;
-
-    font-size: 10px;
-
-    -webkit-overflow-scrolling: touch;
-  }
-
-  #use-command-btn,
-  .use-command-btn {
-    grid-area: button !important;
-
-    display: flex !important;
-
-    align-items: center !important;
-    justify-content: center !important;
-
-    order: initial !important;
-
-    width: 118px !important;
-    min-width: 118px !important;
-    max-width: 118px !important;
-
-    height: 58px !important;
-    min-height: 58px !important;
-    max-height: 58px !important;
-
-    margin: 0 !important;
-    padding: 0 10px !important;
-
-    align-self: stretch !important;
-    justify-self: stretch !important;
-
-    border: 0 !important;
-    border-right: 1px solid rgba(0, 229, 212, 0.25) !important;
-    border-left: 0 !important;
-
-    white-space: nowrap !important;
-
-    flex: none !important;
-  }
-}
-
-/* =========================================================
-   Guide side
+   GUIDE SIDEBAR
    ========================================================= */
 
 .guide-side {
   padding: 11px 12px;
 
-  border: 1px solid rgba(0, 90, 87, 0.13);
+  border:
+    1px solid rgba(0, 90, 87, 0.13);
+
   border-radius: 11px;
 
-  background: rgba(255, 255, 255, 0.42);
+  background:
+    rgba(255, 255, 255, 0.42);
 }
 
 .guide-side-title {
@@ -998,18 +1064,25 @@ input {
   width: 100%;
 
   display: flex;
+
   gap: 8px;
+
   align-items: flex-start;
 
   margin: 0;
   padding: 7px 4px;
 
   border: 0;
-  border-bottom: 1px solid rgba(0, 90, 87, 0.11);
+
+  border-bottom:
+    1px solid rgba(0, 90, 87, 0.11);
+
   border-radius: 5px;
 
   background: transparent;
-  color: rgba(5, 47, 45, 0.58);
+
+  color:
+    rgba(5, 47, 45, 0.58);
 
   font:
     10px
@@ -1031,19 +1104,24 @@ input {
 .guide-step-mini:hover,
 .guide-step-mini.current,
 .guide-step-mini.selected {
-  background: var(--edera-mint-2);
-  color: var(--edera-ink);
+  background:
+    var(--edera-mint-2);
+
+  color:
+    var(--edera-ink);
 }
 
 .guide-step-mini.selected {
   box-shadow:
-    inset 2px 0 0 var(--edera-cyan);
+    inset 2px 0 0
+    var(--edera-cyan);
 }
 
 .mini-number {
   min-width: 15px;
 
-  color: var(--edera-teal);
+  color:
+    var(--edera-teal);
 
   font-weight: 700;
 }
@@ -1064,30 +1142,37 @@ input {
 .empty-state {
   padding: 8px 0;
 
-  color: rgba(5, 47, 45, 0.5);
+  color:
+    rgba(5, 47, 45, 0.5);
 
   font-size: 10px;
 }
 
 /* =========================================================
-   Footer
+   FOOTER
    ========================================================= */
 
 .edera-footer {
   display: flex;
+
   align-items: center;
   justify-content: center;
+
   gap: 9px;
 
-  width: min(100%, 1180px);
   margin: 28px auto 0;
   padding: 18px 0 4px;
 
-  border-top: 1px solid rgba(0, 229, 212, 0.18);
+  width: min(100%, 1180px);
 
-  color: var(--edera-muted);
+  border-top:
+    1px solid rgba(0, 229, 212, 0.18);
+
+  color:
+    var(--edera-muted);
 
   font-size: 10px;
+
   text-align: center;
 }
 
@@ -1099,12 +1184,16 @@ input {
 
   object-fit: cover;
 
-  border: 1px solid rgba(0, 229, 212, 0.25);
+  border:
+    1px solid rgba(0, 229, 212, 0.25);
+
   border-radius: 50%;
 }
 
 .edera-footer a {
-  color: var(--edera-cyan);
+  color:
+    var(--edera-cyan);
+
   text-decoration: none;
 }
 
@@ -1113,7 +1202,7 @@ input {
 }
 
 /* =========================================================
-   Responsive
+   TABLET
    ========================================================= */
 
 @media (max-width: 900px) {
@@ -1128,10 +1217,15 @@ input {
   }
 }
 
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
 @media (max-width: 720px) {
 
   .top-header {
     grid-template-columns: 1fr;
+
     gap: 8px;
 
     border-radius: 28px;
@@ -1148,7 +1242,9 @@ input {
 
   .top-header > div {
     align-items: flex-start;
+
     flex-direction: column;
+
     gap: 4px;
   }
 
@@ -1162,16 +1258,19 @@ input {
 
   .hero-eyebrow {
     margin-bottom: 24px;
+
     padding: 9px 16px;
   }
 
   .brand-hero p {
     margin-top: 22px;
+
     font-size: 15px;
   }
 
   .hero-cta {
     width: 100%;
+
     margin-top: 26px;
   }
 
@@ -1183,9 +1282,115 @@ input {
     padding: 20px 12px 32px;
   }
 
-  
+  /* =====================================================
+     MOBILE SUGGESTED COMMAND
+
+     FIXED LAYOUT:
+
+     [ USE COMMAND ][ SCROLLABLE COMMAND → ]
+
+     The entire component has a fixed height.
+     The button cannot grow vertically.
+     ===================================================== */
+
+  .suggested-command {
+    display: grid !important;
+
+    grid-template-columns:
+      118px minmax(0, 1fr) !important;
+
+    grid-template-areas:
+      "button command" !important;
+
+    align-items: stretch !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+
+    height: 58px !important;
+    min-height: 58px !important;
+    max-height: 58px !important;
+
+    overflow: hidden !important;
+  }
+
+  .suggested-command code {
+    grid-area: command !important;
+
+    display: block !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+
+    height: 58px !important;
+    min-height: 58px !important;
+    max-height: 58px !important;
+
+    margin: 0 !important;
+
+    padding: 18px 12px !important;
+
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+
+    white-space: pre !important;
+
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+
+    font-size: 10px !important;
+
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #use-command-btn,
+  .use-command-btn {
+    grid-area: button !important;
+
+    display: flex !important;
+
+    align-items: center !important;
+    justify-content: center !important;
+
+    align-self: stretch !important;
+    justify-self: stretch !important;
+
+    width: 118px !important;
+    min-width: 118px !important;
+    max-width: 118px !important;
+
+    height: 58px !important;
+    min-height: 58px !important;
+    max-height: 58px !important;
+
+    margin: 0 !important;
+    padding: 0 10px !important;
+
+    border: 0 !important;
+
+    border-right:
+      1px solid rgba(0, 229, 212, 0.25) !important;
+
+    border-left: 0 !important;
+
+    border-radius: 0 !important;
+
+    background:
+      var(--edera-lime) !important;
+
+    color:
+      var(--edera-ink) !important;
+
+    white-space: nowrap !important;
+
+    flex: none !important;
+
+    order: initial !important;
+  }
+}
+
 /* =========================================================
-   Reduced motion
+   REDUCED MOTION
    ========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1199,7 +1404,7 @@ input {
 }
 
 /* =========================================================
-   Edera accessibility override
+   EDERA ACCESSIBILITY OVERRIDE
    Keep text black on light/white UI surfaces
    ========================================================= */
 
@@ -1218,8 +1423,6 @@ input {
   color: #000;
 }
 
-/* Secondary text on white/mint surfaces */
-
 .panel-subtitle,
 .guide-subtitle,
 .resource-meta,
@@ -1235,8 +1438,6 @@ input {
   opacity: 0.72;
 }
 
-/* Guide navigation */
-
 .guide-step-mini {
   color: #000;
 }
@@ -1246,8 +1447,6 @@ input {
 .guide-step-mini.selected {
   color: #000;
 }
-
-/* Keep the small status/category colors intentional */
 
 .panel-count {
   color: #000;
@@ -1268,7 +1467,8 @@ input {
 }
 
 /* =========================================================
-   Webernetes CLI Help
+   WEBERNETES CLI HELP
+   Edera-styled command reference
    ========================================================= */
 
 .cli-help {
@@ -1277,10 +1477,9 @@ input {
 
   color: #f8fffd;
 
-  font-family: var(--font-mono);
+  font-family:
+    var(--font-mono);
 }
-
-/* CLI title */
 
 .cli-help-header {
   margin-bottom: 16px;
@@ -1291,38 +1490,41 @@ input {
 }
 
 .cli-help-title {
-  color: var(--edera-cyan);
+  color:
+    var(--edera-cyan);
 
   font-size: 15px;
   font-weight: 700;
+
   line-height: 1.3;
 }
 
 .cli-help-version {
   margin-top: 4px;
 
-  color: rgba(223, 247, 240, 0.62);
+  color:
+    rgba(223, 247, 240, 0.62);
 
   font-size: 10px;
 }
 
-/* Introductory text */
-
 .cli-help-description {
   max-width: 780px;
+
   margin-bottom: 22px;
 
-  color: rgba(223, 247, 240, 0.78);
+  color:
+    rgba(223, 247, 240, 0.78);
 
   font-size: 11px;
+
   line-height: 1.6;
 }
-
-/* Sections */
 
 .cli-help-section {
   display: flex;
   flex-direction: column;
+
   gap: 0;
 
   margin-bottom: 22px;
@@ -1335,16 +1537,16 @@ input {
   border-bottom:
     1px solid rgba(0, 229, 212, 0.22);
 
-  color: var(--edera-cyan);
+  color:
+    var(--edera-cyan);
 
   font-size: 10px;
   font-weight: 700;
 
   text-transform: uppercase;
+
   letter-spacing: 0.12em;
 }
-
-/* Individual command rows */
 
 .cli-help-command {
   display: grid;
@@ -1370,7 +1572,8 @@ input {
 }
 
 .cli-help-command:hover {
-  background: rgba(0, 229, 212, 0.055);
+  background:
+    rgba(0, 229, 212, 0.055);
 
   border-color:
     rgba(0, 229, 212, 0.18);
@@ -1379,18 +1582,21 @@ input {
 .cli-help-command code {
   display: inline-block;
 
-  color: var(--edera-lime);
+  color:
+    var(--edera-lime);
 
   font:
     700 10px / 1.5
     var(--font-mono);
 
   white-space: pre-wrap;
+
   overflow-wrap: anywhere;
 }
 
 .cli-help-command span {
-  color: rgba(223, 247, 240, 0.72);
+  color:
+    rgba(223, 247, 240, 0.72);
 
   font:
     400 10px / 1.5
@@ -1404,7 +1610,8 @@ input {
   border-left:
     2px solid var(--edera-cyan);
 
-  border-radius: 0 6px 6px 0;
+  border-radius:
+    0 6px 6px 0;
 
   background:
     rgba(0, 229, 212, 0.055);
@@ -1417,12 +1624,13 @@ input {
     var(--font-body);
 }
 
-/* CLI mobile */
+/* CLI Help Mobile */
 
 @media (max-width: 720px) {
 
   .cli-help-command {
     grid-template-columns: 1fr;
+
     gap: 3px;
 
     padding: 9px 6px;
@@ -1438,23 +1646,28 @@ input {
 }
 
 /* =========================================================
-   Demo completion modal actions
+   DEMO COMPLETION MODAL ACTIONS
    ========================================================= */
 
 .completion-actions {
   display: flex;
+
   flex-wrap: wrap;
+
   justify-content: center;
+
   gap: 10px;
 }
 
 .completion-restart-btn,
 .completion-license-link {
   display: inline-flex;
+
   align-items: center;
   justify-content: center;
 
   min-height: 46px;
+
   padding: 13px 22px;
 
   border-radius: 8px;
@@ -1462,6 +1675,7 @@ input {
   font-weight: 800;
 
   text-decoration: none;
+
   cursor: pointer;
 }
 
@@ -1470,6 +1684,7 @@ input {
     1px solid rgba(0, 229, 212, 0.45);
 
   background: transparent;
+
   color: #f8fffd;
 }
 
@@ -1481,8 +1696,11 @@ input {
 .completion-license-link {
   border: 0;
 
-  background: #b8ff3c;
-  color: #081716;
+  background:
+    #b8ff3c;
+
+  color:
+    #081716;
 }
 
 @media (max-width: 560px) {
