@@ -3231,17 +3231,31 @@ async function initTerminalDemo() {
           tokens.includes("--all-namespaces");
 
         /*
-         * Match kubectl's output flags independently so combinations such as:
+         * Match kubectl's standard pod output modes independently:
          *
+         *   kubectl get pods
          *   kubectl get pods --show-labels
          *   kubectl get pods -o wide
          *   kubectl get pods -A --show-labels
          *   kubectl get pods -A -o wide --show-labels
          *
-         * all render the columns the user requested.
+         * NODE must only appear in wide output. LABELS must only appear when
+         * explicitly requested.
          */
-        const showLabels =
-          tokens.includes("--show-labels");
+        const showLabels = tokens.includes("--show-labels");
+
+        const outputFormatIndex = tokens.findIndex(
+          (token) => token === "-o" || token === "--output",
+        );
+        const outputFormat =
+          outputFormatIndex >= 0
+            ? (tokens[outputFormatIndex + 1] || "")
+            : "";
+
+        const wide =
+          outputFormat === "wide" ||
+          tokens.includes("-o=wide") ||
+          tokens.includes("--output=wide");
 
         let namespaceFilter = "default";
 
@@ -3280,12 +3294,25 @@ async function initTerminalDemo() {
           11,
           ...filtered.map((pod) => pod.namespace.length + 2),
         );
+        const readyWidth = 8;
+        const statusWidth = 11;
+        const restartsWidth = 10;
+        const ageWidth = Math.max(
+          6,
+          ...filtered.map((pod) => pod.age.length + 2),
+        );
+        const ipWidth = Math.max(
+          16,
+          ...filtered.map((pod) => (pod.ip || "<none>").length + 2),
+        );
         const nodeWidth = Math.max(
-          10,
+          16,
           ...filtered.map(
             (pod) => (pod.node || "<none>").length + 2,
           ),
         );
+        const nominatedNodeWidth = 17;
+        const readinessGatesWidth = 17;
         const labelWidth = Math.max(
           24,
           ...filtered.map(
@@ -3301,16 +3328,20 @@ async function initTerminalDemo() {
 
         headerColumns.push(
           "NAME".padEnd(nameWidth),
-          "READY".padEnd(8),
-          "STATUS".padEnd(11),
+          "READY".padEnd(readyWidth),
+          "STATUS".padEnd(statusWidth),
+          "RESTARTS".padEnd(restartsWidth),
+          "AGE".padEnd(ageWidth),
         );
 
-        /*
-         * Keep NODE in the simulator's normal view, preserving the behavior
-         * already present in the demo. `-o wide` remains accepted, while
-         * `--show-labels` appends the requested LABELS column.
-         */
-        headerColumns.push("NODE".padEnd(nodeWidth));
+        if (wide) {
+          headerColumns.push(
+            "IP".padEnd(ipWidth),
+            "NODE".padEnd(nodeWidth),
+            "NOMINATED NODE".padEnd(nominatedNodeWidth),
+            "READINESS GATES".padEnd(readinessGatesWidth),
+          );
+        }
 
         if (showLabels) {
           headerColumns.push("LABELS".padEnd(labelWidth));
@@ -3324,9 +3355,16 @@ async function initTerminalDemo() {
         const tableWidth =
           (allNamespaces ? namespaceWidth : 0) +
           nameWidth +
-          8 +
-          11 +
-          nodeWidth +
+          readyWidth +
+          statusWidth +
+          restartsWidth +
+          ageWidth +
+          (wide
+            ? ipWidth +
+              nodeWidth +
+              nominatedNodeWidth +
+              readinessGatesWidth
+            : 0) +
           (showLabels ? labelWidth : 0);
 
         html += `<span style="color:#08736d;">${"─".repeat(
@@ -3352,23 +3390,29 @@ async function initTerminalDemo() {
           }
 
           rowParts.push(
-            escapeHtml(
-              pod.name.padEnd(nameWidth),
-            ),
-            `${pod.status === "Running" ? "1/1" : "0/1"}`.padEnd(8),
+            escapeHtml(pod.name.padEnd(nameWidth)),
+            `${pod.status === "Running" ? "1/1" : "0/1"}`.padEnd(readyWidth),
             `<span style="color:${statusColor};">${escapeHtml(
-              pod.status.padEnd(11),
+              pod.status.padEnd(statusWidth),
             )}</span>`,
-            escapeHtml(
-              (pod.node || "<none>").padEnd(nodeWidth),
-            ),
+            "0".padEnd(restartsWidth),
+            escapeHtml(pod.age.padEnd(ageWidth)),
           );
+
+          if (wide) {
+            rowParts.push(
+              escapeHtml((pod.ip || "<none>").padEnd(ipWidth)),
+              escapeHtml(
+                (pod.node || "<none>").padEnd(nodeWidth),
+              ),
+              "<none>".padEnd(nominatedNodeWidth),
+              "<none>".padEnd(readinessGatesWidth),
+            );
+          }
 
           if (showLabels) {
             rowParts.push(
-              escapeHtml(
-                formatLabels(pod.labels),
-              ),
+              escapeHtml(formatLabels(pod.labels)),
             );
           }
 
