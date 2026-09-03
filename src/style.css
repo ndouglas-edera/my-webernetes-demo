@@ -795,11 +795,6 @@ input {
    Suggested command
    ========================================================= */
 
-/*
-  DESKTOP:
-  Command and button sit next to each other.
-*/
-
 .suggested-command {
   display: flex;
   flex-direction: row;
@@ -816,17 +811,14 @@ input {
   background: var(--edera-deep);
 }
 
-/*
-  The command itself can shrink and scroll horizontally.
-*/
-
-.suggested-command code {
+.suggested-command code,
+#suggested-command {
   display: block;
 
   flex: 1 1 auto;
   min-width: 0;
 
-  padding: 12px;
+  padding: 12px 14px;
 
   overflow-x: auto;
   overflow-y: hidden;
@@ -841,10 +833,6 @@ input {
 
   -webkit-overflow-scrolling: touch;
 }
-
-/*
-  Button on desktop.
-*/
 
 .use-command-btn,
 #use-command-btn {
@@ -1039,27 +1027,26 @@ input {
     height: 320px;
   }
 
-  /*
-    On tablet, stack the command and button.
-
-    This matches the design you liked in your screenshot.
-  */
-
   .suggested-command {
-    flex-direction: column;
-    align-items: stretch;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
 
     overflow: hidden;
   }
 
-  .suggested-command code {
-    display: block;
+  .suggested-command code,
+  #suggested-command {
+    display: block !important;
 
-    flex: 1 1 auto;
+    order: 1;
+
+    flex: 0 0 auto;
+
     width: 100%;
     min-width: 0;
 
-    padding: 18px;
+    padding: 14px 16px;
 
     overflow-x: auto;
     overflow-y: hidden;
@@ -1072,16 +1059,22 @@ input {
   .use-command-btn,
   #use-command-btn {
     display: flex !important;
+
+    order: 2;
+
     align-items: center;
     justify-content: center;
 
     width: 100%;
     min-width: 0;
-    min-height: 58px;
 
-    flex: 0 0 58px;
+    height: 46px;
+    min-height: 46px;
+
+    flex: 0 0 46px;
 
     margin: 0;
+    padding: 10px 18px;
 
     border: 0;
     border-top:
@@ -1089,7 +1082,11 @@ input {
 
     border-left: 0;
 
-    padding: 14px 20px;
+    background: var(--edera-lime);
+    color: var(--edera-ink);
+
+    font-size: 11px;
+    font-weight: 700;
 
     visibility: visible !important;
     opacity: 1 !important;
@@ -1163,22 +1160,15 @@ input {
     gap: 3px;
   }
 
-  /*
-    MOBILE COMMAND FIX
-
-    Explicitly force the same structure as tablet:
-
-    ┌───────────────────────────────┐
-    │ command → horizontally scroll │
-    ├───────────────────────────────┤
-    │         Use command           │
-    └───────────────────────────────┘
-  */
-
   .guide-current {
     width: 100%;
     min-width: 0;
   }
+
+  /*
+    MOBILE:
+    Same compact stacked design as tablet.
+  */
 
   .suggested-command {
     display: flex !important;
@@ -1190,7 +1180,7 @@ input {
 
     overflow: hidden !important;
 
-    border-radius: 18px;
+    border-radius: 14px;
   }
 
   .suggested-command code,
@@ -1205,9 +1195,14 @@ input {
     min-width: 0 !important;
     max-width: 100% !important;
 
-    min-height: 88px;
+    /*
+      IMPORTANT:
+      No artificial minimum height.
+      This removes the large empty gap.
+    */
+    min-height: 0 !important;
 
-    padding: 18px !important;
+    padding: 14px 14px !important;
 
     overflow-x: auto !important;
     overflow-y: hidden !important;
@@ -1234,13 +1229,17 @@ input {
     min-width: 0 !important;
     max-width: 100% !important;
 
-    height: 58px !important;
-    min-height: 58px !important;
+    /*
+      Smaller, tighter button.
+    */
+    height: 46px !important;
+    min-height: 46px !important;
 
-    flex: 0 0 58px !important;
+    flex: 0 0 46px !important;
+    flex-shrink: 0 !important;
 
     margin: 0 !important;
-    padding: 14px 20px !important;
+    padding: 10px 16px !important;
 
     border: 0 !important;
     border-top:
@@ -1253,7 +1252,7 @@ input {
     background: var(--edera-lime) !important;
     color: var(--edera-ink) !important;
 
-    font-size: 12px !important;
+    font-size: 11px !important;
     font-weight: 700 !important;
 
     visibility: visible !important;
