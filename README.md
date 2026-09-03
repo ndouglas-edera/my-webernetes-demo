@@ -135,6 +135,10 @@ Verify GPU access via ```nvidia-smi```:
 ```
 sudo protect workload exec workload-gpu nvidia-smi
 ```
+
+<img width="1506" height="765" alt="Screenshot 2026-09-03 at 18 08 04" src="https://github.com/user-attachments/assets/4d816b5f-f104-414f-a066-623973cce37c" />
+
+
 Success!! We’ve configured the GPU and have launched a workload in an isolated zone.
 <br/><br/>
 Cleanup commands:
