@@ -48,6 +48,11 @@ interface LocalNode {
   status: string;
   age: string;
   version: string;
+  internalIp: string;
+  externalIp: string;
+  osImage: string;
+  kernelVersion: string;
+  containerRuntime: string;
   labels: Record<string, string>;
 }
 
@@ -631,9 +636,19 @@ async function initTerminalDemo() {
       status: "Ready",
       age: "5m",
       version: "v1.30.0-webernetes",
+      internalIp: "172.31.28.21",
+      externalIp: "<none>",
+      osImage: "Webernetes Linux",
+      kernelVersion: "6.18.44-edera-host",
+      containerRuntime: "containerd://1.7.18",
       labels: {
+        "beta.kubernetes.io/arch": "amd64",
+        "beta.kubernetes.io/os": "linux",
+        "kubernetes.io/arch": "amd64",
         "kubernetes.io/hostname": "node-1",
+        "kubernetes.io/os": "linux",
         "node-role.kubernetes.io/control-plane": "",
+        "node.kubernetes.io/exclude-from-external-load-balancers": "",
       },
     },
     {
@@ -641,8 +656,17 @@ async function initTerminalDemo() {
       status: "Ready",
       age: "5m",
       version: "v1.30.0-webernetes",
+      internalIp: "172.31.28.22",
+      externalIp: "<none>",
+      osImage: "Webernetes Linux",
+      kernelVersion: "6.18.44-edera-host",
+      containerRuntime: "containerd://1.7.18",
       labels: {
+        "beta.kubernetes.io/arch": "amd64",
+        "beta.kubernetes.io/os": "linux",
+        "kubernetes.io/arch": "amd64",
         "kubernetes.io/hostname": "node-2",
+        "kubernetes.io/os": "linux",
         "node-role.kubernetes.io/worker": "",
       },
     },
@@ -651,8 +675,17 @@ async function initTerminalDemo() {
       status: "Ready",
       age: "5m",
       version: "v1.30.0-webernetes",
+      internalIp: "172.31.28.23",
+      externalIp: "<none>",
+      osImage: "Webernetes Linux",
+      kernelVersion: "6.18.44-edera-host",
+      containerRuntime: "containerd://1.7.18",
       labels: {
+        "beta.kubernetes.io/arch": "amd64",
+        "beta.kubernetes.io/os": "linux",
+        "kubernetes.io/arch": "amd64",
         "kubernetes.io/hostname": "node-3",
+        "kubernetes.io/os": "linux",
         "node-role.kubernetes.io/worker": "",
       },
     },
@@ -3351,25 +3384,151 @@ async function initTerminalDemo() {
         resource === "nodes" ||
         resource === "node"
       ) {
+        /*
+         * Support the same output modifiers people expect from a real
+         * `kubectl get nodes` command:
+         *
+         *   kubectl get nodes
+         *   kubectl get nodes -o wide
+         *   kubectl get nodes --show-labels
+         *   kubectl get nodes -o wide --show-labels
+         */
+        const showLabels = tokens.includes("--show-labels");
+
+        const outputFormatIndex = tokens.findIndex(
+          (token) => token === "-o" || token === "--output",
+        );
+        const outputFormat =
+          outputFormatIndex >= 0
+            ? (tokens[outputFormatIndex + 1] || "")
+            : "";
+
+        const wide =
+          outputFormat === "wide" ||
+          tokens.includes("-o=wide") ||
+          tokens.includes("--output=wide");
+
+        const nameWidth = Math.max(
+          11,
+          ...nodes.map((node) => node.name.length + 2),
+        );
+        const statusWidth = Math.max(
+          11,
+          ...nodes.map((node) => node.status.length + 2),
+        );
+        const rolesWidth = Math.max(
+          15,
+          ...nodes.map((node) => getNodeRoles(node).length + 2),
+        );
+        const ageWidth = Math.max(
+          7,
+          ...nodes.map((node) => node.age.length + 2),
+        );
+        const versionWidth = Math.max(
+          20,
+          ...nodes.map((node) => node.version.length + 2),
+        );
+        const internalIpWidth = Math.max(
+          16,
+          ...nodes.map((node) => node.internalIp.length + 2),
+        );
+        const externalIpWidth = Math.max(
+          16,
+          ...nodes.map((node) => node.externalIp.length + 2),
+        );
+        const osImageWidth = Math.max(
+          18,
+          ...nodes.map((node) => node.osImage.length + 2),
+        );
+        const kernelWidth = Math.max(
+          22,
+          ...nodes.map((node) => node.kernelVersion.length + 2),
+        );
+        const runtimeWidth = Math.max(
+          22,
+          ...nodes.map((node) => node.containerRuntime.length + 2),
+        );
+        const labelWidth = Math.max(
+          40,
+          ...nodes.map(
+            (node) => formatLabels(node.labels).length + 2,
+          ),
+        );
+
+        const headerColumns = [
+          "NAME".padEnd(nameWidth),
+          "STATUS".padEnd(statusWidth),
+          "ROLES".padEnd(rolesWidth),
+          "AGE".padEnd(ageWidth),
+          "VERSION".padEnd(versionWidth),
+        ];
+
+        if (wide) {
+          headerColumns.push(
+            "INTERNAL-IP".padEnd(internalIpWidth),
+            "EXTERNAL-IP".padEnd(externalIpWidth),
+            "OS-IMAGE".padEnd(osImageWidth),
+            "KERNEL-VERSION".padEnd(kernelWidth),
+            "CONTAINER-RUNTIME".padEnd(runtimeWidth),
+          );
+        }
+
+        if (showLabels) {
+          headerColumns.push("LABELS".padEnd(labelWidth));
+        }
+
         let html =
           `<span style="color:#00e5d4;font-weight:700;">` +
-          `NAME       STATUS     ROLES          VERSION` +
+          headerColumns.join("") +
           `</span>\n`;
 
+        const tableWidth =
+          nameWidth +
+          statusWidth +
+          rolesWidth +
+          ageWidth +
+          versionWidth +
+          (wide
+            ? internalIpWidth +
+              externalIpWidth +
+              osImageWidth +
+              kernelWidth +
+              runtimeWidth
+            : 0) +
+          (showLabels ? labelWidth : 0);
+
         html += `<span style="color:#08736d;">${"─".repeat(
-          60,
+          Math.max(70, tableWidth),
         )}</span>\n`;
 
         for (const node of nodes) {
-          html +=
-            `${escapeHtml(node.name.padEnd(11))}` +
+          const rowParts = [
+            escapeHtml(node.name.padEnd(nameWidth)),
             `<span style="color:#b8ff3c;">${escapeHtml(
-              node.status.padEnd(11),
-            )}</span>` +
-            `${escapeHtml(
-              getNodeRoles(node).padEnd(15),
-            )}` +
-            `${escapeHtml(node.version)}\n`;
+              node.status.padEnd(statusWidth),
+            )}</span>`,
+            escapeHtml(getNodeRoles(node).padEnd(rolesWidth)),
+            escapeHtml(node.age.padEnd(ageWidth)),
+            escapeHtml(node.version.padEnd(versionWidth)),
+          ];
+
+          if (wide) {
+            rowParts.push(
+              escapeHtml(node.internalIp.padEnd(internalIpWidth)),
+              escapeHtml(node.externalIp.padEnd(externalIpWidth)),
+              escapeHtml(node.osImage.padEnd(osImageWidth)),
+              escapeHtml(node.kernelVersion.padEnd(kernelWidth)),
+              escapeHtml(node.containerRuntime.padEnd(runtimeWidth)),
+            );
+          }
+
+          if (showLabels) {
+            rowParts.push(
+              escapeHtml(formatLabels(node.labels)),
+            );
+          }
+
+          html += `${rowParts.join("")}\n`;
         }
 
         printPre(html.trimEnd());
