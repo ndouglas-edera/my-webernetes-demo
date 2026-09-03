@@ -267,11 +267,9 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
   },
 
   /*
-   * GPU passthrough is an optional extension to the original demo. Keeping
-   * these steps optional means the existing isolation walkthrough and its
-   * completion criteria remain unchanged.
+   * GPU passthrough is intentionally not part of the guided demo flow.
+   * The GPU commands remain available in the terminal for manual exploration.
    */
-  {
 ];
 
 async function initTerminalDemo() {
