@@ -611,6 +611,37 @@ async function initTerminalDemo() {
     "nginx-deployment.yaml": NGINX_DEPLOYMENT_YAML_CONTENT,
   };
 
+  /*
+   * The demo filesystem is intentionally read-only.
+   *
+   * These files can still be read with `cat` and consumed by supported
+   * operations such as `kubectl apply -f`, but terminal editors and other
+   * write-oriented commands must not modify the in-memory manifests.
+   */
+  const localFileMetadata: Record<
+    string,
+    { size: number; modified: string }
+  > = {
+    "pod-nginx.yaml": {
+      size: NGINX_YAML_CONTENT.length,
+      modified: "Apr  9 07:48",
+    },
+    "runtimeclass-edera.yaml": {
+      size: RUNTIMECLASS_EDERA_YAML_CONTENT.length,
+      modified: "Apr  9 07:48",
+    },
+    "pod-hardened-vessel.yaml": {
+      size: HARDENED_VESSEL_YAML_CONTENT.length,
+      modified: "Apr  9 07:48",
+    },
+    "nginx-deployment.yaml": {
+      size: NGINX_DEPLOYMENT_YAML_CONTENT.length,
+      modified: "Apr  9 07:47",
+    },
+  };
+
+  const READ_ONLY_FILE_MODE = "-r--r--r--";
+  const READ_ONLY_DIRECTORY_MODE = "dr-xr-xr-x";
 
   const startNewDemoSession = () => {
     // Reset the demo walkthrough and the in-memory UI state.
@@ -2014,6 +2045,11 @@ async function initTerminalDemo() {
           <div class="cli-help-command">
             <code>ls</code>
             <span>List the local manifest files available in the demo.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>ls -la</code>
+            <span>Show all local demo files with read-only permissions and metadata.</span>
           </div>
 
           <div class="cli-help-command">
@@ -3869,19 +3905,104 @@ async function initTerminalDemo() {
         }
 
         /*
+         * Read-only editor protection
+         *
+         * The demo exposes manifests as immutable local files. They may be
+         * read or applied, but interactive editors are explicitly blocked.
+         */
+        if (tokens[0] === "vi" || tokens[0] === "nano") {
+          const editor = escapeHtml(tokens[0]);
+
+          printHtml(
+            `<span style="color:#ff7373;">${editor}: this demo filesystem is read-only; editing local files is not permitted.</span>`,
+          );
+
+          addEvent(
+            "Warning",
+            "ReadOnlyFilesystem",
+            "terminal",
+            `${tokens[0]} attempted to modify a read-only demo file`,
+          );
+
+          return;
+        }
+
+        /*
          * ls
+         *
+         * `ls` keeps the existing compact listing.
+         * `ls -l` and `ls -la` expose a realistic long listing showing that
+         * all demo manifests are readable but not writable.
          */
         if (tokens[0] === "ls") {
-          const files = Object.keys(localFiles)
-            .map(
-              (file) =>
-                `<span style="color:#5e9f2d;font-weight:600;">${escapeHtml(
-                  file,
-                )}</span>`,
-            )
-            .join("  ");
+          const requestedFlags = tokens.slice(1);
+          const supportedLongListing =
+            requestedFlags.length > 0 &&
+            requestedFlags.every(
+              (flag) =>
+                flag === "-l" ||
+                flag === "-a" ||
+                flag === "-la" ||
+                flag === "-al",
+            ) &&
+            requestedFlags.some(
+              (flag) =>
+                flag === "-l" ||
+                flag === "-la" ||
+                flag === "-al",
+            );
 
-          printHtml(files);
+          if (requestedFlags.length === 0) {
+            const files = Object.keys(localFiles)
+              .map(
+                (file) =>
+                  `<span style="color:#5e9f2d;font-weight:600;">${escapeHtml(
+                    file,
+                  )}</span>`,
+              )
+              .join("  ");
+
+            printHtml(files);
+            return;
+          }
+
+          if (supportedLongListing) {
+            const fileNames = Object.keys(localFiles);
+
+            const totalSize = fileNames.reduce(
+              (sum, file) =>
+                sum + (localFileMetadata[file]?.size || localFiles[file].length),
+              0,
+            );
+
+            const longListing = [
+              `total ${totalSize}`,
+              `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:53 ./`,
+              `dr-xr-xr-x 1 user 197609        0 Apr  9 07:42 ../`,
+              ...fileNames.map((file) => {
+                const metadata = localFileMetadata[file] || {
+                  size: localFiles[file].length,
+                  modified: "Apr  9 07:48",
+                };
+
+                return `${READ_ONLY_FILE_MODE} 1 user 197609 ${String(
+                  metadata.size,
+                ).padStart(8, " ")} ${metadata.modified} ${file}`;
+              }),
+            ].join("\n");
+
+            printPre(
+              `<span style="color:#dff7f0;">${escapeHtml(
+                longListing,
+              )}</span>`,
+            );
+
+            return;
+          }
+
+          printHtml(
+            `<span style="color:#ff7373;">ls: unsupported option. Try: ls or ls -la</span>`,
+          );
 
           return;
         }
