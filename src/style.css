@@ -51,22 +51,18 @@ input {
   font-family: inherit;
 }
 
-
 /* =========================================================
-   MAIN SHELL
+   Demo shell
    ========================================================= */
 
 .demo-shell {
   position: relative;
   isolation: isolate;
-
   width: 100%;
   max-width: 1440px;
   min-height: 100vh;
-
   margin: 0 auto;
   padding: 32px clamp(18px, 4vw, 64px) 42px;
-
   overflow: hidden;
 
   background:
@@ -83,16 +79,12 @@ input {
 
 .demo-shell::before {
   content: "";
-
   position: absolute;
   z-index: -1;
-
   top: 100px;
   left: 5%;
-
   width: 90%;
   height: 700px;
-
   opacity: 0.48;
 
   background-image:
@@ -115,26 +107,21 @@ input {
   pointer-events: none;
 }
 
-
 /* =========================================================
-   TOP HEADER
+   Header
    ========================================================= */
 
 .top-header {
   position: relative;
-
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 28px;
 
   width: min(100%, 1180px);
-  min-width: 0;
-
-  min-height: 76px;
-
   margin: 0 auto 62px;
   padding: 13px 24px;
+  min-height: 76px;
 
   border: 1px solid rgba(0, 63, 61, 0.08);
   border-radius: 999px;
@@ -142,8 +129,7 @@ input {
   background: var(--edera-mint);
   color: var(--edera-ink);
 
-  box-shadow:
-    0 16px 45px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.12);
 }
 
 .top-header .logo-link {
@@ -170,15 +156,12 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 28px;
-
   min-width: 0;
 }
 
 .top-header h1 {
   margin: 0;
-
   color: var(--edera-ink);
-
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -186,24 +169,19 @@ input {
 
 .top-header p {
   margin: 0;
-
   color: rgba(5, 47, 45, 0.72);
-
   font-size: 12px;
   text-align: right;
 }
 
-
 /* =========================================================
-   HERO
+   Hero
    ========================================================= */
 
 .brand-hero {
   width: min(100%, 980px);
-
   margin: 0 auto 58px;
   padding: 4px 0 0;
-
   text-align: center;
 }
 
@@ -242,7 +220,6 @@ input {
 
 .brand-hero p {
   max-width: 980px;
-
   margin: 34px auto 0;
 
   color: rgba(239, 255, 251, 0.88);
@@ -257,7 +234,6 @@ input {
   justify-content: center;
 
   min-width: 220px;
-
   margin-top: 36px;
   padding: 17px 28px;
 
@@ -267,7 +243,9 @@ input {
   background: var(--edera-lime);
   color: var(--edera-ink);
 
-  font: 700 15px var(--font-body);
+  font:
+    700 15px
+    var(--font-body);
 
   cursor: pointer;
 
@@ -284,19 +262,19 @@ input {
   filter: brightness(1.05);
 }
 
-
 /* =========================================================
-   DASHBOARD
+   Demo
    ========================================================= */
 
 .demo-kicker {
   width: min(100%, 1180px);
-
   margin: 0 auto 12px;
 
   color: var(--edera-cyan);
 
-  font: 700 10px var(--font-mono);
+  font:
+    700 10px
+    var(--font-mono);
 
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -308,9 +286,12 @@ input {
   gap: 16px;
 
   width: min(100%, 1180px);
-
   margin: 0 auto 16px;
 }
+
+/* =========================================================
+   Panels
+   ========================================================= */
 
 .panel,
 .guide-panel {
@@ -318,7 +299,7 @@ input {
   border-radius: 18px;
 
   background: var(--edera-mint);
-  color: #000;
+  color: var(--edera-ink);
 
   box-shadow:
     0 16px 40px rgba(0, 20, 19, 0.16);
@@ -333,7 +314,6 @@ input {
   gap: 10px;
 
   min-height: 58px;
-
   padding: 12px 16px;
 
   border-bottom: 1px solid var(--edera-line);
@@ -343,7 +323,7 @@ input {
 .guide-title {
   margin: 0;
 
-  color: #000;
+  color: var(--edera-ink);
 
   font-size: 13px;
   font-weight: 700;
@@ -351,10 +331,8 @@ input {
 
 .drag-handle {
   color: rgba(5, 47, 45, 0.32);
-
   cursor: grab;
   user-select: none;
-
   font-size: 13px;
 }
 
@@ -362,22 +340,20 @@ input {
 .guide-subtitle {
   margin: 3px 0 0;
 
-  color: #000;
-  opacity: 0.72;
+  color: rgba(5, 47, 45, 0.58);
 
   font-size: 10px;
 }
 
 .panel-count {
   margin-left: auto;
-
   padding: 4px 8px;
 
   border: 1px solid rgba(0, 90, 87, 0.18);
   border-radius: 999px;
 
   background: var(--edera-mint-2);
-  color: #000;
+  color: var(--edera-teal);
 
   font-size: 9px;
   font-weight: 700;
@@ -385,14 +361,13 @@ input {
 
 .hide-btn {
   margin-left: 4px;
-
   padding: 6px 9px;
 
-  border: 1px solid rgba(0, 90, 87, 0.20);
+  border: 1px solid rgba(0, 90, 87, 0.2);
   border-radius: 999px;
 
   background: transparent;
-  color: #000;
+  color: var(--edera-teal);
 
   font-size: 9px;
   font-weight: 700;
@@ -409,9 +384,8 @@ input {
   transform: translateY(-1px);
 }
 
-
 /* =========================================================
-   RESOURCE CARDS
+   Resources
    ========================================================= */
 
 .resource-body,
@@ -427,12 +401,12 @@ input {
 
 .resource-card,
 .zone-card {
-  padding: 10px 11px;
-
   border: 1px solid rgba(0, 90, 87, 0.13);
   border-radius: 11px;
 
   background: rgba(255, 255, 255, 0.46);
+
+  padding: 10px 11px;
 }
 
 .resource-card {
@@ -462,8 +436,7 @@ input {
 
 .resource-name,
 .zone-name {
-  color: #000;
-
+  color: var(--edera-teal);
   font-size: 12px;
   font-weight: 700;
 }
@@ -471,9 +444,7 @@ input {
 .resource-meta,
 .zone-uuid,
 .zone-meta {
-  color: #000;
-  opacity: 0.72;
-
+  color: rgba(5, 47, 45, 0.58);
   font-size: 10px;
   line-height: 1.4;
 }
@@ -481,6 +452,10 @@ input {
 .resource-meta {
   margin-top: 2px;
 }
+
+/* =========================================================
+   Status badges
+   ========================================================= */
 
 .status-badge {
   padding: 4px 7px;
@@ -512,9 +487,8 @@ input {
   background: rgba(5, 47, 45, 0.06);
 }
 
-
 /* =========================================================
-   ZONE CARDS
+   Zones
    ========================================================= */
 
 .protect-panel {
@@ -552,9 +526,8 @@ input {
   margin-top: 8px;
 }
 
-
 /* =========================================================
-   MAIN LAYOUT
+   Main layout
    ========================================================= */
 
 .main-layout {
@@ -563,11 +536,14 @@ input {
   gap: 16px;
 
   width: min(100%, 1180px);
-
   margin: 0 auto;
 
   align-items: stretch;
 }
+
+/* =========================================================
+   Terminal
+   ========================================================= */
 
 .terminal-panel {
   min-width: 0;
@@ -626,7 +602,6 @@ input {
   color: #dff7f0;
 
   font: inherit;
-
   white-space: pre;
 }
 
@@ -635,13 +610,13 @@ input {
   align-items: center;
 
   min-height: 56px;
-
   padding: 12px 16px;
 
-  border-top:
-    1px solid rgba(0, 229, 212, 0.22);
+  border-top: 1px solid rgba(0, 229, 212, 0.22);
 
-  font: 12px var(--font-mono);
+  font:
+    12px
+    var(--font-mono);
 }
 
 .terminal-input-row span {
@@ -669,16 +644,15 @@ input {
   color: rgba(168, 207, 202, 0.48);
 }
 
-
 /* =========================================================
-   EVENTS
+   Events
    ========================================================= */
 
 .events-panel {
+  height: 462px;
+
   display: flex;
   flex-direction: column;
-
-  height: 462px;
 }
 
 .events-stream {
@@ -715,8 +689,7 @@ input {
 .event-time,
 .event-message,
 .event-object {
-  color: #000;
-  opacity: 0.72;
+  color: rgba(5, 47, 45, 0.54);
 }
 
 .event-badge {
@@ -748,7 +721,7 @@ input {
 .event-reason {
   margin-top: 4px;
 
-  color: #000;
+  color: var(--edera-ink);
 
   font-weight: 700;
 }
@@ -761,9 +734,8 @@ input {
   margin-top: 2px;
 }
 
-
 /* =========================================================
-   GUIDE PANEL
+   Guide
    ========================================================= */
 
 .guide-panel {
@@ -774,7 +746,6 @@ input {
 .guide-progress {
   display: flex;
   gap: 5px;
-
   margin-left: auto;
 }
 
@@ -806,15 +777,10 @@ input {
   padding: 16px;
 }
 
-.guide-current {
-  min-width: 0;
-}
-
 .guide-label {
   margin-bottom: 7px;
 
-  color: #000;
-  opacity: 0.72;
+  color: rgba(5, 47, 45, 0.55);
 
   font-size: 9px;
   font-weight: 700;
@@ -826,7 +792,7 @@ input {
 .guide-step-title {
   margin-bottom: 6px;
 
-  color: #000;
+  color: var(--edera-ink);
 
   font-size: 17px;
   font-weight: 700;
@@ -835,28 +801,25 @@ input {
 .guide-description {
   margin-bottom: 13px;
 
-  color: #000;
-  opacity: 0.72;
+  color: rgba(5, 47, 45, 0.65);
 
   font-size: 12px;
   line-height: 1.5;
 }
 
-
 /* =========================================================
-   SUGGESTED COMMAND
-   Force command + button onto one row.
-   Button ALWAYS remains on the right.
+   Suggested command
+   DESKTOP:
+   Command on left
+   Button on right
    ========================================================= */
 
 .suggested-command {
-  display: grid !important;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
 
-  grid-template-columns:
-    minmax(0, 1fr)
-    max-content !important;
-
-  grid-template-rows: auto !important;
+  align-items: stretch;
 
   width: 100%;
   min-width: 0;
@@ -869,16 +832,12 @@ input {
   background: var(--edera-deep);
 }
 
-
-/* Command */
-
-.suggested-command > #suggested-command {
+.suggested-command code {
   display: block;
 
-  grid-column: 1 !important;
-  grid-row: 1 !important;
+  order: 1;
 
-  width: 100%;
+  flex: 1 1 0;
   min-width: 0;
 
   padding: 12px;
@@ -893,42 +852,35 @@ input {
     var(--font-mono);
 
   white-space: pre;
+
+  -webkit-overflow-scrolling: touch;
 }
 
+.use-command-btn,
+#use-command-btn {
+  display: flex;
 
-/* Use command button */
+  order: 2;
 
-.suggested-command > #use-command-btn,
-#use-command-btn.use-command-btn {
-  display: flex !important;
-
-  grid-column: 2 !important;
-  grid-row: 1 !important;
+  flex: 0 0 auto;
 
   align-items: center;
   justify-content: center;
 
-  width: auto !important;
-  min-width: max-content !important;
+  min-width: 108px;
 
-  margin: 0 !important;
+  border: 0;
+  border-left: 1px solid rgba(0, 229, 212, 0.25);
 
-  padding: 0 15px !important;
+  padding: 0 15px;
 
-  border: 0 !important;
-  border-left:
-    1px solid rgba(0, 229, 212, 0.25) !important;
+  background: var(--edera-lime);
+  color: var(--edera-ink);
 
-  border-radius: 0 !important;
-
-  background: var(--edera-lime) !important;
-  color: var(--edera-ink) !important;
-
-  font-family: var(--font-body);
   font-size: 10px;
   font-weight: 700;
 
-  white-space: nowrap !important;
+  white-space: nowrap;
 
   cursor: pointer;
 
@@ -937,14 +889,13 @@ input {
     transform 140ms ease;
 }
 
-.suggested-command > #use-command-btn:hover,
-#use-command-btn.use-command-btn:hover {
+.use-command-btn:hover,
+#use-command-btn:hover {
   filter: brightness(1.04);
 }
 
-
 /* =========================================================
-   GUIDE NAVIGATION
+   Guide side
    ========================================================= */
 
 .guide-side {
@@ -959,31 +910,28 @@ input {
 .guide-side-title {
   margin-bottom: 8px;
 
-  color: #000;
+  color: var(--edera-ink);
 
   font-size: 11px;
   font-weight: 700;
 }
 
 .guide-step-mini {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-
   width: 100%;
+
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
 
   margin: 0;
   padding: 7px 4px;
 
   border: 0;
-  border-bottom:
-    1px solid rgba(0, 90, 87, 0.11);
-
+  border-bottom: 1px solid rgba(0, 90, 87, 0.11);
   border-radius: 5px;
 
   background: transparent;
-
-  color: #000;
+  color: rgba(5, 47, 45, 0.58);
 
   font:
     10px
@@ -1006,7 +954,7 @@ input {
 .guide-step-mini.current,
 .guide-step-mini.selected {
   background: var(--edera-mint-2);
-  color: #000;
+  color: var(--edera-ink);
 }
 
 .guide-step-mini.selected {
@@ -1038,15 +986,13 @@ input {
 .empty-state {
   padding: 8px 0;
 
-  color: #000;
-  opacity: 0.72;
+  color: rgba(5, 47, 45, 0.5);
 
   font-size: 10px;
 }
 
-
 /* =========================================================
-   FOOTER
+   Footer
    ========================================================= */
 
 .edera-footer {
@@ -1056,12 +1002,10 @@ input {
   gap: 9px;
 
   width: min(100%, 1180px);
-
   margin: 28px auto 0;
   padding: 18px 0 4px;
 
-  border-top:
-    1px solid rgba(0, 229, 212, 0.18);
+  border-top: 1px solid rgba(0, 229, 212, 0.18);
 
   color: var(--edera-muted);
 
@@ -1077,9 +1021,7 @@ input {
 
   object-fit: cover;
 
-  border:
-    1px solid rgba(0, 229, 212, 0.25);
-
+  border: 1px solid rgba(0, 229, 212, 0.25);
   border-radius: 50%;
 }
 
@@ -1092,9 +1034,251 @@ input {
   text-decoration: underline;
 }
 
+/* =========================================================
+   Responsive
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+  .main-layout,
+  .guide-body {
+    grid-template-columns: 1fr;
+  }
+
+  .events-panel {
+    height: 320px;
+  }
+}
+
+@media (max-width: 720px) {
+
+  .top-header {
+    grid-template-columns: 1fr;
+    gap: 8px;
+
+    border-radius: 28px;
+
+    padding: 14px 18px;
+  }
+
+  .top-header::before {
+    width: 98px;
+    height: 36px;
+
+    font-size: 20px;
+  }
+
+  .top-header > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .top-header p {
+    text-align: left;
+  }
+
+  .brand-hero {
+    margin-bottom: 40px;
+  }
+
+  .hero-eyebrow {
+    margin-bottom: 24px;
+    padding: 9px 16px;
+  }
+
+  .brand-hero p {
+    margin-top: 22px;
+    font-size: 15px;
+  }
+
+  .hero-cta {
+    width: 100%;
+    margin-top: 26px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-shell {
+    padding: 20px 12px 32px;
+  }
+
+  /* =======================================================
+     MOBILE SUGGESTED COMMAND
+     
+     Button fixed on LEFT
+     Command scrolls horizontally on RIGHT
+     ======================================================= */
+
+  .suggested-command {
+    display: flex !important;
+
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+
+    align-items: stretch;
+
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+
+    overflow: hidden !important;
+  }
+
+  .suggested-command code {
+    display: block !important;
+
+    order: 2 !important;
+
+    flex: 1 1 0 !important;
+
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+
+    padding: 12px !important;
+
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+
+    white-space: pre !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #use-command-btn,
+  .use-command-btn {
+    display: flex !important;
+
+    order: 1 !important;
+
+    flex: 0 0 138px !important;
+
+    width: 138px !important;
+    min-width: 138px !important;
+    max-width: 138px !important;
+
+    align-self: stretch !important;
+    align-items: center;
+    justify-content: center;
+
+    margin: 0 !important;
+
+    padding: 0 12px !important;
+
+    border: 0 !important;
+    border-right: 1px solid rgba(0, 229, 212, 0.25) !important;
+    border-left: 0 !important;
+
+    border-radius: 0 !important;
+
+    white-space: nowrap !important;
+
+    position: relative !important;
+    z-index: 2 !important;
+
+    overflow: visible !important;
+  }
+
+  .cli-help-command {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .cli-help-command {
+    padding: 9px 6px;
+  }
+}
 
 /* =========================================================
-   CLI HELP
+   Reduced motion
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
+/* =========================================================
+   Edera accessibility override
+   Keep text black on light/white UI surfaces
+   ========================================================= */
+
+.panel,
+.guide-panel {
+  color: #000;
+}
+
+.panel h3,
+.guide-title,
+.guide-step-title,
+.guide-side-title,
+.resource-name,
+.zone-name,
+.event-reason {
+  color: #000;
+}
+
+/* Secondary text on white/mint surfaces */
+
+.panel-subtitle,
+.guide-subtitle,
+.resource-meta,
+.zone-uuid,
+.zone-meta,
+.guide-description,
+.guide-label,
+.event-time,
+.event-message,
+.event-object,
+.empty-state {
+  color: #000;
+  opacity: 0.72;
+}
+
+/* Guide navigation */
+
+.guide-step-mini {
+  color: #000;
+}
+
+.guide-step-mini:hover,
+.guide-step-mini.current,
+.guide-step-mini.selected {
+  color: #000;
+}
+
+/* Keep the small status/category colors intentional */
+
+.panel-count {
+  color: #000;
+}
+
+.hide-btn {
+  color: #000;
+}
+
+/* Footer remains on dark background */
+
+.edera-footer {
+  color: var(--edera-muted);
+}
+
+.edera-footer a {
+  color: var(--edera-cyan);
+}
+
+/* =========================================================
+   Webernetes CLI Help
    ========================================================= */
 
 .cli-help {
@@ -1105,6 +1289,8 @@ input {
 
   font-family: var(--font-mono);
 }
+
+/* CLI title */
 
 .cli-help-header {
   margin-bottom: 16px;
@@ -1130,9 +1316,10 @@ input {
   font-size: 10px;
 }
 
+/* Introductory text */
+
 .cli-help-description {
   max-width: 780px;
-
   margin-bottom: 22px;
 
   color: rgba(223, 247, 240, 0.78);
@@ -1140,6 +1327,8 @@ input {
   font-size: 11px;
   line-height: 1.6;
 }
+
+/* Sections */
 
 .cli-help-section {
   display: flex;
@@ -1165,6 +1354,8 @@ input {
   letter-spacing: 0.12em;
 }
 
+/* Individual command rows */
+
 .cli-help-command {
   display: grid;
 
@@ -1173,6 +1364,7 @@ input {
     minmax(180px, 1.1fr);
 
   gap: 24px;
+
   align-items: start;
 
   padding: 9px 10px;
@@ -1188,8 +1380,7 @@ input {
 }
 
 .cli-help-command:hover {
-  background:
-    rgba(0, 229, 212, 0.055);
+  background: rgba(0, 229, 212, 0.055);
 
   border-color:
     rgba(0, 229, 212, 0.18);
@@ -1236,9 +1427,28 @@ input {
     var(--font-body);
 }
 
+/* CLI mobile */
+
+@media (max-width: 720px) {
+
+  .cli-help-command {
+    grid-template-columns: 1fr;
+    gap: 3px;
+
+    padding: 9px 6px;
+  }
+
+  .cli-help-command code {
+    font-size: 10px;
+  }
+
+  .cli-help-command span {
+    font-size: 9px;
+  }
+}
 
 /* =========================================================
-   COMPLETION MODAL
+   Demo completion modal actions
    ========================================================= */
 
 .completion-actions {
@@ -1255,14 +1465,13 @@ input {
   justify-content: center;
 
   min-height: 46px;
-
   padding: 13px 22px;
 
   border-radius: 8px;
 
   font-weight: 800;
-  text-decoration: none;
 
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -1282,164 +1491,12 @@ input {
 .completion-license-link {
   border: 0;
 
-  background: var(--edera-lime);
+  background: #b8ff3c;
   color: #081716;
 }
 
-
-/* =========================================================
-   TABLET
-   ========================================================= */
-
-@media (max-width: 900px) {
-  .main-layout,
-  .guide-body {
-    grid-template-columns: 1fr;
-  }
-
-  .events-panel {
-    height: 320px;
-  }
-}
-
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width: 720px) {
-  .top-header {
-    grid-template-columns: 1fr;
-    gap: 8px;
-
-    padding: 14px 18px;
-
-    border-radius: 28px;
-  }
-
-  .top-header::before {
-    width: 98px;
-    height: 36px;
-
-    font-size: 20px;
-  }
-
-  .top-header > div {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .top-header p {
-    text-align: left;
-  }
-
-  .brand-hero {
-    margin-bottom: 40px;
-  }
-
-  .hero-eyebrow {
-    margin-bottom: 24px;
-    padding: 9px 16px;
-  }
-
-  .brand-hero p {
-    margin-top: 22px;
-
-    font-size: 15px;
-  }
-
-  .hero-cta {
-    width: 100%;
-
-    margin-top: 26px;
-  }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .demo-shell {
-    padding: 20px 12px 32px;
-  }
-
-  .cli-help-command {
-    grid-template-columns: 1fr;
-
-    gap: 3px;
-
-    padding: 9px 6px;
-  }
-
-  .cli-help-command code {
-    font-size: 10px;
-  }
-
-  .cli-help-command span {
-    font-size: 9px;
-  }
-
-
-  /* -------------------------------------------------------
-     CRITICAL MOBILE FIX
-
-     Never stack #suggested-command and #use-command-btn.
-     The command shrinks and scrolls horizontally.
-     The button stays fixed on the right.
-     ------------------------------------------------------- */
-
-  .suggested-command {
-    display: grid !important;
-
-    grid-template-columns:
-      minmax(0, 1fr)
-      max-content !important;
-
-    grid-template-rows: auto !important;
-
-    width: 100% !important;
-    min-width: 0 !important;
-
-    overflow: hidden !important;
-  }
-
-  .suggested-command > #suggested-command {
-    display: block !important;
-
-    grid-column: 1 !important;
-    grid-row: 1 !important;
-
-    width: 100% !important;
-    min-width: 0 !important;
-
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-
-    white-space: pre !important;
-  }
-
-  .suggested-command > #use-command-btn,
-  #use-command-btn.use-command-btn {
-    display: flex !important;
-
-    grid-column: 2 !important;
-    grid-row: 1 !important;
-
-    width: auto !important;
-    min-width: max-content !important;
-
-    margin: 0 !important;
-
-    white-space: nowrap !important;
-  }
-}
-
-
-/* =========================================================
-   SMALL MOBILE
-   ========================================================= */
-
 @media (max-width: 560px) {
+
   .completion-actions {
     flex-direction: column;
   }
@@ -1447,63 +1504,5 @@ input {
   .completion-restart-btn,
   .completion-license-link {
     width: 100%;
-  }
-
-
-  /* Final safeguard for the command button */
-
-  .suggested-command {
-    display: grid !important;
-
-    grid-template-columns:
-      minmax(0, 1fr)
-      max-content !important;
-
-    grid-template-rows: auto !important;
-
-    width: 100% !important;
-    min-width: 0 !important;
-  }
-
-  .suggested-command > #suggested-command {
-    grid-column: 1 !important;
-    grid-row: 1 !important;
-
-    width: 100% !important;
-    min-width: 0 !important;
-
-    overflow-x: auto !important;
-
-    white-space: pre !important;
-  }
-
-  .suggested-command > #use-command-btn,
-  #use-command-btn.use-command-btn {
-    display: flex !important;
-
-    grid-column: 2 !important;
-    grid-row: 1 !important;
-
-    width: auto !important;
-    min-width: max-content !important;
-
-    margin: 0 !important;
-    padding: 0 15px !important;
-
-    white-space: nowrap !important;
-  }
-}
-
-
-/* =========================================================
-   REDUCED MOTION
-   ========================================================= */
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition: none !important;
   }
 }
