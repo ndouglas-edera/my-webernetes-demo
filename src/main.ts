@@ -1062,11 +1062,13 @@ vfio_pci`;
               ? "status-destroyed"
               : "status-pending";
 
+        const isDestroyed = zone.state === "destroyed";
+
         return `
-          <div class="zone-card">
+          <div class="zone-card${isDestroyed ? " zone-card-destroyed" : ""}">
             <div class="zone-top">
               <div>
-                <div class="zone-name">
+                <div class="zone-name${isDestroyed ? " zone-name-destroyed" : ""}">
                   🛡️ ${escapeHtml(zone.name)}
                 </div>
 
