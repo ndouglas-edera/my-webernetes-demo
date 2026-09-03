@@ -2171,6 +2171,11 @@ vfio_pci`;
             <code>kubectl label node &lt;node&gt; &lt;key&gt;=&lt;value&gt;</code>
             <span>Add or update a label on a simulated node.</span>
           </div>
+ 
+          <div class="cli-help-command">
+            <code>kubectl label pod &lt;pod&gt; &lt;key&gt;=&lt;value&gt;</code>
+            <span>Add or update a label on a simulated pod.</span>
+          </div>
 
           <div class="cli-help-command">
             <code>kubectl apply -f &lt;filename.yaml&gt;</code>
@@ -3931,6 +3936,68 @@ vfio_pci`;
 
         return true;
       }
+    }
+
+    /*
+     * kubectl label pod
+     */
+    if (
+      tokens[1] === "label" &&
+      (tokens[2] === "pod" ||
+        tokens[2] === "pods")
+    ) {
+      const podName = tokens[3];
+      const labelExpression = tokens[4];
+
+      const pod = pods.find(
+        (item) => item.name === podName,
+      );
+
+      if (!pod) {
+        printHtml(
+          `<span style="color:#ff7373;">Error from server (NotFound): pods "${escapeHtml(
+            podName || "",
+          )}" not found</span>`,
+        );
+        return true;
+      }
+
+      if (!labelExpression) {
+        printHtml(
+          `<span style="color:#ff7373;">Error: label required.</span>`,
+        );
+        return true;
+      }
+
+      if (!pod.labels) {
+        pod.labels = {};
+      }
+
+      if (labelExpression.includes("=")) {
+        const [key, ...valueParts] =
+          labelExpression.split("=");
+
+        pod.labels[key] = valueParts.join("=") || "";
+      } else {
+        pod.labels[labelExpression] = "";
+      }
+
+      addEvent(
+        "Normal",
+        "Labeled",
+        `pod/${pod.name}`,
+        `Pod labeled with ${labelExpression}`,
+      );
+
+      printHtml(
+        `<span style="color:#b8ff3c;">pod/${escapeHtml(
+          pod.name,
+        )} labeled</span>`,
+      );
+
+      updateDashboard();
+
+      return true;
     }
 
     /*
