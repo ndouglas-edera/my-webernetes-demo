@@ -112,7 +112,10 @@ const RUNTIMECLASS_EDERA_YAML_CONTENT = `apiVersion: node.k8s.io/v1
 kind: RuntimeClass
 metadata:
   name: edera
-handler: edera`;
+handler: edera
+scheduling:
+  nodeSelector:
+    runtime: edera`;
 
 const NGINX_DEPLOYMENT_YAML_CONTENT = `apiVersion: apps/v1
 kind: Deployment
