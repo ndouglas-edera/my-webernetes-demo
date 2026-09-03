@@ -3197,6 +3197,19 @@ async function initTerminalDemo() {
           tokens.includes("-A") ||
           tokens.includes("--all-namespaces");
 
+        /*
+         * Match kubectl's output flags independently so combinations such as:
+         *
+         *   kubectl get pods --show-labels
+         *   kubectl get pods -o wide
+         *   kubectl get pods -A --show-labels
+         *   kubectl get pods -A -o wide --show-labels
+         *
+         * all render the columns the user requested.
+         */
+        const showLabels =
+          tokens.includes("--show-labels");
+
         let namespaceFilter = "default";
 
         for (let i = 0; i < tokens.length; i++) {
@@ -3226,32 +3239,107 @@ async function initTerminalDemo() {
           return true;
         }
 
+        const nameWidth = Math.max(
+          21,
+          ...filtered.map((pod) => pod.name.length + 2),
+        );
+        const namespaceWidth = Math.max(
+          11,
+          ...filtered.map((pod) => pod.namespace.length + 2),
+        );
+        const nodeWidth = Math.max(
+          10,
+          ...filtered.map(
+            (pod) => (pod.node || "<none>").length + 2,
+          ),
+        );
+        const labelWidth = Math.max(
+          24,
+          ...filtered.map(
+            (pod) => formatLabels(pod.labels).length + 2,
+          ),
+        );
+
+        const headerColumns: string[] = [];
+
+        if (allNamespaces) {
+          headerColumns.push("NAMESPACE".padEnd(namespaceWidth));
+        }
+
+        headerColumns.push(
+          "NAME".padEnd(nameWidth),
+          "READY".padEnd(8),
+          "STATUS".padEnd(11),
+        );
+
+        /*
+         * Keep NODE in the simulator's normal view, preserving the behavior
+         * already present in the demo. `-o wide` remains accepted, while
+         * `--show-labels` appends the requested LABELS column.
+         */
+        headerColumns.push("NODE".padEnd(nodeWidth));
+
+        if (showLabels) {
+          headerColumns.push("LABELS".padEnd(labelWidth));
+        }
+
         let html =
           `<span style="color:#00e5d4;font-weight:700;">` +
-          `${allNamespaces ? "NAMESPACE   " : ""}` +
-          `NAME                 READY   STATUS     NODE` +
+          headerColumns.join("") +
           `</span>\n`;
 
+        const tableWidth =
+          (allNamespaces ? namespaceWidth : 0) +
+          nameWidth +
+          8 +
+          11 +
+          nodeWidth +
+          (showLabels ? labelWidth : 0);
+
         html += `<span style="color:#08736d;">${"─".repeat(
-          70,
+          Math.max(70, tableWidth),
         )}</span>\n`;
 
         for (const pod of filtered) {
           const statusColor =
             pod.status === "Running"
               ? "#b8ff3c"
-              : "#ffd166";
+              : pod.status === "Failed"
+                ? "#ff7373"
+                : "#ffd166";
 
-          html +=
-            `${allNamespaces ? escapeHtml(
-              pod.namespace.padEnd(11),
-            ) : ""}` +
-            `${escapeHtml(pod.name.padEnd(21))}` +
-            `${pod.status === "Running" ? "1/1" : "0/1"}     ` +
+          const rowParts: string[] = [];
+
+          if (allNamespaces) {
+            rowParts.push(
+              escapeHtml(
+                pod.namespace.padEnd(namespaceWidth),
+              ),
+            );
+          }
+
+          rowParts.push(
+            escapeHtml(
+              pod.name.padEnd(nameWidth),
+            ),
+            `${pod.status === "Running" ? "1/1" : "0/1"}`.padEnd(8),
             `<span style="color:${statusColor};">${escapeHtml(
-              pod.status.padEnd(10),
-            )}</span>` +
-            `${escapeHtml(pod.node || "<none>")}\n`;
+              pod.status.padEnd(11),
+            )}</span>`,
+            escapeHtml(
+              (pod.node || "<none>").padEnd(nodeWidth),
+            ),
+          );
+
+          if (showLabels) {
+            rowParts.push(
+              escapeHtml(
+                formatLabels(pod.labels),
+              ),
+            );
+          }
+
+          html += `${rowParts.join("")}\n`;
         }
 
         printPre(html.trimEnd());
