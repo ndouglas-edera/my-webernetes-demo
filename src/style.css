@@ -1562,3 +1562,16 @@ input {
     transition: none !important;
   }
 }
+
+/* When a zone is deleted color border red */
+.zone-card-destroyed {
+  border: 2px solid #ef4444;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15);
+}
+
+.zone-name-destroyed {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: #ef4444;
+  opacity: 0.7;
+}
