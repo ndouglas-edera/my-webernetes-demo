@@ -115,6 +115,10 @@ Confirm the NVIDIA driver is loaded by checking the zone logs:
 ```
 sudo protect zone logs zone-gpu
 ```
+
+<img width="1506" height="765" alt="Screenshot 2026-09-03 at 18 06 22" src="https://github.com/user-attachments/assets/fce4f293-d2f9-47d7-847d-e7741c3f3f20" />
+
+
 Launch a workload with the NVIDIA GPU:
 ```
 sudo protect workload launch --name workload-gpu --zone zone-gpu --privileged nvidia/cuda:13.3.0-devel-ubuntu26.04 -- /bin/bash
