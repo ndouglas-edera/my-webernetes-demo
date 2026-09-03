@@ -341,22 +341,16 @@ async function initTerminalDemo() {
             <input
               id="cmd"
               type="text"
+              inputmode="text"
+              enterkeyhint="send"
+              autocapitalize="off"
+              autocorrect="off"
               placeholder="Type 'help' or use Up/Down arrow keys for command history..."
               disabled
               autocomplete="off"
               spellcheck="false"
             />
           </div>
-        </div>
-
-        <div class="panel events-panel" id="events-panel">
-          <div class="panel-header">
-            <span class="drag-handle">⋮⋮</span>
-            <h3>⚡ Lifecycle Events</h3>
-            <button class="hide-btn" id="clear-events-btn">Clear</button>
-            <button class="hide-btn" id="hide-events-btn">Hide</button>
-          </div>
-          <div id="events-stream" class="events-stream"></div>
         </div>
 
       </div>
@@ -398,6 +392,16 @@ async function initTerminalDemo() {
           </div>
 
         </div>
+      </div>
+
+      <div class="panel events-panel" id="events-panel">
+        <div class="panel-header">
+          <span class="drag-handle">⋮⋮</span>
+          <h3>⚡ Lifecycle Events</h3>
+          <button class="hide-btn" id="clear-events-btn">Clear</button>
+          <button class="hide-btn" id="hide-events-btn">Hide</button>
+        </div>
+        <div id="events-stream" class="events-stream"></div>
       </div>
 
       <div class="edera-footer">
@@ -445,8 +449,112 @@ async function initTerminalDemo() {
     </div>
   `;
 
+  /*
+   * Mobile usability improvements.
+   * Keep desktop styling untouched, but make the terminal reliably tappable
+   * and horizontally scroll long pasted commands on narrow screens.
+   */
+  const mobileStyle = document.createElement("style");
+  mobileStyle.textContent = `
+    @media (max-width: 700px) {
+      .main-layout {
+        min-width: 0 !important;
+        width: 100% !important;
+      }
+
+      .terminal-panel {
+        min-width: 0 !important;
+        width: 100% !important;
+        overflow: hidden !important;
+      }
+
+      .terminal-input-row {
+        min-width: 0 !important;
+        width: 100% !important;
+        align-items: center;
+      }
+
+      .terminal-input-row > span {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+
+      #cmd {
+        min-width: 0 !important;
+        width: 100% !important;
+        flex: 1 1 auto !important;
+        font-size: 16px !important;
+        line-height: 1.4;
+        padding: 10px 8px;
+        -webkit-appearance: none;
+        appearance: none;
+        touch-action: manipulation;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+
+      #cmd:focus {
+        outline: none;
+      }
+
+      .guide-panel,
+      .events-panel {
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+
+      .events-panel {
+        margin-top: 16px;
+      }
+
+      .suggested-command {
+        min-width: 0;
+      }
+
+      .suggested-command code {
+        min-width: 0;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+  `;
+  document.head.appendChild(mobileStyle);
+
   const output = document.querySelector<HTMLDivElement>("#output")!;
   const input = document.querySelector<HTMLInputElement>("#cmd")!;
+  const mainLayout = document.querySelector<HTMLElement>(".main-layout")!;
+  const guidePanel = document.querySelector<HTMLElement>("#guide-panel")!;
+  const eventsPanel = document.querySelector<HTMLElement>("#events-panel")!;
+  const demoShell = document.querySelector<HTMLElement>(".demo-shell")!;
+
+  // Keep the original desktop two-column layout, but put Lifecycle Events
+  // below the Edera Demo Guide on mobile.
+  const mobileLayoutQuery = window.matchMedia("(max-width: 700px)");
+  const updateResponsivePanelOrder = () => {
+    if (mobileLayoutQuery.matches) {
+      if (eventsPanel.parentElement !== demoShell) {
+        demoShell.insertBefore(eventsPanel, guidePanel.nextSibling);
+      }
+    } else if (eventsPanel.parentElement !== mainLayout) {
+      mainLayout.appendChild(eventsPanel);
+    }
+  };
+
+  updateResponsivePanelOrder();
+  mobileLayoutQuery.addEventListener("change", updateResponsivePanelOrder);
+
+  const scrollCommandInputToEnd = () => {
+    requestAnimationFrame(() => {
+      input.scrollLeft = input.scrollWidth;
+    });
+  };
+
+  input.addEventListener("focus", () => {
+    scrollCommandInputToEnd();
+  });
+
+  input.addEventListener("input", scrollCommandInputToEnd);
 
   const podGrid = document.querySelector<HTMLDivElement>("#pod-grid")!;
   const podCount = document.querySelector<HTMLSpanElement>("#pod-count")!;
@@ -1049,6 +1157,7 @@ async function initTerminalDemo() {
     input.focus();
 
     input.setSelectionRange(input.value.length, input.value.length);
+    scrollCommandInputToEnd();
   });
 
   document
