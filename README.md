@@ -73,3 +73,70 @@ kubectl run ubuntu --image=ubuntu:latest --labels="env=prod" -n edera
 ```
 
 <img width="1506" height="781" alt="Screenshot 2026-08-18 at 20 40 03" src="https://github.com/user-attachments/assets/0b668f13-9ed7-45d4-963b-52aa2ad5dc8a" />
+
+
+## NVIDIA GPU passthrough to an Edera zone
+
+Supported GPUs, like the Tesla, should show up in the output of ```lspci```:
+```
+sudo lspci -Dknn -d ::03xx
+```
+
+If you made changes to ```/var/lib/edera/protect/daemon.toml```, you need to restart the Edera daemon:
+```
+sudo systemctl restart protect-daemon
+```
+
+If you changed the kernel variant configs, confirm the variant is resolvable with:
+```
+sudo protect image list-kernel-variants
+```
+
+You can reboot the system or (re-)load the VFIO kernel modules:
+```
+sudo modprobe -r vfio_pci
+```
+```
+sudo modprobe vfio_pci
+```
+Confirm that the GPUs are successfully bound to the ```vfio-pci``` driver:
+```
+sudo lspci -Dknn -d ::03xx
+```
+Launch a ```zone``` with NVIDIA GPU passthrough
+```
+sudo protect zone launch --name zone-gpu --device gpu0 --kernel-verbose --target-memory 2048 --resource-adjustment-policy static --kernel-variant nvidia --pull-overwrite-cache
+```
+Check that the zone launched successfully:
+```
+sudo protect zone list
+```
+Confirm the NVIDIA driver is loaded by checking the zone logs:
+```
+sudo protect zone logs zone-gpu
+```
+Launch a workload with the NVIDIA GPU:
+```
+sudo protect workload launch --name workload-gpu --zone zone-gpu --privileged nvidia/cuda:13.3.0-devel-ubuntu26.04 -- /bin/bash
+```
+Check it’s running:
+```
+sudo protect workload list
+```
+Verify that the GPU is visible to the workload and has the ```nvidia``` driver loaded:
+```
+sudo protect workload exec workload-gpu -- /bin/bash -c 'DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y pciutils && lspci -Dknn'
+```
+Verify GPU access via ```nvidia-smi```:
+```
+sudo protect workload exec workload-gpu nvidia-smi
+```
+Success!! We’ve configured the GPU and have launched a workload in an isolated zone.
+<br/><br/>
+Cleanup commands:
+```
+sudo protect workload destroy workload-gpu
+```
+```
+sudo protect zone destroy zone-gpu
+```
