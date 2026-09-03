@@ -341,16 +341,26 @@ async function initTerminalDemo() {
             <input
               id="cmd"
               type="text"
-              inputmode="text"
-              enterkeyhint="send"
-              autocapitalize="off"
-              autocorrect="off"
               placeholder="Type 'help' or use Up/Down arrow keys for command history..."
               disabled
               autocomplete="off"
+              autocapitalize="none"
+              autocorrect="off"
               spellcheck="false"
+              enterkeyhint="send"
+              inputmode="text"
             />
           </div>
+        </div>
+
+        <div class="panel events-panel" id="events-panel">
+          <div class="panel-header">
+            <span class="drag-handle">⋮⋮</span>
+            <h3>⚡ Lifecycle Events</h3>
+            <button class="hide-btn" id="clear-events-btn">Clear</button>
+            <button class="hide-btn" id="hide-events-btn">Hide</button>
+          </div>
+          <div id="events-stream" class="events-stream"></div>
         </div>
 
       </div>
@@ -379,10 +389,25 @@ async function initTerminalDemo() {
             <div id="guide-description" class="guide-description"></div>
 
             <div class="suggested-command">
-              <code id="suggested-command"></code>
-              <button id="use-command-btn" class="use-command-btn">
-                Use command
-              </button>
+              <div class="suggested-command-code-wrap">
+                <code id="suggested-command"></code>
+              </div>
+              <div class="suggested-command-actions">
+                <button
+                  id="copy-command-btn"
+                  class="use-command-btn copy-command-btn"
+                  type="button"
+                >
+                  Copy
+                </button>
+                <button
+                  id="use-command-btn"
+                  class="use-command-btn"
+                  type="button"
+                >
+                  Use command
+                </button>
+              </div>
             </div>
           </div>
 
@@ -392,16 +417,6 @@ async function initTerminalDemo() {
           </div>
 
         </div>
-      </div>
-
-      <div class="panel events-panel" id="events-panel">
-        <div class="panel-header">
-          <span class="drag-handle">⋮⋮</span>
-          <h3>⚡ Lifecycle Events</h3>
-          <button class="hide-btn" id="clear-events-btn">Clear</button>
-          <button class="hide-btn" id="hide-events-btn">Hide</button>
-        </div>
-        <div id="events-stream" class="events-stream"></div>
       </div>
 
       <div class="edera-footer">
@@ -449,112 +464,8 @@ async function initTerminalDemo() {
     </div>
   `;
 
-  /*
-   * Mobile usability improvements.
-   * Keep desktop styling untouched, but make the terminal reliably tappable
-   * and horizontally scroll long pasted commands on narrow screens.
-   */
-  const mobileStyle = document.createElement("style");
-  mobileStyle.textContent = `
-    @media (max-width: 700px) {
-      .main-layout {
-        min-width: 0 !important;
-        width: 100% !important;
-      }
-
-      .terminal-panel {
-        min-width: 0 !important;
-        width: 100% !important;
-        overflow: hidden !important;
-      }
-
-      .terminal-input-row {
-        min-width: 0 !important;
-        width: 100% !important;
-        align-items: center;
-      }
-
-      .terminal-input-row > span {
-        flex: 0 0 auto;
-        white-space: nowrap;
-      }
-
-      #cmd {
-        min-width: 0 !important;
-        width: 100% !important;
-        flex: 1 1 auto !important;
-        font-size: 16px !important;
-        line-height: 1.4;
-        padding: 10px 8px;
-        -webkit-appearance: none;
-        appearance: none;
-        touch-action: manipulation;
-        overflow-x: auto;
-        white-space: nowrap;
-      }
-
-      #cmd:focus {
-        outline: none;
-      }
-
-      .guide-panel,
-      .events-panel {
-        width: 100% !important;
-        min-width: 0 !important;
-      }
-
-      .events-panel {
-        margin-top: 16px;
-      }
-
-      .suggested-command {
-        min-width: 0;
-      }
-
-      .suggested-command code {
-        min-width: 0;
-        overflow-x: auto;
-        white-space: nowrap;
-        -webkit-overflow-scrolling: touch;
-      }
-    }
-  `;
-  document.head.appendChild(mobileStyle);
-
   const output = document.querySelector<HTMLDivElement>("#output")!;
   const input = document.querySelector<HTMLInputElement>("#cmd")!;
-  const mainLayout = document.querySelector<HTMLElement>(".main-layout")!;
-  const guidePanel = document.querySelector<HTMLElement>("#guide-panel")!;
-  const eventsPanel = document.querySelector<HTMLElement>("#events-panel")!;
-  const demoShell = document.querySelector<HTMLElement>(".demo-shell")!;
-
-  // Keep the original desktop two-column layout, but put Lifecycle Events
-  // below the Edera Demo Guide on mobile.
-  const mobileLayoutQuery = window.matchMedia("(max-width: 700px)");
-  const updateResponsivePanelOrder = () => {
-    if (mobileLayoutQuery.matches) {
-      if (eventsPanel.parentElement !== demoShell) {
-        demoShell.insertBefore(eventsPanel, guidePanel.nextSibling);
-      }
-    } else if (eventsPanel.parentElement !== mainLayout) {
-      mainLayout.appendChild(eventsPanel);
-    }
-  };
-
-  updateResponsivePanelOrder();
-  mobileLayoutQuery.addEventListener("change", updateResponsivePanelOrder);
-
-  const scrollCommandInputToEnd = () => {
-    requestAnimationFrame(() => {
-      input.scrollLeft = input.scrollWidth;
-    });
-  };
-
-  input.addEventListener("focus", () => {
-    scrollCommandInputToEnd();
-  });
-
-  input.addEventListener("input", scrollCommandInputToEnd);
 
   const podGrid = document.querySelector<HTMLDivElement>("#pod-grid")!;
   const podCount = document.querySelector<HTMLSpanElement>("#pod-count")!;
@@ -586,6 +497,9 @@ async function initTerminalDemo() {
   const useCommandBtn =
     document.querySelector<HTMLButtonElement>("#use-command-btn")!;
 
+  const copyCommandBtn =
+    document.querySelector<HTMLButtonElement>("#copy-command-btn")!;
+
   const completionModal =
     document.querySelector<HTMLDivElement>("#completion-modal")!;
 
@@ -596,6 +510,222 @@ async function initTerminalDemo() {
     document.querySelector<HTMLDivElement>("#completion-modal-backdrop")!;
   const restartDemoBtn =
     document.querySelector<HTMLButtonElement>("#restart-demo-btn")!;
+
+  /*
+   * Mobile command/guide layout
+   * -----------------------------------------------------------------------
+   * Keep desktop styling/layout untouched, but make the long suggested
+   * command usable on phones and place Lifecycle Events after the guide.
+   *
+   * The command itself stays on one line and can be horizontally scrolled.
+   * The action buttons live in their own row so they can never be pushed
+   * outside the viewport by a long command.
+   */
+  const mobileDemoStyle = document.createElement("style");
+  mobileDemoStyle.id = "webernetes-mobile-demo-fixes";
+  mobileDemoStyle.textContent = `
+    .suggested-command-code-wrap {
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+
+    .suggested-command-code-wrap code {
+      display: inline-block;
+      min-width: max-content;
+      white-space: pre;
+      user-select: text;
+      -webkit-user-select: text;
+      -webkit-touch-callout: default;
+    }
+
+    .suggested-command-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+
+    .suggested-command .use-command-btn {
+      white-space: nowrap;
+      min-height: 42px;
+      min-width: 112px;
+      touch-action: manipulation;
+    }
+
+    @media (max-width: 768px) {
+      .main-layout {
+        display: block !important;
+      }
+
+      .terminal-panel,
+      .guide-panel,
+      .events-panel {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+      }
+
+      .terminal-input-row {
+        display: flex !important;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .terminal-input-row > span {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+
+      .terminal-input-row input,
+      .terminal-input-row #cmd {
+        min-width: 0;
+        width: 100%;
+        flex: 1 1 auto;
+        font-size: 16px !important;
+        line-height: 1.4;
+        -webkit-appearance: none;
+        appearance: none;
+        touch-action: manipulation;
+      }
+
+      .suggested-command {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .suggested-command-code-wrap {
+        width: 100%;
+        max-width: 100%;
+        min-height: 54px;
+        box-sizing: border-box;
+        overflow-x: auto !important;
+        overflow-y: hidden;
+        border-radius: 14px;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x;
+      }
+
+      .suggested-command-code-wrap code {
+        display: block !important;
+        width: max-content;
+        min-width: max-content;
+        padding-right: 18px;
+        user-select: text !important;
+        -webkit-user-select: text !important;
+      }
+
+      .suggested-command-actions {
+        display: flex !important;
+        width: 100%;
+        gap: 10px;
+      }
+
+      .suggested-command-actions .use-command-btn {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 46px;
+        padding: 10px 14px;
+        font-size: 15px;
+        line-height: 1.2;
+        touch-action: manipulation;
+      }
+
+      .copy-command-btn {
+        display: inline-flex !important;
+      }
+
+      #events-panel {
+        margin-top: 24px;
+      }
+
+      .events-panel .panel-header {
+        flex-wrap: wrap;
+      }
+
+      .events-panel .events-stream {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+  `;
+  document.head.appendChild(mobileDemoStyle);
+
+  const rootShell =
+    document.querySelector<HTMLElement>(".demo-shell") || app;
+
+  const mainLayout =
+    document.querySelector<HTMLElement>(".main-layout")!;
+
+  const guidePanel =
+    document.querySelector<HTMLElement>("#guide-panel")!;
+
+  const eventsPanel =
+    document.querySelector<HTMLElement>("#events-panel")!;
+
+  const syncMobilePanelOrder = () => {
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+
+    if (isMobile) {
+      /*
+       * Move Lifecycle Events out of .main-layout and directly after the
+       * Edera Demo Guide. This gives mobile the requested:
+       * Terminal -> Guide -> Lifecycle Events
+       */
+      if (eventsPanel.parentElement !== rootShell) {
+        rootShell.insertBefore(eventsPanel, guidePanel.nextSibling);
+      } else if (eventsPanel.previousElementSibling !== guidePanel) {
+        rootShell.insertBefore(eventsPanel, guidePanel.nextSibling);
+      }
+    } else {
+      /*
+       * Restore the original desktop structure:
+       * Terminal + Lifecycle Events inside .main-layout.
+       */
+      if (eventsPanel.parentElement !== mainLayout) {
+        mainLayout.appendChild(eventsPanel);
+      } else if (eventsPanel.previousElementSibling !== mainLayout.firstElementChild) {
+        mainLayout.appendChild(eventsPanel);
+      }
+    }
+  };
+
+  syncMobilePanelOrder();
+
+  const mobileLayoutMediaQuery = window.matchMedia(
+    "(max-width: 768px)",
+  );
+
+  const handleMobileLayoutChange = () => {
+    syncMobilePanelOrder();
+  };
+
+  if (typeof mobileLayoutMediaQuery.addEventListener === "function") {
+    mobileLayoutMediaQuery.addEventListener(
+      "change",
+      handleMobileLayoutChange,
+    );
+  } else {
+    mobileLayoutMediaQuery.addListener(handleMobileLayoutChange);
+  }
+
+  window.addEventListener("resize", syncMobilePanelOrder);
+
   // Keep completion state in memory so each fresh page load can complete the lab again.
   let completionModalShown = false;
 
@@ -1149,15 +1279,91 @@ async function initTerminalDemo() {
     }
   });
 
-  useCommandBtn.addEventListener("click", () => {
+  const getSelectedCommand = () => {
     const index = getSelectedDemoStepIndex();
-    const step = PROTECT_DEMO_STEPS[index];
+    return PROTECT_DEMO_STEPS[index]?.command || "";
+  };
 
-    input.value = step.command;
+  const copyTextToClipboard = async (text: string): Promise<boolean> => {
+    try {
+      if (
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === "function"
+      ) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+      // Fall through to the selection-based fallback below.
+    }
+
+    try {
+      const helper = document.createElement("textarea");
+      helper.value = text;
+      helper.setAttribute("readonly", "");
+      helper.style.position = "fixed";
+      helper.style.left = "-9999px";
+      helper.style.top = "0";
+      helper.style.opacity = "0";
+      document.body.appendChild(helper);
+      helper.select();
+      helper.setSelectionRange(0, helper.value.length);
+      const copied = document.execCommand("copy");
+      helper.remove();
+      return copied;
+    } catch {
+      return false;
+    }
+  };
+
+  copyCommandBtn.addEventListener("click", async () => {
+    const command = getSelectedCommand();
+    if (!command) {
+      return;
+    }
+
+    const originalLabel = copyCommandBtn.innerText;
+    const copied = await copyTextToClipboard(command);
+
+    copyCommandBtn.innerText = copied ? "Copied!" : "Select to copy";
+
+    if (!copied) {
+      suggestedCommand.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(suggestedCommand);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+
+    window.setTimeout(() => {
+      copyCommandBtn.innerText = originalLabel;
+    }, 1400);
+  });
+
+  useCommandBtn.addEventListener("click", () => {
+    const command = getSelectedCommand();
+    if (!command) {
+      return;
+    }
+
+    input.value = command;
     input.focus();
 
     input.setSelectionRange(input.value.length, input.value.length);
-    scrollCommandInputToEnd();
+
+    // On phones, bring the actual command input into view so the user can
+    // immediately tap/press Enter without hunting for it.
+    if (window.matchMedia("(max-width: 768px)").matches) {
+      input.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
   });
 
   document
