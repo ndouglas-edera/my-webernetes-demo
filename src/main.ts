@@ -481,69 +481,7 @@ async function initTerminalDemo() {
   const useCommandBtn =
     document.querySelector<HTMLButtonElement>("#use-command-btn")!;
 
-  /*
-   * Mobile-only layout fixes.
-   *
-   * Keep the original desktop UI unchanged. On small screens, a long
-   * suggested command must not push the existing "Use command" button
-   * outside the viewport. The command remains one line and can be
-   * horizontally scrolled, while the original button moves underneath it.
-   */
-  const mobileDemoStyle = document.createElement("style");
-  mobileDemoStyle.id = "webernetes-mobile-demo-fixes";
-  mobileDemoStyle.textContent = `
-    @media (max-width: 768px) {
-      .suggested-command {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 12px !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        box-sizing: border-box;
-      }
-
-      .suggested-command > code,
-      #suggested-command {
-        display: block !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        box-sizing: border-box;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-        white-space: pre !important;
-        -webkit-overflow-scrolling: touch;
-        touch-action: pan-x;
-        user-select: text !important;
-        -webkit-user-select: text !important;
-        -webkit-touch-callout: default;
-        scrollbar-width: thin;
-      }
-
-      .suggested-command .use-command-btn {
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        align-self: flex-start;
-        width: auto !important;
-        min-width: 112px;
-        min-height: 44px;
-        padding: 10px 16px;
-        white-space: nowrap;
-        flex: 0 0 auto !important;
-        touch-action: manipulation;
-      }
-
-      .terminal-input-row input,
-      .terminal-input-row #cmd {
-        font-size: 16px !important;
-        min-width: 0;
-      }
-    }
-  `;
-  document.head.appendChild(mobileDemoStyle);
+  // Mobile layout is handled entirely in style.css.
 
   const rootShell =
     document.querySelector<HTMLElement>(".demo-shell") || app;
@@ -3042,13 +2980,19 @@ async function initTerminalDemo() {
 
     /*
      * kubectl describe
+     *
+     * Keep this output as real preformatted terminal text. The previous
+     * implementation mixed block HTML elements into <pre>, which caused large
+     * vertical gaps and made the result look much looser than kubectl.
      */
     if (tokens[1] === "describe") {
       const resource = tokens[2];
       const name = tokens[3];
 
       if (!resource || !name) {
-        printHtml(`<span style="color:#ff7373;">Usage: kubectl describe pod|node &lt;name&gt;</span>`);
+        printHtml(
+          `<span style="color:#ff7373;">Usage: kubectl describe pod|node &lt;name&gt;</span>`,
+        );
         return true;
       }
 
@@ -3059,36 +3003,105 @@ async function initTerminalDemo() {
 
         if (!pod) {
           printHtml(
-            `<span style="color:#ff7373;">Error from server (NotFound): pods "${escapeHtml(name)}" not found</span>`,
+            `<span style="color:#ff7373;">Error from server (NotFound): pods "${escapeHtml(
+              name,
+            )}" not found</span>`,
           );
           return true;
         }
 
-        const podEvents = clusterEvents.filter((ev) => ev.object === `pod/${pod.name}`);
-        const workload = protectWorkloads.find((item) => item.sourcePodName === pod.name);
-        const conditions = pod.status === "Running" ? "Ready=True\nContainersReady=True" :
-          pod.status === "Pending" ? "Ready=False\nContainersReady=False" :
-          "Ready=False\nContainersReady=False";
+        const podEvents = clusterEvents.filter(
+          (event) => event.object === `pod/${pod.name}`,
+        );
+        const workload = protectWorkloads.find(
+          (item) =>
+            item.sourcePodName === pod.name &&
+            item.state !== "destroyed",
+        );
 
-        const html = `
-          <div style="color:#a8cfca;">Name:</div> ${escapeHtml(pod.name)}
-          <div style="color:#a8cfca;">Namespace:</div> ${escapeHtml(pod.namespace)}
-          <div style="color:#a8cfca;">Status:</div> <span style="color:${pod.status === "Running" ? "#b8ff3c" : "#ffd166"};">${escapeHtml(pod.status)}</span>
-          <div style="color:#a8cfca;">Node:</div> ${escapeHtml(pod.node || "&lt;none>")}
-          <div style="color:#a8cfca;">Pod IP:</div> ${escapeHtml(pod.ip || "&lt;none>")}
-          <div style="color:#a8cfca;">Image:</div> ${escapeHtml(pod.image)}
-          <div style="color:#a8cfca;">RuntimeClass:</div> ${escapeHtml(pod.runtimeClassName || "&lt;none>")}
-          <div style="color:#a8cfca;">Labels:</div> ${escapeHtml(formatLabels(pod.labels))}
-          <div style="color:#a8cfca;">Edera workload:</div> ${workload ? escapeHtml(`${workload.name} → zone ${workload.zone}`) : "&lt;none>"}
+        const ready = pod.status === "Running";
+        const containerName =
+          pod.name === "demo-pod"
+            ? "web"
+            : pod.image.split("/").pop()?.split(":")[0] || pod.name;
 
-          <div style="color:#00e5d4;font-weight:700;">Conditions</div>
-          ${escapeHtml(conditions)}
+        const nodeName =
+          pod.node && pod.node !== "<none>" ? pod.node : "<none>";
+        const podIp =
+          pod.ip && pod.ip !== "<none>" ? pod.ip : "<none>";
+        const runtimeClass = pod.runtimeClassName || "<none>";
+        const workloadText = workload
+          ? `${workload.name} (zone ${workload.zone})`
+          : "<none>";
 
-          <div style="color:#00e5d4;font-weight:700;">Events</div>
-          ${podEvents.length ? podEvents.slice(-8).map((ev) => `${escapeHtml(ev.type)}   ${escapeHtml(ev.reason)}   ${escapeHtml(ev.message)}`).join("\n") : "No events."}
-        `;
+        const lines = [
+          `Name:             ${pod.name}`,
+          `Namespace:        ${pod.namespace}`,
+          `Priority:         0`,
+          `Service Account:  default`,
+          `Node:             ${nodeName}`,
+          `Start Time:       Thu, 09 Apr 2026 07:48:00 +0000`,
+          `Labels:           ${formatLabels(pod.labels)}`,
+          `Annotations:      <none>`,
+          `Status:           ${pod.status}`,
+          `IP:               ${podIp}`,
+          `IPs:`,
+          `  IP:  ${podIp}`,
+          `Controlled By:     ${pod.ownerDeployment ? `Deployment/${pod.ownerDeployment}` : "<none>"}`,
+          `RuntimeClass:     ${runtimeClass}`,
+          `Edera Workload:   ${workloadText}`,
+          `Containers:`,
+          `  ${containerName}:`,
+          `    Container ID:   containerd://webernetes-${pod.name}`,
+          `    Image:          ${pod.image}`,
+          `    Image ID:       ${pod.image}`,
+          `    Port:           8080/TCP`,
+          `    Host Port:      0/TCP`,
+          `    State:          ${ready ? "Running" : pod.status}`,
+          ready
+            ? `      Started:      Thu, 09 Apr 2026 07:48:03 +0000`
+            : `      Reason:       ${pod.status}`,
+          `    Ready:          ${ready}`,
+          `    Restart Count:  0`,
+          `    Environment:    <none>`,
+          `    Mounts:`,
+          `      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access (ro)`,
+          `Conditions:`,
+          `  Type                        Status`,
+          `  Initialized                 True`,
+          `  Ready                       ${ready}`,
+          `  ContainersReady             ${ready}`,
+          `  PodScheduled                ${pod.status === "Pending" ? "False" : "True"}`,
+          `Volumes:`,
+          `  kube-api-access:`,
+          `    Type:                    Projected (a volume that contains injected data from multiple sources)`,
+          `    TokenExpirationSeconds:  3607`,
+          `    ConfigMapName:           kube-root-ca.crt`,
+          `    Optional:                false`,
+          `    DownwardAPI:             true`,
+          `QoS Class:                   Burstable`,
+          `Node-Selectors:              <none>`,
+          `Tolerations:                  node.kubernetes.io/not-ready:NoExecute op=Exists for 300s`,
+          `                              node.kubernetes.io/unreachable:NoExecute op=Exists for 300s`,
+          `Events:`,
+          `  Type     Reason      Age   From     Message`,
+          `  ----     ------      ----  ----     -------`,
+          ...(podEvents.length > 0
+            ? podEvents
+                .slice(0, 8)
+                .map(
+                  (event) =>
+                    `  ${event.type.padEnd(8)} ${event.reason.padEnd(12)} 1m    kubelet  ${event.message}`,
+                )
+            : [
+                `  Normal   Scheduled   2m    kubelet  Successfully assigned ${pod.namespace}/${pod.name} to ${nodeName}`,
+                `  Normal   Pulled      2m    kubelet  Container image "${pod.image}" already present`,
+                `  Normal   Created     2m    kubelet  Created container ${containerName}`,
+                `  Normal   Started     2m    kubelet  Started container ${containerName}`,
+              ]),
+        ];
 
-        printPre(html.trim());
+        printPre(escapeHtml(lines.join("\n")));
         return true;
       }
 
@@ -3097,34 +3110,76 @@ async function initTerminalDemo() {
 
         if (!node) {
           printHtml(
-            `<span style="color:#ff7373;">Error from server (NotFound): nodes "${escapeHtml(name)}" not found</span>`,
+            `<span style="color:#ff7373;">Error from server (NotFound): nodes "${escapeHtml(
+              name,
+            )}" not found</span>`,
           );
           return true;
         }
 
         const nodePods = pods.filter((pod) => pod.node === node.name);
         const roles = getNodeRoles(node);
-        const nodeEvents = clusterEvents.filter((ev) => ev.object === `node/${node.name}`);
+        const nodeEvents = clusterEvents.filter(
+          (event) => event.object === `node/${node.name}`,
+        );
 
-        const html = `
-          <div style="color:#a8cfca;">Name:</div> ${escapeHtml(node.name)}
-          <div style="color:#a8cfca;">Roles:</div> ${escapeHtml(roles)}
-          <div style="color:#a8cfca;">Status:</div> <span style="color:#b8ff3c;">${escapeHtml(node.status)}</span>
-          <div style="color:#a8cfca;">Kubelet Version:</div> ${escapeHtml(node.version)}
-          <div style="color:#a8cfca;">Labels:</div> ${escapeHtml(formatLabels(node.labels))}
+        const lines = [
+          `Name:               ${node.name}`,
+          `Roles:              ${roles}`,
+          `Labels:             ${formatLabels(node.labels)}`,
+          `Annotations:        <none>`,
+          `CreationTimestamp:  Thu, 09 Apr 2026 07:42:00 +0000`,
+          `Taints:             <none>`,
+          `Unschedulable:      false`,
+          `Conditions:`,
+          `  Type             Status  LastHeartbeatTime`,
+          `  Ready            True    Thu, 09 Apr 2026 07:53:00 +0000`,
+          `Addresses:`,
+          `  InternalIP:  172.31.28.${node.name.replace("node-", "2")}`,
+          `Capacity:`,
+          `  cpu:                2`,
+          `  memory:             4Gi`,
+          `  pods:               110`,
+          `Allocatable:`,
+          `  cpu:                2`,
+          `  memory:             4Gi`,
+          `  pods:               110`,
+          `System Info:`,
+          `  Kernel Version:             6.18.44-edera-host`,
+          `  Kubelet Version:            ${node.version}`,
+          `Non-terminated Pods:          (${nodePods.length} in total)`,
+          ...(nodePods.length > 0
+            ? nodePods.map(
+                (pod) =>
+                  `  Namespace  Name                 Status`,
+              ).slice(0, 1)
+                .concat(
+                  nodePods.map(
+                    (pod) =>
+                      `  ${pod.namespace.padEnd(10)} ${pod.name.padEnd(20)} ${pod.status}`,
+                  ),
+                )
+            : [`  No pods assigned.`]),
+          `Events:`,
+          `  Type     Reason      Age   From     Message`,
+          `  ----     ------      ----  ----     -------`,
+          ...(nodeEvents.length > 0
+            ? nodeEvents.slice(0, 8).map(
+                (event) =>
+                  `  ${event.type.padEnd(8)} ${event.reason.padEnd(12)} 1m    kubelet  ${event.message}`,
+              )
+            : [`  Normal   Ready       5m    kubelet  Node ${node.name} is Ready`]),
+        ];
 
-          <div style="color:#00e5d4;font-weight:700;">Pods</div>
-          ${nodePods.length ? nodePods.map((pod) => `${escapeHtml(pod.namespace)}/${escapeHtml(pod.name)}   ${escapeHtml(pod.status)}`).join("\n") : "No pods assigned."}
-
-          <div style="color:#00e5d4;font-weight:700;">Events</div>
-          ${nodeEvents.length ? nodeEvents.slice(-8).map((ev) => `${escapeHtml(ev.type)}   ${escapeHtml(ev.reason)}   ${escapeHtml(ev.message)}`).join("\n") : "No events."}
-        `;
-
-        printPre(html.trim());
+        printPre(escapeHtml(lines.join("\n")));
         return true;
       }
 
-      printHtml(`<span style="color:#ff7373;">Error: describe for resource "${escapeHtml(resource)}" is not supported.</span>`);
+      printHtml(
+        `<span style="color:#ff7373;">Error: describe for resource "${escapeHtml(
+          resource,
+        )}" is not supported.</span>`,
+      );
       return true;
     }
 
