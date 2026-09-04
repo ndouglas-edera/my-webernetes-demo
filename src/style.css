@@ -1576,18 +1576,18 @@ input {
   opacity: 0.7;
 }
 
-/* When a node is assigned a RuntimeClass label*/
+/* When a node is assigned the Edera RuntimeClass label */
 .runtimeclass-badge {
   display: inline-flex;
   align-items: center;
-  margin-left: 8px;
-  padding: 3px 7px;
-  border: 1px solid rgba(184, 255, 60, 0.45);
+  padding: 4px 7px;
+  border: 1px solid #3c7d17;
   border-radius: 999px;
-  background: rgba(184, 255, 60, 0.08);
-  color: #b8ff3c;
-  font-size: 10px;
+  background: rgba(184, 255, 60, 0.28);
+  color: #3c7d17;
+  font-family: var(--font-mono);
+  font-size: 8px;
   font-weight: 700;
-  font-family: monospace;
+  letter-spacing: 0.05em;
   white-space: nowrap;
 }
