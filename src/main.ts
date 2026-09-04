@@ -178,13 +178,6 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     command: "protect zone list",
   },
   {
-    id: "edera-node-label",
-    title: "Label the Edera node",
-    description:
-      "Label node-2 with runtime=edera. The Edera RuntimeClass uses this label to schedule Edera-protected workloads onto the correct node.",
-    command: "kubectl label node node-2 runtime=edera",
-  },
-  {
     id: "edera-pod-apply",
     title: "Deploy the Edera-protected pod",
     description:
@@ -193,10 +186,17 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
   },
   {
     id: "edera-runtimeclass-apply",
-    title: "Enable the Edera RuntimeClass",
+    title: "Apply the Edera RuntimeClass",
     description:
-      "Create the Edera RuntimeClass. The Pending pod can now be scheduled, transition to Running, and attach to the ready Edera zone.",
+      "Create the Edera RuntimeClass. This enables Kubernetes to recognize the edera runtime before scheduling Edera-protected workloads.",
     command: "kubectl apply -f runtimeclass-edera.yaml",
+  },
+  {
+    id: "edera-node-label",
+    title: "Label the Edera node",
+    description:
+      "Label node-2 with runtime=edera. The Edera RuntimeClass uses this node selector to schedule Edera-protected workloads onto the correct node.",
+    command: "kubectl label node node-2 runtime=edera",
   },
   {
     id: "edera-workload-list",
