@@ -1334,22 +1334,59 @@ vfio_pci`;
       renderEvents();
     });
 
+  /**
+   * Return the node that satisfies all effective scheduling requirements for a
+   * pod. RuntimeClass scheduling is treated as part of the pod's effective
+   * nodeSelector, just as it is by Kubernetes.
+   */
+  const findSchedulableNode = (pod: LocalPod): LocalNode | undefined => {
+    const effectiveNodeSelector: Record<string, string> = {
+      ...(pod.nodeSelector || {}),
+    };
+
+    // The Edera RuntimeClass requires nodes labelled runtime=edera.
+    if (pod.runtimeClassName === "edera") {
+      effectiveNodeSelector.runtime = "edera";
+    }
+
+    const selectorEntries = Object.entries(effectiveNodeSelector);
+
+    if (selectorEntries.length > 0) {
+      return nodes.find((node) =>
+        node.status === "Ready" &&
+        selectorEntries.every(
+          ([key, value]) => node.labels[key] === value,
+        ),
+      );
+    }
+
+    // Preserve the simulator's existing default scheduling preference when a
+    // pod has no explicit scheduling requirements.
+    return (
+      nodes.find(
+        (node) =>
+          node.status === "Ready" &&
+          !node.labels["node-role.kubernetes.io/control-plane"],
+      ) || nodes.find((node) => node.status === "Ready")
+    );
+  };
+
   const checkPendingPods = () => {
-    pods.forEach((pod) => {
+    for (const pod of pods) {
       const recoverableRuntimeClassPod =
         pod.status === "Failed" &&
         pod.runtimeClassName &&
         activeRuntimeClasses.has(pod.runtimeClassName);
 
       if (pod.status !== "Pending" && !recoverableRuntimeClassPod) {
-        return;
+        continue;
       }
 
       if (
         pod.runtimeClassName &&
         !activeRuntimeClasses.has(pod.runtimeClassName)
       ) {
-        return;
+        continue;
       }
 
       if (recoverableRuntimeClassPod) {
@@ -1362,50 +1399,41 @@ vfio_pci`;
         );
       }
 
-      const effectiveNodeSelector: Record<string, string> = {
-        ...(pod.nodeSelector || {}),
-      };
+      const targetNode = findSchedulableNode(pod);
 
-      // The Edera RuntimeClass adds runtime=edera to the pod's effective
-      // scheduling requirements, matching its RuntimeClass nodeSelector.
-      if (pod.runtimeClassName === "edera") {
-        effectiveNodeSelector.runtime = "edera";
+      if (!targetNode) {
+        continue;
       }
 
-      const selectorEntries = Object.entries(effectiveNodeSelector);
+      pod.status = "Running";
+      pod.node = targetNode.name;
+      pod.ip = `10.244.0.${Math.floor(Math.random() * 200 + 10)}`;
 
-      const targetNode =
-        selectorEntries.length > 0
-          ? nodes.find((node) =>
-              selectorEntries.every(
-                ([key, value]) => node.labels[key] === value,
-              ),
-            )
-          : nodes.find(
-              (node) =>
-                !node.labels["node-role.kubernetes.io/control-plane"],
-            ) || nodes[0];
+      addEvent(
+        "Normal",
+        "Scheduled",
+        `pod/${pod.name}`,
+        `Successfully assigned ${pod.namespace}/${pod.name} to ${targetNode.name}`,
+      );
 
-      if (targetNode) {
-        pod.status = "Running";
-        pod.node = targetNode.name;
-        pod.ip = `10.244.0.${Math.floor(Math.random() * 200 + 10)}`;
+      addEvent(
+        "Normal",
+        "Started",
+        `pod/${pod.name}`,
+        `Started container ${pod.name}`,
+      );
+    }
 
-        addEvent(
-          "Normal",
-          "Scheduled",
-          `pod/${pod.name}`,
-          `Successfully assigned ${pod.namespace}/${pod.name} to ${targetNode.name}`,
-        );
+    syncEderaPodsToProtectWorkloads();
+    for (const deployment of deployments) {
+      deployment.readyReplicas = pods.filter(
+        (pod) =>
+          pod.ownerDeployment === deployment.name &&
+          pod.status === "Running",
+      ).length;
+    }
 
-        addEvent(
-          "Normal",
-          "Started",
-          `pod/${pod.name}`,
-          `Started container ${pod.name}`,
-        );
-      }
-    });
+    updateDashboard();
   };
 
   const reconcileDeployments = () => {
@@ -1416,42 +1444,23 @@ vfio_pci`;
           pod.status !== "Failed",
       );
 
-      while (
-        managedPods.length < deployment.replicas
-      ) {
+      while (managedPods.length < deployment.replicas) {
         const podName = `${deployment.name}-${Math.random()
           .toString(36)
           .slice(2, 7)}`;
 
-        const runtimeReady = activeRuntimeClasses.has(
-          deployment.runtimeClassName || "",
-        );
-
-        const assignedNode = runtimeReady
-          ? deployment.runtimeClassName === "edera"
-            ? nodes.find(
-                (node) => node.labels["runtime"] === "edera",
-              )
-            : nodes.find(
-                (node) =>
-                  !node.labels[
-                    "node-role.kubernetes.io/control-plane"
-                  ],
-              ) || nodes[0]
-          : undefined;
+        const runtimeReady = deployment.runtimeClassName
+          ? activeRuntimeClasses.has(deployment.runtimeClassName)
+          : true;
 
         const pod: LocalPod = {
           name: podName,
           namespace: deployment.namespace,
-          status: runtimeReady ? "Running" : "Pending",
+          status: "Pending",
           age: "1s",
           image: deployment.image,
-          ip: assignedNode
-            ? `10.244.0.${Math.floor(
-                Math.random() * 200 + 10,
-              )}`
-            : "<none>",
-          node: assignedNode?.name || "<none>",
+          ip: "<none>",
+          node: "<none>",
           labels: { app: "nginx" },
           runtimeClassName: deployment.runtimeClassName,
           ownerDeployment: deployment.name,
@@ -1478,14 +1487,10 @@ vfio_pci`;
       }
 
       checkPendingPods();
-      deployment.readyReplicas = pods.filter(
-        (pod) =>
-          pod.ownerDeployment === deployment.name &&
-          pod.status === "Running",
-      ).length;
     }
 
     syncEderaPodsToProtectWorkloads();
+    updateDashboard();
   };
 
   /*
@@ -2963,24 +2968,18 @@ vfio_pci`;
         return true;
       }
 
-      const assignedNode =
-        nodes.find(
-          (node) =>
-            !node.labels[
-              "node-role.kubernetes.io/control-plane"
-            ],
-        ) || nodes[0];
-
-      pods.push({
+      const pod: LocalPod = {
         name: podName,
         namespace: targetNamespace,
-        status: "Running",
+        status: "Pending",
         age: "1s",
         image: imageName,
-        ip: `10.244.0.${Math.floor(Math.random() * 200 + 10)}`,
-        node: assignedNode?.name || "node-2",
+        ip: "<none>",
+        node: "<none>",
         labels: customLabels,
-      });
+      };
+
+      pods.push(pod);
 
       addEvent(
         "Normal",
@@ -2989,22 +2988,7 @@ vfio_pci`;
         `pod/${podName} created in namespace ${targetNamespace}`,
       );
 
-      if (assignedNode) {
-        addEvent(
-          "Normal",
-          "Scheduled",
-          `pod/${podName}`,
-          `Successfully assigned ${targetNamespace}/${podName} to ${assignedNode.name}`,
-        );
-
-        addEvent(
-          "Normal",
-          "Started",
-          `pod/${podName}`,
-          `Started container ${podName}`,
-        );
-      }
-
+      checkPendingPods();
       updateDashboard();
 
       printHtml(
@@ -3106,17 +3090,14 @@ vfio_pci`;
 
         for (let i = 1; i <= deployment.replicas; i++) {
           const podName = `${deploymentName}-${String(i).padStart(5, "0")}`;
-          const assignedNode = runtimeReady
-            ? nodes.find((node) => !node.labels["node-role.kubernetes.io/control-plane"]) || nodes[0]
-            : undefined;
           pods.push({
             name: podName,
             namespace: "default",
-            status: runtimeReady ? "Running" : "Pending",
+            status: "Pending",
             age: "1s",
             image: deployment.image,
-            ip: assignedNode ? `10.244.0.${Math.floor(Math.random() * 200 + 10)}` : "<none>",
-            node: assignedNode?.name || "<none>",
+            ip: "<none>",
+            node: "<none>",
             labels: { app: "nginx" },
             runtimeClassName: "edera",
             ownerDeployment: deploymentName,
@@ -3124,13 +3105,15 @@ vfio_pci`;
         }
 
         addEvent("Normal", "Created", `deployment/${deploymentName}`, `deployment.apps/${deploymentName} created`);
-        if (runtimeReady) {
-          checkPendingPods();
-          syncEderaPodsToProtectWorkloads();
-          deployment.readyReplicas = pods.filter((pod) => pod.ownerDeployment === deploymentName && pod.status === "Running").length;
-        } else {
+        if (!runtimeReady) {
           addEvent("Warning", "ReplicaSetCreate", `deployment/${deploymentName}`, `Created ${deployment.replicas} Pending pods waiting for RuntimeClass "edera"`);
         }
+
+        // Always pass newly-created pods through the same scheduler. This is
+        // important when RuntimeClass "edera" exists but no node has yet been
+        // labelled runtime=edera.
+        checkPendingPods();
+        deployment.readyReplicas = pods.filter((pod) => pod.ownerDeployment === deploymentName && pod.status === "Running").length;
 
         updateDashboard();
         printHtml(`<span style="color:#b8ff3c;">deployment.apps/${deploymentName} created</span>`);
@@ -3168,25 +3151,14 @@ vfio_pci`;
           return true;
         }
 
-        const assignedNode = runtimeReady
-          ? nodes.find(
-              (node) =>
-                !node.labels[
-                  "node-role.kubernetes.io/control-plane"
-                ],
-            ) || nodes[0]
-          : undefined;
-
         pods.push({
           name: podName,
           namespace: "default",
-          status: runtimeReady ? "Running" : "Pending",
+          status: "Pending",
           age: "1s",
           image: "nginx",
-          ip: assignedNode
-            ? `10.244.0.${Math.floor(Math.random() * 200 + 10)}`
-            : "<none>",
-          node: assignedNode?.name || "<none>",
+          ip: "<none>",
+          node: "<none>",
           labels: { env: "test" },
           runtimeClassName: "edera",
         });
@@ -3198,21 +3170,7 @@ vfio_pci`;
           `pod/${podName} created from manifest`,
         );
 
-        if (runtimeReady && assignedNode) {
-          addEvent(
-            "Normal",
-            "Scheduled",
-            `pod/${podName}`,
-            `Successfully assigned default/${podName} to ${assignedNode.name}`,
-          );
-
-          addEvent(
-            "Normal",
-            "Started",
-            `pod/${podName}`,
-            `Started container nginx`,
-          );
-        } else {
+        if (!runtimeReady) {
           addEvent(
             "Warning",
             "FailedCreatePodSandBox",
@@ -3221,9 +3179,9 @@ vfio_pci`;
           );
         }
 
-        if (runtimeReady && assignedNode) {
-          syncEderaPodsToProtectWorkloads();
-        }
+        // Let the authoritative scheduler decide whether the pod can run.
+        // If node-2 has not been labelled runtime=edera yet, it remains Pending.
+        checkPendingPods();
 
         updateDashboard();
 
@@ -3291,25 +3249,14 @@ vfio_pci`;
           return true;
         }
 
-        const assignedNode = runtimeReady
-          ? nodes.find(
-              (node) =>
-                !node.labels[
-                  "node-role.kubernetes.io/control-plane"
-                ],
-            ) || nodes[0]
-          : undefined;
-
         pods.push({
           name: podName,
           namespace: "default",
-          status: runtimeReady ? "Running" : "Pending",
+          status: "Pending",
           age: "1s",
           image: "denhamparry/leaky-vessel:0.1",
-          ip: assignedNode
-            ? `10.244.0.${Math.floor(Math.random() * 200 + 10)}`
-            : "<none>",
-          node: assignedNode?.name || "<none>",
+          ip: "<none>",
+          node: "<none>",
           labels: {},
           runtimeClassName: "edera",
         });
@@ -3321,21 +3268,7 @@ vfio_pci`;
           `pod/${podName} created from manifest`,
         );
 
-        if (runtimeReady && assignedNode) {
-          addEvent(
-            "Normal",
-            "Scheduled",
-            `pod/${podName}`,
-            `Successfully assigned default/${podName} to ${assignedNode.name}`,
-          );
-
-          addEvent(
-            "Normal",
-            "Started",
-            `pod/${podName}`,
-            `Started container ${podName}`,
-          );
-        } else {
+        if (!runtimeReady) {
           addEvent(
             "Warning",
             "FailedCreatePodSandBox",
@@ -3343,6 +3276,8 @@ vfio_pci`;
             `Failed to create pod sandbox: RuntimeClass "edera" not found`,
           );
         }
+
+        checkPendingPods();
 
         updateDashboard();
 
@@ -4500,22 +4435,20 @@ vfio_pci`;
 
       pods.forEach((pod) => {
         if (pod.node === nodeName) {
-          pod.node =
-            nodes.find(
-              (node) =>
-                !node.labels[
-                  "node-role.kubernetes.io/control-plane"
-                ],
-            )?.name || "unassigned";
+          pod.status = "Pending";
+          pod.node = "<none>";
+          pod.ip = "<none>";
 
           addEvent(
             "Warning",
             "NodeEviction",
             `pod/${pod.name}`,
-            `Rescheduled to ${pod.node}`,
+            `Pod evicted from deleted node ${nodeName}; waiting for a schedulable node`,
           );
         }
       });
+
+      checkPendingPods();
 
       for (const deployment of deployments) {
         deployment.readyReplicas = pods.filter((pod) => pod.ownerDeployment === deployment.name && pod.status === "Running").length;
