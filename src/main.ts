@@ -178,6 +178,13 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     command: "protect zone list",
   },
   {
+    id: "edera-node-label",
+    title: "Label the Edera node",
+    description:
+      "Label node-2 with runtime=edera. The Edera RuntimeClass uses this label to schedule Edera-protected workloads onto the correct node.",
+    command: "kubectl label node node-2 runtime=edera",
+  },
+  {
     id: "edera-pod-apply",
     title: "Deploy the Edera-protected pod",
     description:
@@ -1394,12 +1401,16 @@ vfio_pci`;
         );
 
         const assignedNode = runtimeReady
-          ? nodes.find(
-              (node) =>
-                !node.labels[
-                  "node-role.kubernetes.io/control-plane"
-                ],
-            ) || nodes[0]
+          ? deployment.runtimeClassName === "edera"
+            ? nodes.find(
+                (node) => node.labels["runtime"] === "edera",
+              )
+            : nodes.find(
+                (node) =>
+                  !node.labels[
+                    "node-role.kubernetes.io/control-plane"
+                  ],
+              ) || nodes[0]
           : undefined;
 
         const pod: LocalPod = {
