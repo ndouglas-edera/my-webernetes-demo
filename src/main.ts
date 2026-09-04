@@ -291,11 +291,6 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
       "List the zones one final time and observe the destroyed tombstone.",
     command: "protect zone list",
   },
-
-  /*
-   * GPU passthrough is intentionally not part of the guided demo flow.
-   * The GPU commands remain available in the terminal for manual exploration.
-   */
 ];
 
 async function initTerminalDemo() {
@@ -500,27 +495,18 @@ async function initTerminalDemo() {
 
   const eventsStream =
     document.querySelector<HTMLDivElement>("#events-stream")!;
-
   const guideStepTitle =
     document.querySelector<HTMLDivElement>("#guide-step-title")!;
-
   const guideDescription =
     document.querySelector<HTMLDivElement>("#guide-description")!;
-
   const suggestedCommand =
     document.querySelector<HTMLElement>("#suggested-command")!;
-
   const guideStepList =
     document.querySelector<HTMLDivElement>("#guide-step-list")!;
-
   const guideProgress =
     document.querySelector<HTMLDivElement>("#guide-progress")!;
-
   const useCommandBtn =
     document.querySelector<HTMLButtonElement>("#use-command-btn")!;
-
-  // Mobile layout is handled entirely in style.css.
-
   const rootShell =
     document.querySelector<HTMLElement>(".demo-shell") || app;
   const mainLayout =
@@ -534,13 +520,11 @@ async function initTerminalDemo() {
     const isMobile = window.matchMedia("(max-width: 768px)").matches;
 
     if (isMobile) {
-      // Mobile: Terminal -> Edera Demo Guide -> Lifecycle Events.
       if (eventsPanel.parentElement !== rootShell ||
           eventsPanel.previousElementSibling !== guidePanel) {
         rootShell.insertBefore(eventsPanel, guidePanel.nextSibling);
       }
     } else {
-      // Desktop: restore the original Terminal + Lifecycle Events layout.
       if (eventsPanel.parentElement !== mainLayout) {
         mainLayout.appendChild(eventsPanel);
       }
@@ -562,15 +546,12 @@ async function initTerminalDemo() {
 
   const completionModal =
     document.querySelector<HTMLDivElement>("#completion-modal")!;
-
   const completionClose =
     document.querySelector<HTMLButtonElement>("#completion-close")!;
-
   const completionModalBackdrop =
     document.querySelector<HTMLDivElement>("#completion-modal-backdrop")!;
   const restartDemoBtn =
     document.querySelector<HTMLButtonElement>("#restart-demo-btn")!;
-  // Keep completion state in memory so each fresh page load can complete the lab again.
   let completionModalShown = false;
 
   const closeCompletionModal = () => {
@@ -586,11 +567,6 @@ async function initTerminalDemo() {
     "pod-hardened-vessel.yaml": HARDENED_VESSEL_YAML_CONTENT,
     "nginx-deployment.yaml": NGINX_DEPLOYMENT_YAML_CONTENT,
   };
-
-  /*
-   * GPU passthrough is simulated independently of the existing Kubernetes
-   * state. The values mirror the NVIDIA Tesla T4 example used by the GPU lab.
-   */
   const GPU_PCI_LOCATION = "0000:18:00.0";
   const GPU_PCI_ID = "10de:1eb8";
   const GPU_GUEST_PCI_LOCATION = "0000:00:07.0";
@@ -655,13 +631,7 @@ vfio_pci`;
 |  No running processes found                                                             |
 +-----------------------------------------------------------------------------------------+`;
 
-  /*
-   * The demo filesystem is intentionally read-only.
-   *
-   * These files can still be read with `cat` and consumed by supported
-   * operations such as `kubectl apply -f`, but terminal editors and other
-   * write-oriented commands must not modify the in-memory manifests.
-   */
+
   const localFileMetadata: Record<
     string,
     { size: number; modified: string }
@@ -688,14 +658,11 @@ vfio_pci`;
   const READ_ONLY_DIRECTORY_MODE = "dr-xr-xr-x";
 
   const startNewDemoSession = () => {
-    // Reset the demo walkthrough and the in-memory UI state.
     completedDemoSteps = new Set<string>();
     selectedDemoStepIndex = null;
     completionModalShown = false;
     commandHistory.length = 0;
     historyIndex = -1;
-
-    // Rebuild the simulated cluster so every lab starts from a clean state.
     protectZones = [];
     protectWorkloads = [];
     clusterEvents = [];
@@ -703,9 +670,6 @@ vfio_pci`;
     protectDaemonRestarted = false;
 
     closeCompletionModal();
-
-    // A full reload is the safest way to restore all simulator state,
-    // including the Webernetes cluster, pods, terminal output, and guide.
     window.location.reload();
   };
 
@@ -799,22 +763,10 @@ vfio_pci`;
 
   let protectZones: ProtectZone[] = [];
   let protectWorkloads: ProtectWorkload[] = [];
-
   let clusterEvents: ClusterEvent[] = [];
-
   const commandHistory: string[] = [];
   let historyIndex = -1;
-
-  /*
-   * We track the highest completed step rather than simply advancing
-   * whenever any protect command is typed. That means the guide remains
-   * useful even if someone explores commands out of order.
-   */
   let completedDemoSteps = new Set<string>();
-
-  // GPU passthrough is supported by the terminal simulator, but it is
-  // intentionally not part of the core demo guide. The guided flow ends
-  // after the existing zone-lifecycle verification.
   const REQUIRED_DEMO_STEP_IDS = PROTECT_DEMO_STEPS
     .filter((step) => !step.optional)
     .map((step) => step.id);
@@ -840,14 +792,10 @@ vfio_pci`;
     closeCompletionModal();
   };
 
-  // Always start with the modal closed. This protects against browsers or
-  // dev servers restoring the previous DOM state after a refresh.
   closeCompletionModal();
-
   completionClose.addEventListener("click", hideCompletionModal);
   completionModalBackdrop.addEventListener("click", hideCompletionModal);
   restartDemoBtn.addEventListener("click", startNewDemoSession);
-
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !completionModal.hidden) {
       hideCompletionModal();
@@ -1214,8 +1162,6 @@ const renderNodes = () => {
   const markDemoStepComplete = (stepId: string) => {
     const wasComplete = isDemoComplete();
     completedDemoSteps.add(stepId);
-    // Once the selected step has completed, advance the selection to the next
-    // incomplete task so the guide remains useful as a linear walkthrough.
     const selectedStep =
       selectedDemoStepIndex === null
         ? undefined
@@ -1228,8 +1174,6 @@ const renderNodes = () => {
         nextIndex === -1 ? PROTECT_DEMO_STEPS.length - 1 : nextIndex;
     }
     renderGuide();
-    // Only trigger the popup on the transition from incomplete -> complete.
-    // This prevents unrelated/repeated commands from opening it again.
     if (!wasComplete && isDemoComplete()) {
       requestAnimationFrame(() => {
         showCompletionModal();
@@ -1685,8 +1629,6 @@ const renderNodes = () => {
       return zone.state === state;
     });
 
-    // Without --all, a duplicate name targets the newest active zone.
-    // With --all, every matching active zone is destroyed.
     if (!all && matches.length > 1) {
       matches = [matches[matches.length - 1]];
     }
@@ -1807,8 +1749,6 @@ const renderNodes = () => {
       return;
     }
 
-    // In the simulator, a runtimeClassName: edera pod attaches to
-    // the most recently launched ready Edera zone.
     const targetZone = readyZones[readyZones.length - 1];
 
     for (const pod of pods) {
@@ -2075,12 +2015,6 @@ const renderNodes = () => {
       `Command completed successfully`,
     );
   };
-
-  /*
-   * -----------------------------------------------------------------------
-   * KUBERNETES / WEBERNETES COMMANDS
-   * -----------------------------------------------------------------------
-   */
 
   const formatHelpText = () => {
     return `
@@ -2420,10 +2354,6 @@ const renderNodes = () => {
     if (tokens[0] !== "protect") {
       return false;
     }
-
-    /*
-     * protect --help
-     */
     if (
       tokens.length === 1 ||
       tokens[1] === "--help" ||
@@ -3104,10 +3034,7 @@ const renderNodes = () => {
           );
         }
 
-        // Let the authoritative scheduler decide whether the pod can run.
-        // If node-2 has not been labelled runtime=edera yet, it remains Pending.
         checkPendingPods();
-
         updateDashboard();
 
         printHtml(
@@ -3203,7 +3130,6 @@ const renderNodes = () => {
         }
 
         checkPendingPods();
-
         updateDashboard();
 
         printHtml(
