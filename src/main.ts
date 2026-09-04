@@ -3798,6 +3798,44 @@ vfio_pci`;
       }
 
       if (
+        resource === "runtimeclass" ||
+        resource === "runtimeclasses"
+      ) {
+        const nameWidth = Math.max(
+          8,
+          ...Array.from(activeRuntimeClasses).map(
+            (runtimeClass) => runtimeClass.length + 2,
+          ),
+        );
+        const handlerWidth = 10;
+        const ageWidth = 7;
+
+        let output =
+          `<span style="color:#00e5d4;font-weight:700;">` +
+          `${"NAME".padEnd(nameWidth)}${"HANDLER".padEnd(handlerWidth)}${"AGE".padEnd(ageWidth)}` +
+          `</span>\n`;
+
+        output += `<span style="color:#08736d;">${"─".repeat(
+          nameWidth + handlerWidth + ageWidth,
+        )}</span>\n`;
+
+        for (const runtimeClass of activeRuntimeClasses) {
+          output +=
+            `${escapeHtml(runtimeClass.padEnd(nameWidth))}` +
+            `${escapeHtml(runtimeClass.padEnd(handlerWidth))}` +
+            `${"1d".padEnd(ageWidth)}\n`;
+        }
+
+        printPre(output.trimEnd());
+
+        if (activeRuntimeClasses.has("edera")) {
+          markDemoStepComplete("edera-runtimeclass-list");
+        }
+
+        return true;
+      }
+
+      if (
         resource === "nodes" ||
         resource === "node"
       ) {
