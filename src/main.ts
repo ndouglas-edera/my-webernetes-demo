@@ -1362,21 +1362,29 @@ vfio_pci`;
         );
       }
 
-      let targetNode: LocalNode | undefined;
+      const effectiveNodeSelector: Record<string, string> = {
+        ...(pod.nodeSelector || {}),
+      };
 
-      if (pod.nodeSelector) {
-        targetNode = nodes.find((node) =>
-          Object.entries(pod.nodeSelector!).every(
-            ([key, value]) => node.labels[key] === value,
-          ),
-        );
-      } else {
-        targetNode =
-          nodes.find(
-            (node) =>
-              !node.labels["node-role.kubernetes.io/control-plane"],
-          ) || nodes[0];
+      // The Edera RuntimeClass adds runtime=edera to the pod's effective
+      // scheduling requirements, matching its RuntimeClass nodeSelector.
+      if (pod.runtimeClassName === "edera") {
+        effectiveNodeSelector.runtime = "edera";
       }
+
+      const selectorEntries = Object.entries(effectiveNodeSelector);
+
+      const targetNode =
+        selectorEntries.length > 0
+          ? nodes.find((node) =>
+              selectorEntries.every(
+                ([key, value]) => node.labels[key] === value,
+              ),
+            )
+          : nodes.find(
+              (node) =>
+                !node.labels["node-role.kubernetes.io/control-plane"],
+            ) || nodes[0];
 
       if (targetNode) {
         pod.status = "Running";
@@ -1420,12 +1428,16 @@ vfio_pci`;
         );
 
         const assignedNode = runtimeReady
-          ? nodes.find(
-              (node) =>
-                !node.labels[
-                  "node-role.kubernetes.io/control-plane"
-                ],
-            ) || nodes[0]
+          ? deployment.runtimeClassName === "edera"
+            ? nodes.find(
+                (node) => node.labels["runtime"] === "edera",
+              )
+            : nodes.find(
+                (node) =>
+                  !node.labels[
+                    "node-role.kubernetes.io/control-plane"
+                  ],
+              ) || nodes[0]
           : undefined;
 
         const pod: LocalPod = {
