@@ -1029,59 +1029,50 @@ vfio_pci`;
   };
 
 const renderNodes = () => {
-  nodeCount.innerText =
-    `${nodes.length} ${nodes.length === 1 ? "Node" : "Nodes"}`;
+    nodeCount.innerText =
+      `${nodes.length} ${nodes.length === 1 ? "Node" : "Nodes"}`;
 
-  if (nodes.length === 0) {
-    nodeGrid.innerHTML = `
-      <div class="empty-state">No nodes available</div>
-    `;
-    return;
-  }
-
-  nodeGrid.innerHTML = nodes
-    .map((node) => {
-      const usesEderaRuntime =
-        node.labels.runtime === "edera";
-      return `
-        <div class="resource-card">
-          <div>
-            <div
-              style="
-                font-weight:600;
-                font-size:13px;
-                color:#f8fffd;
-                display:flex;
-                align-items:center;
-                gap:8px;
-                flex-wrap:wrap;
-              "
-            >
-              <span>${escapeHtml(node.name)}</span>
-              ${
-                usesEderaRuntime
-                  ? `
-                    <span class="runtimeclass-badge">
-                      runtimeClassName: edera
-                    </span>
-                  `
-                  : ""
-              }
-            </div>
-
-            <div class="resource-meta">
-              ${escapeHtml(getNodeRoles(node))}
-            </div>
-          </div>
-
-          <span class="status-badge status-ready">
-            ${escapeHtml(node.status)}
-          </span>
-        </div>
+    if (nodes.length === 0) {
+      nodeGrid.innerHTML = `
+        <div class="empty-state">No nodes available</div>
       `;
-    })
-    .join("");
-};
+      return;
+    }
+
+    nodeGrid.innerHTML = nodes
+      .map((node) => {
+        const usesEderaRuntime =
+          node.labels.runtime === "edera";
+
+        return `
+          <div class="resource-card">
+            <div>
+              <div class="resource-name">
+                <span>${escapeHtml(node.name)}</span>
+                ${
+                  usesEderaRuntime
+                    ? `
+                      <span class="runtimeclass-badge">
+                        runtimeClassName: edera
+                      </span>
+                    `
+                    : ""
+                }
+              </div>
+
+              <div class="resource-meta">
+                ${escapeHtml(getNodeRoles(node))}
+              </div>
+            </div>
+
+            <span class="status-badge status-ready">
+              ${escapeHtml(node.status)}
+            </span>
+          </div>
+        `;
+      })
+      .join("");
+  };
   const renderProtectZones = () => {
     zoneCount.innerText =
       `${protectZones.length} ${protectZones.length === 1 ? "Zone" : "Zones"}`;
