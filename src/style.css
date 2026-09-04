@@ -1575,3 +1575,19 @@ input {
   text-decoration-color: #ef4444;
   opacity: 0.7;
 }
+
+/* When a node is assigned a RuntimeClass label*/
+.runtimeclass-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 3px 7px;
+  border: 1px solid rgba(184, 255, 60, 0.45);
+  border-radius: 999px;
+  background: rgba(184, 255, 60, 0.08);
+  color: #b8ff3c;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: monospace;
+  white-space: nowrap;
+}
