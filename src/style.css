@@ -429,9 +429,10 @@ input {
 
 .resource-name,
 .zone-name {
-  color: var(--edera-teal);
-  font-size: 12px;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .resource-meta,
