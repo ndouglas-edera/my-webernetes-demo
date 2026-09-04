@@ -108,12 +108,17 @@ metadata:
   namespace: default
   labels:
     env: test
+  annotations:
+    dev.edera/cpu: "4"
 spec:
   runtimeClassName: edera
   containers:
   - name: nginx
     image: nginx
-    imagePullPolicy: IfNotPresent`;
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: "4"`;
 
 const RUNTIMECLASS_EDERA_YAML_CONTENT = `apiVersion: node.k8s.io/v1
 kind: RuntimeClass
@@ -178,18 +183,18 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     command: "protect zone list",
   },
   {
-    id: "edera-pod-apply",
-    title: "Deploy the Edera-protected pod",
-    description:
-      "Apply the nginx manifest. It requests runtimeClassName: edera, but the Edera RuntimeClass is not defined yet, so the pod should remain Pending.",
-    command: "kubectl apply -f pod-nginx.yaml",
-  },
-  {
     id: "edera-runtimeclass-apply",
     title: "Apply the Edera RuntimeClass",
     description:
-      "Create the Edera RuntimeClass. This enables Kubernetes to recognize the edera runtime before scheduling Edera-protected workloads.",
+      "Create the Edera RuntimeClass so Kubernetes recognizes the edera runtime.",
     command: "kubectl apply -f runtimeclass-edera.yaml",
+  },
+  {
+    id: "edera-runtimeclass-list",
+    title: "Verify the Edera RuntimeClass",
+    description:
+      "List RuntimeClasses and confirm that edera is available.",
+    command: "kubectl get runtimeclass",
   },
   {
     id: "edera-node-label",
@@ -197,6 +202,20 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     description:
       "Label node-2 with runtime=edera. The Edera RuntimeClass uses this node selector to schedule Edera-protected workloads onto the correct node.",
     command: "kubectl label node node-2 runtime=edera",
+  },
+  {
+    id: "edera-pod-apply",
+    title: "Deploy the CPU-configured Edera pod",
+    description:
+      "Apply the nginx manifest. It uses runtimeClassName: edera and requests 4 CPUs with the matching dev.edera/cpu annotation.",
+    command: "kubectl apply -f pod-nginx.yaml",
+  },
+  {
+    id: "edera-pod-runtimeclass",
+    title: "Verify the pod RuntimeClass",
+    description:
+      "Confirm that edera-protect-pod is using the edera RuntimeClass.",
+    command: "kubectl get pod edera-protect-pod -o jsonpath='{.spec.runtimeClassName}'",
   },
   {
     id: "edera-workload-list",
@@ -1401,16 +1420,12 @@ vfio_pci`;
         );
 
         const assignedNode = runtimeReady
-          ? deployment.runtimeClassName === "edera"
-            ? nodes.find(
-                (node) => node.labels["runtime"] === "edera",
-              )
-            : nodes.find(
-                (node) =>
-                  !node.labels[
-                    "node-role.kubernetes.io/control-plane"
-                  ],
-              ) || nodes[0]
+          ? nodes.find(
+              (node) =>
+                !node.labels[
+                  "node-role.kubernetes.io/control-plane"
+                ],
+            ) || nodes[0]
           : undefined;
 
         const pod: LocalPod = {
@@ -3597,6 +3612,46 @@ vfio_pci`;
             pod.namespace === namespaceFilter,
         );
 
+        const requestedPodName = tokens.find(
+          (token, index) =>
+            index > 2 &&
+            !token.startsWith("-") &&
+            !["pod", "pods"].includes(token),
+        );
+
+        if (
+          outputFormat.includes("jsonpath") &&
+          outputFormat.includes(".spec.runtimeClassName")
+        ) {
+          const pod = requestedPodName
+            ? filtered.find((item) => item.name === requestedPodName)
+            : filtered[0];
+
+          if (!pod) {
+            printHtml(
+              `<span style="color:#ff7373;">Error from server (NotFound): pod "${escapeHtml(
+                requestedPodName || "",
+              )}" not found</span>`,
+            );
+            return true;
+          }
+
+          printPre(
+            `<span style="color:#dff7f0;">${escapeHtml(
+              pod.runtimeClassName || "",
+            )}</span>`,
+          );
+
+          if (
+            pod.name === "edera-protect-pod" &&
+            pod.runtimeClassName === "edera"
+          ) {
+            markDemoStepComplete("edera-pod-runtimeclass");
+          }
+
+          return true;
+        }
+
         if (filtered.length === 0) {
           printHtml(
             `<span style="color:#a8cfca;">No resources found.</span>`,
@@ -4068,6 +4123,13 @@ vfio_pci`;
 
       checkPendingPods();
       updateDashboard();
+
+      if (
+        node.name === "node-2" &&
+        labelExpression === "runtime=edera"
+      ) {
+        markDemoStepComplete("edera-node-label");
+      }
 
       return true;
     }
