@@ -1028,40 +1028,60 @@ vfio_pci`;
       .join("");
   };
 
-  const renderNodes = () => {
-    nodeCount.innerText =
-      `${nodes.length} ${nodes.length === 1 ? "Node" : "Nodes"}`;
+const renderNodes = () => {
+  nodeCount.innerText =
+    `${nodes.length} ${nodes.length === 1 ? "Node" : "Nodes"}`;
 
-    if (nodes.length === 0) {
-      nodeGrid.innerHTML = `
-        <div class="empty-state">No nodes available</div>
-      `;
-      return;
-    }
+  if (nodes.length === 0) {
+    nodeGrid.innerHTML = `
+      <div class="empty-state">No nodes available</div>
+    `;
+    return;
+  }
 
-    nodeGrid.innerHTML = nodes
-      .map(
-        (node) => `
-          <div class="resource-card">
-            <div>
-              <div style="font-weight:600;font-size:13px;color:#f8fffd;">
-                ${escapeHtml(node.name)}
-              </div>
-
-              <div class="resource-meta">
-                ${escapeHtml(getNodeRoles(node))}
-              </div>
+  nodeGrid.innerHTML = nodes
+    .map((node) => {
+      const usesEderaRuntime =
+        node.labels.runtime === "edera";
+      return `
+        <div class="resource-card">
+          <div>
+            <div
+              style="
+                font-weight:600;
+                font-size:13px;
+                color:#f8fffd;
+                display:flex;
+                align-items:center;
+                gap:8px;
+                flex-wrap:wrap;
+              "
+            >
+              <span>${escapeHtml(node.name)}</span>
+              ${
+                usesEderaRuntime
+                  ? `
+                    <span class="runtimeclass-badge">
+                      runtimeClassName: edera
+                    </span>
+                  `
+                  : ""
+              }
             </div>
 
-            <span class="status-badge status-ready">
-              ${escapeHtml(node.status)}
-            </span>
+            <div class="resource-meta">
+              ${escapeHtml(getNodeRoles(node))}
+            </div>
           </div>
-        `,
-      )
-      .join("");
-  };
 
+          <span class="status-badge status-ready">
+            ${escapeHtml(node.status)}
+          </span>
+        </div>
+      `;
+    })
+    .join("");
+};
   const renderProtectZones = () => {
     zoneCount.innerText =
       `${protectZones.length} ${protectZones.length === 1 ? "Zone" : "Zones"}`;
@@ -1074,22 +1094,18 @@ vfio_pci`;
       `;
       return;
     }
-
     zoneGrid.innerHTML = protectZones
       .map((zone) => {
         const workloadCount = protectWorkloads.filter(
           (workload) => workload.zone === zone.uuid,
         ).length;
-
         const statusClass =
           zone.state === "ready"
             ? "status-ready"
             : zone.state === "destroyed"
               ? "status-destroyed"
               : "status-pending";
-
         const isDestroyed = zone.state === "destroyed";
-
         return `
           <div class="zone-card${isDestroyed ? " zone-card-destroyed" : ""}">
             <div class="zone-top">
@@ -1102,12 +1118,10 @@ vfio_pci`;
                   ${escapeHtml(zone.uuid)}
                 </div>
               </div>
-
               <span class="status-badge ${statusClass}">
                 ${escapeHtml(zone.state)}
               </span>
             </div>
-
             <div class="zone-meta">
               <span>IPv4: ${escapeHtml(zone.ipv4 || "—")}</span>
               <span>CPUs: ${zone.targetCpus}</span>
@@ -1118,23 +1132,18 @@ vfio_pci`;
       })
       .join("");
   };
-
   const updateDashboard = () => {
     renderPods();
     renderNodes();
     renderProtectZones();
   };
-
   let selectedDemoStepIndex: number | null = null;
-
   const getNextDemoStepIndex = (): number => {
     const index = PROTECT_DEMO_STEPS.findIndex(
       (step) => !completedDemoSteps.has(step.id),
     );
-
     return index === -1 ? PROTECT_DEMO_STEPS.length - 1 : index;
   };
-
   const getSelectedDemoStepIndex = (): number => {
     if (
       selectedDemoStepIndex !== null &&
@@ -1143,27 +1152,21 @@ vfio_pci`;
     ) {
       return selectedDemoStepIndex;
     }
-
     return getNextDemoStepIndex();
   };
-
   const selectDemoStep = (index: number) => {
     if (index < 0 || index >= PROTECT_DEMO_STEPS.length) {
       return;
     }
-
     selectedDemoStepIndex = index;
     renderGuide();
   };
-
   const renderGuide = () => {
     const currentIndex = getSelectedDemoStepIndex();
     const currentStep = PROTECT_DEMO_STEPS[currentIndex];
-
     guideProgress.innerHTML = PROTECT_DEMO_STEPS.map((step, index) => {
       const done = completedDemoSteps.has(step.id);
       const current = index === currentIndex && !done;
-
       return `
         <span
           class="progress-dot ${
@@ -1173,22 +1176,18 @@ vfio_pci`;
         ></span>
       `;
     }).join("");
-
     guideStepTitle.innerHTML =
       `${escapeHtml(currentStep.title)}${
         currentStep.optional
           ? `<span class="optional-badge">OPTIONAL</span>`
           : ""
       }`;
-
     guideDescription.innerText = currentStep.description;
     suggestedCommand.innerText = currentStep.command;
-
     guideStepList.innerHTML = PROTECT_DEMO_STEPS.map((step, index) => {
       const done = completedDemoSteps.has(step.id);
       const current = index === currentIndex && !done;
       const selected = index === currentIndex;
-
       return `
         <button
           type="button"
@@ -1211,30 +1210,23 @@ vfio_pci`;
       `;
     }).join("");
   };
-
   const markDemoStepComplete = (stepId: string) => {
     const wasComplete = isDemoComplete();
-
     completedDemoSteps.add(stepId);
-
     // Once the selected step has completed, advance the selection to the next
     // incomplete task so the guide remains useful as a linear walkthrough.
     const selectedStep =
       selectedDemoStepIndex === null
         ? undefined
         : PROTECT_DEMO_STEPS[selectedDemoStepIndex];
-
     if (selectedStep?.id === stepId) {
       const nextIndex = PROTECT_DEMO_STEPS.findIndex(
         (step) => !completedDemoSteps.has(step.id),
       );
-
       selectedDemoStepIndex =
         nextIndex === -1 ? PROTECT_DEMO_STEPS.length - 1 : nextIndex;
     }
-
     renderGuide();
-
     // Only trigger the popup on the transition from incomplete -> complete.
     // This prevents unrelated/repeated commands from opening it again.
     if (!wasComplete && isDemoComplete()) {
@@ -1243,7 +1235,6 @@ vfio_pci`;
       });
     }
   };
-
   guideStepList.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     const button = target.closest<HTMLButtonElement>("button[data-step-index]");
@@ -1251,23 +1242,18 @@ vfio_pci`;
     if (!button) {
       return;
     }
-
     const index = Number(button.dataset.stepIndex);
     if (Number.isFinite(index)) {
       selectDemoStep(index);
     }
   });
-
   useCommandBtn.addEventListener("click", () => {
     const index = getSelectedDemoStepIndex();
     const step = PROTECT_DEMO_STEPS[index];
-
     input.value = step.command;
     input.focus();
-
     input.setSelectionRange(input.value.length, input.value.length);
   });
-
   document
     .querySelector<HTMLButtonElement>("#hero-run-btn")!
     .addEventListener("click", () => {
@@ -1277,7 +1263,6 @@ vfio_pci`;
 
       input.focus();
     });
-
   const hidePanel = (
     panelId: string,
     bodyId: string,
@@ -1286,15 +1271,11 @@ vfio_pci`;
     const panel = document.querySelector<HTMLElement>(panelId)!;
     const body = document.querySelector<HTMLElement>(bodyId)!;
     const button = document.querySelector<HTMLButtonElement>(buttonId)!;
-
     let hidden = false;
-
     button.addEventListener("click", () => {
       hidden = !hidden;
-
       body.style.display = hidden ? "none" : "";
       button.innerText = hidden ? "Show" : "Hide";
-
       if (hidden) {
         panel.style.opacity = "0.65";
       } else {
@@ -1302,12 +1283,10 @@ vfio_pci`;
       }
     });
   };
-
   hidePanel("#pods-panel", "#pods-body", "#hide-pods-btn");
   hidePanel("#nodes-panel", "#nodes-body", "#hide-nodes-btn");
   hidePanel("#protect-panel", "#protect-body", "#hide-protect-btn");
   hidePanel("#guide-panel", "#guide-body", "#hide-guide-btn");
-
   document
     .querySelector<HTMLButtonElement>("#hide-events-btn")!
     .addEventListener("click", () => {
@@ -1333,24 +1312,14 @@ vfio_pci`;
       clusterEvents = [];
       renderEvents();
     });
-
-  /**
-   * Return the node that satisfies all effective scheduling requirements for a
-   * pod. RuntimeClass scheduling is treated as part of the pod's effective
-   * nodeSelector, just as it is by Kubernetes.
-   */
   const findSchedulableNode = (pod: LocalPod): LocalNode | undefined => {
     const effectiveNodeSelector: Record<string, string> = {
       ...(pod.nodeSelector || {}),
     };
-
-    // The Edera RuntimeClass requires nodes labelled runtime=edera.
     if (pod.runtimeClassName === "edera") {
       effectiveNodeSelector.runtime = "edera";
     }
-
     const selectorEntries = Object.entries(effectiveNodeSelector);
-
     if (selectorEntries.length > 0) {
       return nodes.find((node) =>
         node.status === "Ready" &&
@@ -1359,9 +1328,6 @@ vfio_pci`;
         ),
       );
     }
-
-    // Preserve the simulator's existing default scheduling preference when a
-    // pod has no explicit scheduling requirements.
     return (
       nodes.find(
         (node) =>
@@ -1370,25 +1336,21 @@ vfio_pci`;
       ) || nodes.find((node) => node.status === "Ready")
     );
   };
-
   const checkPendingPods = () => {
     for (const pod of pods) {
       const recoverableRuntimeClassPod =
         pod.status === "Failed" &&
         pod.runtimeClassName &&
         activeRuntimeClasses.has(pod.runtimeClassName);
-
       if (pod.status !== "Pending" && !recoverableRuntimeClassPod) {
         continue;
       }
-
       if (
         pod.runtimeClassName &&
         !activeRuntimeClasses.has(pod.runtimeClassName)
       ) {
         continue;
       }
-
       if (recoverableRuntimeClassPod) {
         pod.status = "Pending";
         addEvent(
@@ -1492,13 +1454,6 @@ vfio_pci`;
     syncEderaPodsToProtectWorkloads();
     updateDashboard();
   };
-
-  /*
-   * -----------------------------------------------------------------------
-   * EDERA PROTECT SIMULATION
-   * -----------------------------------------------------------------------
-   */
-
   const nextZoneIp = () => {
     const used = new Set(
       protectZones
@@ -1512,7 +1467,6 @@ vfio_pci`;
         return `10.75.0.${i}/16`;
       }
     }
-
     return `10.75.0.${Math.floor(Math.random() * 200 + 20)}/16`;
   };
 
@@ -1530,11 +1484,7 @@ vfio_pci`;
     device?: string,
     kernelVariant?: string,
   ) => {
-    // Zone names are labels, not unique identifiers. Multiple zones may
-    // legitimately share the same name; the UUID uniquely identifies each
-    // zone instance.
     const uuid = crypto.randomUUID();
-
     const zone: ProtectZone = {
       name,
       uuid,
@@ -1547,35 +1497,28 @@ vfio_pci`;
       device,
       kernelVariant,
     };
-
     protectZones.push(zone);
-
     addEvent(
       "Info",
       "ZoneCreating",
       `zone/${name}`,
       `Requested Edera zone ${name}`,
     );
-
     zone.state = "ready";
     zone.ipv4 = nextZoneIp();
     zone.ipv6 = nextZoneIpv6();
-
     addEvent(
       "Normal",
       "ZoneReady",
       `zone/${name}`,
       `Edera zone ${name} is ready`,
     );
-
     syncEderaPodsToProtectWorkloads();
     updateDashboard();
-
     printHtml(
       `<span style="color:#b8ff3c;">${escapeHtml(uuid)}</span>`,
     );
   };
-
   const renderProtectZoneList = () => {
     if (protectZones.length === 0) {
       printHtml(
@@ -1583,19 +1526,16 @@ vfio_pci`;
       );
       return;
     }
-
     const nameWidth = 15;
     const uuidWidth = 38;
     const stateWidth = 13;
     const ipv4Width = 18;
-
     const header =
       "NAME".padEnd(nameWidth) +
       "UUID".padEnd(uuidWidth) +
       "STATE".padEnd(stateWidth) +
       "IPV4".padEnd(ipv4Width) +
       "IPV6";
-
     const divider =
       "─".repeat(nameWidth) +
       "─".repeat(uuidWidth) +
@@ -2892,10 +2832,6 @@ vfio_pci`;
     if (tokens[0] !== "kubectl") {
       return false;
     }
-
-    /*
-     * kubectl run
-     */
     if (tokens[1] === "run") {
       const podName = tokens[2];
 
@@ -2999,10 +2935,6 @@ vfio_pci`;
 
       return true;
     }
-
-    /*
-     * kubectl create namespace
-     */
     if (
       tokens[1] === "create" &&
       (tokens[2] === "namespace" ||
@@ -3051,10 +2983,6 @@ vfio_pci`;
 
       return true;
     }
-
-    /*
-     * kubectl apply
-     */
     if (tokens[1] === "apply" && tokens[2] === "-f") {
       const fileName = tokens[3];
 
@@ -3108,10 +3036,6 @@ vfio_pci`;
         if (!runtimeReady) {
           addEvent("Warning", "ReplicaSetCreate", `deployment/${deploymentName}`, `Created ${deployment.replicas} Pending pods waiting for RuntimeClass "edera"`);
         }
-
-        // Always pass newly-created pods through the same scheduler. This is
-        // important when RuntimeClass "edera" exists but no node has yet been
-        // labelled runtime=edera.
         checkPendingPods();
         deployment.readyReplicas = pods.filter((pod) => pod.ownerDeployment === deploymentName && pod.status === "Running").length;
 
@@ -3290,14 +3214,6 @@ vfio_pci`;
 
       return true;
     }
-
-    /*
-     * kubectl describe
-     *
-     * Keep this output as real preformatted terminal text. The previous
-     * implementation mixed block HTML elements into <pre>, which caused large
-     * vertical gaps and made the result look much looser than kubectl.
-     */
     if (tokens[1] === "describe") {
       const resource = tokens[2];
       const name = tokens[3];
@@ -3495,10 +3411,6 @@ vfio_pci`;
       );
       return true;
     }
-
-    /*
-     * kubectl get
-     */
     if (tokens[1] === "get") {
       const resource = tokens[2];
 
@@ -3509,19 +3421,6 @@ vfio_pci`;
         const allNamespaces =
           tokens.includes("-A") ||
           tokens.includes("--all-namespaces");
-
-        /*
-         * Match kubectl's standard pod output modes independently:
-         *
-         *   kubectl get pods
-         *   kubectl get pods --show-labels
-         *   kubectl get pods -o wide
-         *   kubectl get pods -A --show-labels
-         *   kubectl get pods -A -o wide --show-labels
-         *
-         * NODE must only appear in wide output. LABELS must only appear when
-         * explicitly requested.
-         */
         const showLabels = tokens.includes("--show-labels");
 
         const outputFormatIndex = tokens.findIndex(
@@ -3786,15 +3685,6 @@ vfio_pci`;
         resource === "nodes" ||
         resource === "node"
       ) {
-        /*
-         * Support the same output modifiers people expect from a real
-         * `kubectl get nodes` command:
-         *
-         *   kubectl get nodes
-         *   kubectl get nodes -o wide
-         *   kubectl get nodes --show-labels
-         *   kubectl get nodes -o wide --show-labels
-         */
         const showLabels = tokens.includes("--show-labels");
 
         const outputFormatIndex = tokens.findIndex(
@@ -3990,10 +3880,6 @@ vfio_pci`;
         return true;
       }
     }
-
-    /*
-     * kubectl label pod
-     */
     if (
       tokens[1] === "label" &&
       (tokens[2] === "pod" ||
@@ -4052,10 +3938,6 @@ vfio_pci`;
 
       return true;
     }
-
-    /*
-     * kubectl label node
-     */
     if (
       tokens[1] === "label" &&
       (tokens[2] === "node" ||
@@ -4118,10 +4000,6 @@ vfio_pci`;
 
       return true;
     }
-
-    /*
-     * kubectl delete -f
-     */
     if (tokens[1] === "delete" && tokens[2] === "-f") {
       const fileName = tokens[3];
 
@@ -4150,11 +4028,6 @@ vfio_pci`;
           "runtimeclass/edera",
           "runtimeclass.node.k8s.io/edera deleted",
         );
-
-        // A Pod that is already running with runtimeClassName: edera cannot
-        // continue using that runtime once the RuntimeClass is gone in this
-        // simulator. Model the unavailable runtime as a terminal Failed pod
-        // rather than leaving it incorrectly marked Running.
         const affectedPods = pods.filter(
           (pod) =>
             pod.runtimeClassName === "edera" &&
@@ -4307,10 +4180,6 @@ vfio_pci`;
       );
       return true;
     }
-
-    /*
-     * kubectl delete pod
-     */
     if (
       tokens[1] === "delete" &&
       (tokens[2] === "pod" ||
@@ -4400,10 +4269,6 @@ vfio_pci`;
 
       return true;
     }
-
-    /*
-     * kubectl delete node
-     */
     if (
       tokens[1] === "delete" &&
       (tokens[2] === "node" ||
@@ -4476,13 +4341,6 @@ vfio_pci`;
 
     return false;
   };
-
-  /*
-   * -----------------------------------------------------------------------
-   * TERMINAL COMMAND LOOP
-   * -----------------------------------------------------------------------
-   */
-
   try {
     cluster = new Cluster();
 
@@ -4633,31 +4491,16 @@ vfio_pci`;
         if (!rawCmd) {
           return;
         }
-
         commandHistory.push(rawCmd);
-
         printCommand(rawCmd);
-
         let tokens = tokenize(rawCmd);
-
-        // The real commands in the GPU walkthrough are documented with sudo.
-        // Keep sudo visible in command history/output while simulating the
-        // underlying command itself.
         if (tokens[0] === "sudo") {
           tokens = tokens.slice(1);
         }
-
-        /*
-         * clear
-         */
         if (tokens[0] === "clear") {
           output.innerHTML = "";
           return;
         }
-
-        /*
-         * history
-         */
         if (tokens[0] === "history") {
           if (commandHistory.length === 0) {
             printHtml(
@@ -4681,13 +4524,6 @@ vfio_pci`;
 
           return;
         }
-
-        /*
-         * Read-only editor protection
-         *
-         * The demo exposes manifests as immutable local files. They may be
-         * read or applied, but interactive editors are explicitly blocked.
-         */
         if (tokens[0] === "vi" || tokens[0] === "nano") {
           const editor = escapeHtml(tokens[0]);
 
@@ -4704,14 +4540,6 @@ vfio_pci`;
 
           return;
         }
-
-        /*
-         * GPU / host utilities
-         *
-         * These commands are simulated so the browser demo can demonstrate
-         * the complete GPU passthrough workflow without touching the user's
-         * actual host or filesystem.
-         */
         if (
           tokens[0] === "lspci" &&
           tokens.includes("-Dknn") &&
@@ -4783,14 +4611,6 @@ vfio_pci`;
           markDemoStepComplete("gpu-vfio-load");
           return;
         }
-
-        /*
-         * ls
-         *
-         * `ls` keeps the existing compact listing.
-         * `ls -l` and `ls -la` expose a realistic long listing showing that
-         * all demo manifests are readable but not writable.
-         */
         if (tokens[0] === "ls") {
           const requestedFlags = tokens.slice(1);
           const supportedLongListing =
@@ -4863,10 +4683,6 @@ vfio_pci`;
 
           return;
         }
-
-        /*
-         * cat
-         */
         if (tokens[0] === "cat") {
           const fileName = tokens[1];
 
@@ -4921,10 +4737,6 @@ vfio_pci`;
 
           return;
         }
-
-        /*
-         * uname
-         */
         if (tokens[0] === "uname") {
           const requestsRelease =
             tokens.length === 1 ||
@@ -4952,10 +4764,6 @@ vfio_pci`;
 
           return;
         }
-
-        /*
-         * help
-         */
         if (
           tokens[0] === "help" ||
           rawCmd === "kubectl --help" ||
@@ -4964,10 +4772,6 @@ vfio_pci`;
           printHtml(formatHelpText());
           return;
         }
-
-        /*
-         * Protect
-         */
         if (tokens[0] === "protect") {
           await handleProtectCommand(
             rawCmd,
@@ -4975,10 +4779,6 @@ vfio_pci`;
           );
           return;
         }
-
-        /*
-         * Kubernetes
-         */
         if (tokens[0] === "kubectl") {
           const handled =
             await handleKubectlCommand(
@@ -4990,10 +4790,6 @@ vfio_pci`;
             return;
           }
         }
-
-        /*
-         * curl
-         */
         if (tokens[0] === "curl") {
           const url = rawCmd
             .replace(/^curl\s+/, "")
@@ -5044,10 +4840,6 @@ vfio_pci`;
 
           return;
         }
-
-        /*
-         * Unknown command
-         */
         printHtml(
           `<span style="color:#ff7373;">command not found: ${escapeHtml(
             rawCmd,
