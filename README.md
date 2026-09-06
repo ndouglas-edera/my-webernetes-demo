@@ -92,10 +92,18 @@ Check what namespaces exist:
 kubectl get namespaces
 ```
 
+Confirm the pods are actually running:
+```
+kubectl get pods -A
+```
+
 Run a new workload inside the ```edera``` namespace:
 ```
 kubectl run ubuntu --image=ubuntu:latest --labels="env=prod" -n edera
 ```
+
+<img width="1507" height="765" alt="Screenshot 2026-09-07 at 00 44 51" src="https://github.com/user-attachments/assets/ceab8c0e-8229-4b6a-b52d-fcc9c60f14d7" />
+
 
 
 ## NVIDIA GPU passthrough to an Edera zone
