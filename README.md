@@ -48,10 +48,7 @@ kubectl get pods
 ```
 
 
-This can be addressed by simply assigning the matching pod label to one of the 3 nodes:
-```
-kubectl label nodes node-3 disktype=ssd
-```
+
 
 ## Run pods with an assigned label
 
