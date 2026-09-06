@@ -3044,6 +3044,12 @@ const renderNodes = () => {
     addEvent("Normal", "Completed", `job/${job.name}`, `Job ${job.name} completed successfully`);
   };
 
+  const getManifestKind = (fileName: string): string => {
+    const manifest = localFiles[fileName] || "";
+    const match = manifest.match(/^\s*kind:\s*([A-Za-z0-9]+)\s*$/m);
+    return match?.[1] || "";
+  };
+
   const getManifestNamespace = (fileName: string): string => {
     const manifest = localFiles[fileName] || "";
     const match = manifest.match(/^\s+namespace:\s*([A-Za-z0-9][A-Za-z0-9.-]*)\s*$/m);
@@ -3235,6 +3241,28 @@ const renderNodes = () => {
         return true;
       }
 
+      // Kubernetes requires namespaced resources to be created in an existing
+      // namespace. Validate that before simulating creation so an apply of a
+      // manifest with `metadata.namespace` cannot report a misleading
+      // successful create. Cluster-scoped resources do not require this check.
+      const manifestKind = getManifestKind(fileName);
+      const clusterScopedKinds = new Set([
+        "Namespace",
+        "Node",
+        "PersistentVolume",
+        "RuntimeClass",
+        "StorageClass",
+        "ClusterRole",
+        "ClusterRoleBinding",
+        "CustomResourceDefinition",
+      ]);
+      if (!clusterScopedKinds.has(manifestKind)) {
+        const manifestNamespace = requireManifestNamespace(fileName);
+        if (!manifestNamespace) {
+          return true;
+        }
+      }
+
       if (fileName === "csi-block-pvc.yaml" || fileName === "filesystem-pvc.yaml") {
         const volumeMode = fileName === "csi-block-pvc.yaml" ? "Block" : "Filesystem" as const;
         const existing = persistentVolumeClaims.find((item) => item.name === "my-app-data");
@@ -3293,7 +3321,8 @@ const renderNodes = () => {
 
       if (fileName === "csi-block-deployment.yaml" || fileName === "filesystem-deployment.yaml" || fileName === "local-nvme-deployment.yaml") {
         const deploymentName = "my-app";
-        const existing = deployments.find((deployment) => deployment.name === deploymentName);
+        const manifestNamespace = getManifestNamespace(fileName);
+        const existing = deployments.find((deployment) => deployment.name === deploymentName && deployment.namespace === manifestNamespace);
         if (existing) {
           printHtml(`<span style="color:#a8cfca;">deployment.apps/${deploymentName} unchanged</span>`);
           return true;
@@ -3302,11 +3331,11 @@ const renderNodes = () => {
         const isBlock = fileName !== "filesystem-deployment.yaml";
         const claimName = isLocal ? "local-block-pvc" : "my-app-data";
         const deployment: LocalDeployment = {
-          name: deploymentName, namespace: "default", replicas: 1, readyReplicas: 0, image: "my-app:latest", runtimeClassName: "edera", selector: "app=my-app",
+          name: deploymentName, namespace: manifestNamespace, replicas: 1, readyReplicas: 0, image: "my-app:latest", runtimeClassName: "edera", selector: "app=my-app",
           nodeSelector: isLocal ? { "kubernetes.io/hostname": "my-host" } : undefined, volumeClaimName: claimName, volumeMode: isBlock ? "Block" : "Filesystem", volumeTargetPath: isBlock ? (isLocal ? "/mnt/high-perf-storage" : "/var/lib/my-app/data") : "/var/lib/my-app/data",
         };
         deployments.push(deployment);
-        const pod: LocalPod = { name: "my-app-00001", namespace: "default", status: "Pending", age: "1s", image: deployment.image, ip: "<none>", node: "<none>", labels: { app: "my-app" }, runtimeClassName: "edera", ownerDeployment: deploymentName, nodeSelector: deployment.nodeSelector };
+        const pod: LocalPod = { name: "my-app-00001", namespace: manifestNamespace, status: "Pending", age: "1s", image: deployment.image, ip: "<none>", node: "<none>", labels: { app: "my-app" }, runtimeClassName: "edera", ownerDeployment: deploymentName, nodeSelector: deployment.nodeSelector };
         pods.push(pod);
         bindStorage();
         const storageReady = storageReadyForDeployment(claimName, deployment.volumeMode!);
@@ -3584,6 +3613,15 @@ const renderNodes = () => {
     if (tokens[1] === "describe") {
       const resource = tokens[2];
       const name = tokens[3];
+      let requestedNamespace = "default";
+
+      for (let i = 4; i < tokens.length; i++) {
+        if (tokens[i] === "-n" || tokens[i] === "--namespace") {
+          requestedNamespace = tokens[++i] || requestedNamespace;
+        } else if (tokens[i].startsWith("--namespace=")) {
+          requestedNamespace = tokens[i].split("=")[1] || requestedNamespace;
+        }
+      }
 
       if (!resource || !name) {
         printHtml(
@@ -3703,7 +3741,7 @@ const renderNodes = () => {
 
       if (resource === "deployment" || resource === "deployments" || resource === "deploy") {
         const deployment = deployments.find(
-          (item) => item.name === name && item.namespace === "default",
+          (item) => item.name === name && item.namespace === requestedNamespace,
         );
 
         if (!deployment) {
