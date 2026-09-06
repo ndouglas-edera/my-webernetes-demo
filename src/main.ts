@@ -41,6 +41,48 @@ interface LocalDeployment {
   image: string;
   runtimeClassName?: string;
   selector: string;
+  nodeSelector?: Record<string, string>;
+  volumeClaimName?: string;
+  volumeMode?: "Filesystem" | "Block";
+  volumeTargetPath?: string;
+}
+
+interface LocalPersistentVolumeClaim {
+  name: string;
+  namespace: string;
+  status: "Pending" | "Bound";
+  volumeName: string;
+  capacity: string;
+  accessModes: string;
+  volumeMode: "Filesystem" | "Block";
+  storageClassName?: string;
+  formatted: boolean;
+}
+
+interface LocalPersistentVolume {
+  name: string;
+  status: "Available" | "Bound";
+  claimName?: string;
+  capacity: string;
+  accessModes: string;
+  volumeMode: "Filesystem" | "Block";
+  storageClassName?: string;
+  source: "CSI" | "Local";
+  devicePath?: string;
+  nodeAffinity?: string;
+  formatted: boolean;
+}
+
+interface LocalJob {
+  name: string;
+  namespace: string;
+  completions: number;
+  succeeded: number;
+  status: "Running" | "Complete";
+  image: string;
+  runtimeClassName?: string;
+  targetDevice?: string;
+  claimName?: string;
 }
 
 interface LocalNode {
@@ -165,6 +207,171 @@ spec:
     env:
     - name: SUPER_ORCHESTRATOR_SECRET
       value: "this-is-fine-hardened"`;
+
+const CSI_BLOCK_PVC_YAML_CONTENT = `apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-app-data
+spec:
+  volumeMode: Block
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp3`;
+
+const FORMAT_BLOCK_DEVICE_YAML_CONTENT = `apiVersion: batch/v1
+kind: Job
+metadata:
+  name: format-block-device
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: formatter
+        image: alpine:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            apk add --no-cache e2fsprogs
+            echo "Formatting block device to ext4..."
+            mkfs.ext4 /dev/data
+            echo "Format complete."
+        volumeDevices:
+        - name: data
+          devicePath: /dev/data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-app-data`;
+
+const CSI_BLOCK_DEPLOYMENT_YAML_CONTENT = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      annotations:
+        dev.edera/resource-policy: "static"
+    spec:
+      runtimeClassName: edera
+      containers:
+      - name: app
+        image: my-app:latest
+        volumeDevices:
+        - name: data
+          devicePath: /var/lib/my-app/data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-app-data`;
+
+const FILESYSTEM_PVC_YAML_CONTENT = `apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-app-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp3`;
+
+const FILESYSTEM_DEPLOYMENT_YAML_CONTENT = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      annotations:
+        dev.edera/resource-policy: "static"
+    spec:
+      runtimeClassName: edera
+      containers:
+      - name: app
+        image: my-app:latest
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/my-app/data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-app-data`;
+
+const LOCAL_NVME_PV_YAML_CONTENT = `kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: local-raw-pv
+spec:
+  volumeMode: Block
+  capacity:
+    storage: 5Gi
+  local:
+    path: /dev/nvme0n1
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - my-host`;
+
+const LOCAL_NVME_PVC_YAML_CONTENT = `apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: local-block-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Block
+  resources:
+    requests:
+      storage: 5Gi`;
+
+const LOCAL_NVME_DEPLOYMENT_YAML_CONTENT = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      annotations:
+        dev.edera/resource-policy: "static"
+    spec:
+      runtimeClassName: edera
+      nodeSelector:
+        kubernetes.io/hostname: my-host
+      containers:
+      - name: app
+        image: my-app:latest
+        volumeDevices:
+        - name: data
+          devicePath: /mnt/high-perf-storage
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: local-block-pvc`;
 
 const PROTECT_DEMO_STEPS: DemoStep[] = [
   {
@@ -566,6 +773,14 @@ async function initTerminalDemo() {
     "runtimeclass-edera.yaml": RUNTIMECLASS_EDERA_YAML_CONTENT,
     "pod-hardened-vessel.yaml": HARDENED_VESSEL_YAML_CONTENT,
     "nginx-deployment.yaml": NGINX_DEPLOYMENT_YAML_CONTENT,
+    "csi-block-pvc.yaml": CSI_BLOCK_PVC_YAML_CONTENT,
+    "format-block-device.yaml": FORMAT_BLOCK_DEVICE_YAML_CONTENT,
+    "csi-block-deployment.yaml": CSI_BLOCK_DEPLOYMENT_YAML_CONTENT,
+    "filesystem-pvc.yaml": FILESYSTEM_PVC_YAML_CONTENT,
+    "filesystem-deployment.yaml": FILESYSTEM_DEPLOYMENT_YAML_CONTENT,
+    "local-nvme-pv.yaml": LOCAL_NVME_PV_YAML_CONTENT,
+    "local-nvme-pvc.yaml": LOCAL_NVME_PVC_YAML_CONTENT,
+    "local-nvme-deployment.yaml": LOCAL_NVME_DEPLOYMENT_YAML_CONTENT,
   };
   const GPU_PCI_LOCATION = "0000:18:00.0";
   const GPU_PCI_ID = "10de:1eb8";
@@ -652,6 +867,14 @@ vfio_pci`;
       size: NGINX_DEPLOYMENT_YAML_CONTENT.length,
       modified: "Apr  9 07:47",
     },
+    "csi-block-pvc.yaml": { size: CSI_BLOCK_PVC_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "format-block-device.yaml": { size: FORMAT_BLOCK_DEVICE_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "csi-block-deployment.yaml": { size: CSI_BLOCK_DEPLOYMENT_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "filesystem-pvc.yaml": { size: FILESYSTEM_PVC_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "filesystem-deployment.yaml": { size: FILESYSTEM_DEPLOYMENT_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "local-nvme-pv.yaml": { size: LOCAL_NVME_PV_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "local-nvme-pvc.yaml": { size: LOCAL_NVME_PVC_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "local-nvme-deployment.yaml": { size: LOCAL_NVME_DEPLOYMENT_YAML_CONTENT.length, modified: "Sep  6 09:00" },
   };
 
   const READ_ONLY_FILE_MODE = "-r--r--r--";
@@ -665,6 +888,9 @@ vfio_pci`;
     historyIndex = -1;
     protectZones = [];
     protectWorkloads = [];
+    persistentVolumeClaims = [];
+    persistentVolumes = [];
+    jobs = [];
     clusterEvents = [];
     gpuVfioBound = false;
     protectDaemonRestarted = false;
@@ -686,6 +912,9 @@ vfio_pci`;
   ];
 
   let deployments: LocalDeployment[] = [];
+  let persistentVolumeClaims: LocalPersistentVolumeClaim[] = [];
+  let persistentVolumes: LocalPersistentVolume[] = [];
+  let jobs: LocalJob[] = [];
 
   let pods: LocalPod[] = [
     {
@@ -1295,6 +1524,12 @@ const renderNodes = () => {
         !activeRuntimeClasses.has(pod.runtimeClassName)
       ) {
         continue;
+      }
+      if (pod.ownerDeployment) {
+        const deployment = deployments.find((item) => item.name === pod.ownerDeployment);
+        if (deployment?.volumeClaimName && deployment.volumeMode && !storageReadyForDeployment(deployment.volumeClaimName, deployment.volumeMode)) {
+          continue;
+        }
       }
       if (recoverableRuntimeClassPod) {
         pod.status = "Pending";
@@ -2078,6 +2313,16 @@ const renderNodes = () => {
           </div>
 
           <div class="cli-help-command">
+            <code>kubectl get pvc|pv|jobs</code>
+            <span>Inspect simulated PersistentVolumeClaims, PersistentVolumes, and Jobs.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl wait --for=condition=complete job/&lt;name&gt;</code>
+            <span>Wait for a simulated Job to complete and update storage state.</span>
+          </div>
+
+          <div class="cli-help-command">
             <code>kubectl describe pod &lt;name&gt;</code>
             <span>Show detailed simulated Pod config, status, events, and runtimeClass.</span>
           </div>
@@ -2756,6 +3001,49 @@ const renderNodes = () => {
     return true;
   };
 
+  const bindStorage = () => {
+    for (const pvc of persistentVolumeClaims) {
+      if (pvc.status === "Bound") continue;
+      const pv = persistentVolumes.find((item) =>
+        item.status === "Available" &&
+        item.volumeMode === pvc.volumeMode &&
+        item.capacity === pvc.capacity &&
+        item.accessModes === pvc.accessModes &&
+        (!pvc.storageClassName || item.storageClassName === pvc.storageClassName),
+      );
+      if (!pv) continue;
+      pv.status = "Bound";
+      pv.claimName = `${pvc.namespace}/${pvc.name}`;
+      pvc.status = "Bound";
+      pvc.volumeName = pv.name;
+      pvc.formatted = pv.formatted;
+      addEvent("Normal", "Provisioned", `persistentvolumeclaim/${pvc.name}`, `Successfully bound PVC ${pvc.name} to ${pv.name}`);
+      addEvent("Normal", "Bound", `persistentvolumeclaim/${pvc.name}`, `PersistentVolumeClaim ${pvc.name} is bound to ${pv.name}`);
+    }
+  };
+
+  const storageReadyForDeployment = (claimName: string, volumeMode: "Filesystem" | "Block") => {
+    const pvc = persistentVolumeClaims.find((item) => item.name === claimName && item.namespace === "default");
+    if (!pvc || pvc.status !== "Bound" || pvc.volumeMode !== volumeMode) return false;
+    return volumeMode === "Filesystem" || pvc.formatted;
+  };
+
+  const markJobComplete = (job: LocalJob) => {
+    if (job.status === "Complete") return;
+    job.status = "Complete";
+    job.succeeded = job.completions;
+    if (job.claimName) {
+      const pvc = persistentVolumeClaims.find((item) => item.name === job.claimName && item.namespace === job.namespace);
+      if (pvc) {
+        pvc.formatted = true;
+        const pv = persistentVolumes.find((item) => item.name === pvc.volumeName);
+        if (pv) pv.formatted = true;
+        addEvent("Normal", "Formatted", `persistentvolumeclaim/${pvc.name}`, `Block device ${pv?.devicePath || "/dev/data"} formatted as ext4`);
+      }
+    }
+    addEvent("Normal", "Completed", `job/${job.name}`, `Job ${job.name} completed successfully`);
+  };
+
   const handleKubectlCommand = async (
     rawCmd: string,
     tokens: string[],
@@ -2926,6 +3214,92 @@ const renderNodes = () => {
         return true;
       }
 
+      if (fileName === "csi-block-pvc.yaml" || fileName === "filesystem-pvc.yaml") {
+        const volumeMode = fileName === "csi-block-pvc.yaml" ? "Block" : "Filesystem" as const;
+        const existing = persistentVolumeClaims.find((item) => item.name === "my-app-data");
+        if (existing) {
+          printHtml(`<span style="color:#a8cfca;">persistentvolumeclaim/my-app-data unchanged</span>`);
+          return true;
+        }
+        const pvName = volumeMode === "Block" ? "pvc-${my-app-data}" : "pvc-${my-app-data}";
+        persistentVolumes.push({ name: pvName, status: "Available", capacity: "10Gi", accessModes: "RWO", volumeMode, storageClassName: "gp3", source: "CSI", formatted: volumeMode === "Filesystem" });
+        persistentVolumeClaims.push({ name: "my-app-data", namespace: "default", status: "Pending", volumeName: pvName, capacity: "10Gi", accessModes: "RWO", volumeMode, storageClassName: "gp3", formatted: volumeMode === "Filesystem" });
+        bindStorage();
+        addEvent("Normal", "Created", "persistentvolumeclaim/my-app-data", `persistentvolumeclaim/my-app-data created (${volumeMode})`);
+        printHtml(`<span style="color:#b8ff3c;">persistentvolumeclaim/my-app-data created and ${volumeMode === "Block" ? "awaiting formatting" : "bound with a filesystem"}</span>`);
+        return true;
+      }
+
+      if (fileName === "format-block-device.yaml") {
+        const existing = jobs.find((job) => job.name === "format-block-device");
+        if (existing) {
+          printHtml(`<span style="color:#a8cfca;">job.batch/format-block-device already exists</span>`);
+          return true;
+        }
+        const pvc = persistentVolumeClaims.find((item) => item.name === "my-app-data");
+        if (!pvc || pvc.volumeMode !== "Block" || pvc.status !== "Bound") {
+          printHtml(`<span style="color:#ff7373;">Error: PersistentVolumeClaim "my-app-data" must be a bound Block volume before the formatter Job can run.</span>`);
+          return true;
+        }
+        const job: LocalJob = { name: "format-block-device", namespace: "default", completions: 1, succeeded: 0, status: "Running", image: "alpine:latest", targetDevice: "/dev/data", claimName: pvc.name };
+        jobs.push(job);
+        addEvent("Normal", "Created", "job/format-block-device", "formatter Job created using the default container runtime");
+        printHtml(`<span style="color:#b8ff3c;">job.batch/format-block-device created</span>`);
+        return true;
+      }
+
+      if (fileName === "local-nvme-pv.yaml") {
+        if (persistentVolumes.some((item) => item.name === "local-raw-pv")) {
+          printHtml(`<span style="color:#a8cfca;">persistentvolume/local-raw-pv unchanged</span>`);
+          return true;
+        }
+        persistentVolumes.push({ name: "local-raw-pv", status: "Available", capacity: "5Gi", accessModes: "RWO", volumeMode: "Block", source: "Local", devicePath: "/dev/nvme0n1", nodeAffinity: "kubernetes.io/hostname=my-host", formatted: true });
+        addEvent("Normal", "Created", "persistentvolume/local-raw-pv", "local PersistentVolume created for /dev/nvme0n1");
+        printHtml(`<span style="color:#b8ff3c;">persistentvolume/local-raw-pv created</span>`);
+        return true;
+      }
+
+      if (fileName === "local-nvme-pvc.yaml") {
+        if (persistentVolumeClaims.some((item) => item.name === "local-block-pvc")) {
+          printHtml(`<span style="color:#a8cfca;">persistentvolumeclaim/local-block-pvc unchanged</span>`);
+          return true;
+        }
+        persistentVolumeClaims.push({ name: "local-block-pvc", namespace: "default", status: "Pending", volumeName: "local-raw-pv", capacity: "5Gi", accessModes: "RWO", volumeMode: "Block", formatted: true });
+        bindStorage();
+        printHtml(`<span style="color:#b8ff3c;">persistentvolumeclaim/local-block-pvc created</span>`);
+        return true;
+      }
+
+      if (fileName === "csi-block-deployment.yaml" || fileName === "filesystem-deployment.yaml" || fileName === "local-nvme-deployment.yaml") {
+        const deploymentName = "my-app";
+        const existing = deployments.find((deployment) => deployment.name === deploymentName);
+        if (existing) {
+          printHtml(`<span style="color:#a8cfca;">deployment.apps/${deploymentName} unchanged</span>`);
+          return true;
+        }
+        const isLocal = fileName === "local-nvme-deployment.yaml";
+        const isBlock = fileName !== "filesystem-deployment.yaml";
+        const claimName = isLocal ? "local-block-pvc" : "my-app-data";
+        const deployment: LocalDeployment = {
+          name: deploymentName, namespace: "default", replicas: 1, readyReplicas: 0, image: "my-app:latest", runtimeClassName: "edera", selector: "app=my-app",
+          nodeSelector: isLocal ? { "kubernetes.io/hostname": "my-host" } : undefined, volumeClaimName: claimName, volumeMode: isBlock ? "Block" : "Filesystem", volumeTargetPath: isBlock ? (isLocal ? "/mnt/high-perf-storage" : "/var/lib/my-app/data") : "/var/lib/my-app/data",
+        };
+        deployments.push(deployment);
+        const pod: LocalPod = { name: "my-app-00001", namespace: "default", status: "Pending", age: "1s", image: deployment.image, ip: "<none>", node: "<none>", labels: { app: "my-app" }, runtimeClassName: "edera", ownerDeployment: deploymentName, nodeSelector: deployment.nodeSelector };
+        pods.push(pod);
+        bindStorage();
+        const storageReady = storageReadyForDeployment(claimName, deployment.volumeMode!);
+        if (!storageReady) {
+          addEvent("Warning", "VolumeNotReady", `pod/${pod.name}`, isBlock ? `Waiting for block volume ${claimName} to be formatted before mounting ${deployment.volumeTargetPath}` : `Waiting for PersistentVolumeClaim ${claimName} to become bound`);
+        }
+        addEvent("Normal", "Created", `deployment/${deploymentName}`, `deployment.apps/${deploymentName} created with ${deployment.volumeMode} storage`);
+        checkPendingPods();
+        deployment.readyReplicas = pods.filter((item) => item.ownerDeployment === deploymentName && item.status === "Running").length;
+        updateDashboard();
+        printHtml(`<span style="color:#b8ff3c;">deployment.apps/${deploymentName} created</span>`);
+        return true;
+      }
+
       if (fileName === "nginx-deployment.yaml") {
         const deploymentName = "nginx";
         const runtimeReady = activeRuntimeClasses.has("edera");
@@ -3043,6 +3417,39 @@ const renderNodes = () => {
 
         markDemoStepComplete("edera-pod-apply");
         return true;
+      }
+
+      if (fileName === "csi-block-pvc.yaml" || fileName === "filesystem-pvc.yaml") {
+        const pvcName = "my-app-data";
+        const pvcIndex = persistentVolumeClaims.findIndex((item) => item.name === pvcName);
+        if (pvcIndex < 0) { printHtml(`<span style="color:#a8cfca;">persistentvolumeclaim/${pvcName} not found</span>`); return true; }
+        const pvc = persistentVolumeClaims[pvcIndex];
+        persistentVolumeClaims.splice(pvcIndex, 1);
+        persistentVolumes = persistentVolumes.filter((pv) => pv.claimName !== `default/${pvcName}` && pv.name !== pvc.volumeName);
+        addEvent("Normal", "Deleted", `persistentvolumeclaim/${pvcName}`, `persistentvolumeclaim/${pvcName} deleted`);
+        updateDashboard(); printHtml(`<span style="color:#b8ff3c;">persistentvolumeclaim/${pvcName} deleted</span>`); return true;
+      }
+
+      if (fileName === "format-block-device.yaml") {
+        const index = jobs.findIndex((job) => job.name === "format-block-device");
+        if (index < 0) { printHtml(`<span style="color:#a8cfca;">job.batch/format-block-device not found</span>`); return true; }
+        jobs.splice(index, 1); addEvent("Normal", "Deleted", "job/format-block-device", "Job format-block-device deleted"); updateDashboard(); printHtml(`<span style="color:#b8ff3c;">job.batch/format-block-device deleted</span>`); return true;
+      }
+
+      if (fileName === "local-nvme-pv.yaml") {
+        persistentVolumes = persistentVolumes.filter((pv) => pv.name !== "local-raw-pv"); updateDashboard(); printHtml(`<span style="color:#b8ff3c;">persistentvolume/local-raw-pv deleted</span>`); return true;
+      }
+
+      if (fileName === "local-nvme-pvc.yaml") {
+        persistentVolumeClaims = persistentVolumeClaims.filter((pvc) => pvc.name !== "local-block-pvc"); persistentVolumes = persistentVolumes.filter((pv) => pv.name !== "local-raw-pv"); updateDashboard(); printHtml(`<span style="color:#b8ff3c;">persistentvolumeclaim/local-block-pvc deleted</span>`); return true;
+      }
+
+      if (fileName === "csi-block-deployment.yaml" || fileName === "filesystem-deployment.yaml" || fileName === "local-nvme-deployment.yaml") {
+        const ownedPods = pods.filter((pod) => pod.ownerDeployment === "my-app");
+        pods = pods.filter((pod) => pod.ownerDeployment !== "my-app");
+        deployments = deployments.filter((deployment) => deployment.name !== "my-app");
+        protectWorkloads = protectWorkloads.filter((workload) => !ownedPods.some((pod) => pod.name === workload.sourcePodName));
+        addEvent("Normal", "Deleted", "deployment/my-app", "deployment.apps/my-app deleted"); updateDashboard(); printHtml(`<span style="color:#b8ff3c;">deployment.apps/my-app deleted</span>`); return true;
       }
 
       if (fileName === "runtimeclass-edera.yaml") {
@@ -3259,6 +3666,27 @@ const renderNodes = () => {
 
         printPre(escapeHtml(lines.join("\n")));
         return true;
+      }
+
+      if (resource === "pvc" || resource === "persistentvolumeclaim" || resource === "persistentvolumeclaims") {
+        const pvc = persistentVolumeClaims.find((item) => item.name === name && item.namespace === "default");
+        if (!pvc) { printHtml(`<span style="color:#ff7373;">Error from server (NotFound): persistentvolumeclaims "${escapeHtml(name)}" not found</span>`); return true; }
+        const lines = [`Name:              ${pvc.name}`, `Namespace:         ${pvc.namespace}`, `Status:            ${pvc.status}`, `Volume:            ${pvc.volumeName}`, `Capacity:          ${pvc.capacity}`, `Access Modes:      ${pvc.accessModes}`, `VolumeMode:        ${pvc.volumeMode}`, `StorageClass:      ${pvc.storageClassName || "<none>"}`, `Formatted:         ${pvc.formatted}`, `Events:`, `  Normal  ${pvc.status === "Bound" ? "Bound" : "Pending"}  1m  controller  ${pvc.status === "Bound" ? `Successfully bound to ${pvc.volumeName}` : "Waiting for a matching PersistentVolume"}`];
+        printPre(escapeHtml(lines.join("\n"))); return true;
+      }
+
+      if (resource === "pv" || resource === "persistentvolume" || resource === "persistentvolumes") {
+        const pv = persistentVolumes.find((item) => item.name === name);
+        if (!pv) { printHtml(`<span style="color:#ff7373;">Error from server (NotFound): persistentvolumes "${escapeHtml(name)}" not found</span>`); return true; }
+        const lines = [`Name:              ${pv.name}`, `Status:            ${pv.status}`, `Claim:             ${pv.claimName || "<none>"}`, `Capacity:          ${pv.capacity}`, `Access Modes:      ${pv.accessModes}`, `VolumeMode:        ${pv.volumeMode}`, `Source:             ${pv.source}${pv.devicePath ? ` (${pv.devicePath})` : ""}`, `Node Affinity:     ${pv.nodeAffinity || "<none>"}`, `Formatted:         ${pv.formatted}`];
+        printPre(escapeHtml(lines.join("\n"))); return true;
+      }
+
+      if (resource === "job" || resource === "jobs") {
+        const job = jobs.find((item) => item.name === name && item.namespace === "default");
+        if (!job) { printHtml(`<span style="color:#ff7373;">Error from server (NotFound): jobs.batch "${escapeHtml(name)}" not found</span>`); return true; }
+        const lines = [`Name:              ${job.name}`, `Namespace:         ${job.namespace}`, `Completions:       ${job.succeeded}/${job.completions}`, `Status:            ${job.status}`, `Image:             ${job.image}`, `RuntimeClass:      ${job.runtimeClassName || "<default>"}`, `Device:            ${job.targetDevice || "<none>"}`, `Claim:             ${job.claimName || "<none>"}`];
+        printPre(escapeHtml(lines.join("\n"))); return true;
       }
 
       if (resource === "node" || resource === "nodes") {
@@ -3570,10 +3998,32 @@ const renderNodes = () => {
         return true;
       }
 
-      if (
-        resource === "runtimeclass" ||
-        resource === "runtimeclasses"
-      ) {
+      if (resource === "pvc" || resource === "pvcs" || resource === "persistentvolumeclaims") {
+        if (persistentVolumeClaims.length === 0) { printHtml(`<span style="color:#a8cfca;">No resources found.</span>`); return true; }
+        let output = `<span style="color:#00e5d4;font-weight:700;">NAME                 STATUS    VOLUME              CAPACITY   ACCESS MODES   VOLUME MODE   STORAGECLASS</span>\n`;
+        output += `<span style="color:#08736d;">${"─".repeat(105)}</span>\n`;
+        for (const pvc of persistentVolumeClaims) output += `${escapeHtml(pvc.name.padEnd(21))}${escapeHtml(pvc.status.padEnd(10))}${escapeHtml(pvc.volumeName.padEnd(20))}${escapeHtml(pvc.capacity.padEnd(11))}${escapeHtml(pvc.accessModes.padEnd(15))}${escapeHtml(pvc.volumeMode.padEnd(14))}${escapeHtml((pvc.storageClassName || "<none>").padEnd(12))}\n`;
+        printPre(output.trimEnd()); return true;
+      }
+
+      if (resource === "pv" || resource === "pvs" || resource === "persistentvolumes") {
+        if (persistentVolumes.length === 0) { printHtml(`<span style="color:#a8cfca;">No resources found.</span>`); return true; }
+        let output = `<span style="color:#00e5d4;font-weight:700;">NAME                 CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM</span>\n`;
+        output += `<span style="color:#08736d;">${"─".repeat(92)}</span>\n`;
+        for (const pv of persistentVolumes) output += `${escapeHtml(pv.name.padEnd(21))}${escapeHtml(pv.capacity.padEnd(11))}${escapeHtml(pv.accessModes.padEnd(15))}${"Delete".padEnd(17)}${escapeHtml(pv.status.padEnd(12))}${escapeHtml(pv.claimName || "<none>")}\n`;
+        printPre(output.trimEnd()); return true;
+      }
+
+      if (resource === "job" || resource === "jobs") {
+        if (jobs.length === 0) { printHtml(`<span style="color:#a8cfca;">No resources found.</span>`); return true; }
+        let output = `<span style="color:#00e5d4;font-weight:700;">NAME                    COMPLETIONS   DURATION   AGE</span>\n`;
+        output += `<span style="color:#08736d;">${"─".repeat(62)}</span>\n`;
+        for (const job of jobs) output += `${escapeHtml(job.name.padEnd(24))}${`${job.succeeded}/${job.completions}`.padEnd(14)}${"1s".padEnd(11)}1s\n`;
+        printPre(output.trimEnd()); return true;
+      }
+
+      if (resource === "runtimeclass" ||
+        resource === "runtimeclasses") {
         const nameWidth = Math.max(
           8,
           ...Array.from(activeRuntimeClasses).map(
@@ -3807,6 +4257,27 @@ const renderNodes = () => {
         return true;
       }
     }
+    if (tokens[1] === "wait") {
+      const target = tokens.find((token) => token.startsWith("job/"));
+      if (!target) {
+        printHtml(`<span style="color:#ff7373;">Usage: kubectl wait --for=condition=complete job/<name> [--timeout=120s]</span>`);
+        return true;
+      }
+      const jobName = target.slice(4);
+      const job = jobs.find((item) => item.name === jobName && item.namespace === "default");
+      if (!job) {
+        printHtml(`<span style="color:#ff7373;">Error from server (NotFound): jobs.batch "${escapeHtml(jobName)}" not found</span>`);
+        return true;
+      }
+      markJobComplete(job);
+      bindStorage();
+      checkPendingPods();
+      for (const deployment of deployments) deployment.readyReplicas = pods.filter((pod) => pod.ownerDeployment === deployment.name && pod.status === "Running").length;
+      updateDashboard();
+      printHtml(`<span style="color:#b8ff3c;">job.batch/${escapeHtml(jobName)} condition met</span>`);
+      return true;
+    }
+
     if (
       tokens[1] === "label" &&
       (tokens[2] === "pod" ||
