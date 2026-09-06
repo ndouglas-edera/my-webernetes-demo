@@ -223,6 +223,9 @@ You can also inspect the deployment:
 kubectl describe deployment my-app
 ```
 
+<img width="1507" height="765" alt="Screenshot 2026-09-06 at 22 57 22" src="https://github.com/user-attachments/assets/6628796e-2489-4ecf-9a3e-12c8fd9a7fea" />
+
+
 ### Step 3: Local NVMe block device:
 Create the local ```PersistentVolume```:
 ```
