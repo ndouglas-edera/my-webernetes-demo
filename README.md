@@ -47,8 +47,6 @@ kubectl apply -f pod-nginx.yaml
 kubectl get pods
 ```
 
-<img width="1506" height="781" alt="Screenshot 2026-08-17 at 18 41 23" src="https://github.com/user-attachments/assets/446000fe-f069-4e9a-add2-9e14263cf471" />
-
 
 This can be addressed by simply assigning the matching pod label to one of the 3 nodes:
 ```
@@ -66,8 +64,6 @@ Confirm the labels are assigned to the pod
 ```
 kubectl get pods --show-labels
 ```
-
-<img width="1506" height="781" alt="Screenshot 2026-08-17 at 18 50 17" src="https://github.com/user-attachments/assets/e0fe0e40-8ad1-459b-9942-8ca976d28d47" />
 
 
 ## Working with namespaces
@@ -91,8 +87,6 @@ Run a new workload inside the ```edera``` namespace:
 ```
 kubectl run ubuntu --image=ubuntu:latest --labels="env=prod" -n edera
 ```
-
-<img width="1506" height="781" alt="Screenshot 2026-08-18 at 20 40 03" src="https://github.com/user-attachments/assets/0b668f13-9ed7-45d4-963b-52aa2ad5dc8a" />
 
 
 ## NVIDIA GPU passthrough to an Edera zone
