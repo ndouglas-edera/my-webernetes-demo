@@ -25,8 +25,18 @@ This project is a port of a specific subset of the Kubernetes project to make it
 You can list the files in the demo terminal and even simulate reading a manifest file:
 
 ```
-ls
-cat pod-nginx.yaml
+ls -la
+```
+```
+cat runtimeclass-edera.yaml
+```
+
+Create a ```RuntimeClass``` called ```edera``` and label a specific node with the runtime context.
+```
+kubectl apply -f runtimeclass-edera.yaml
+```
+```
+kubectl label node node-2 runtime=edera
 ```
 
 Applying the manifest leads to a ```FailedScheduling``` error for (```pod/nginx```) since none of the 3 nodes match the Pod's node selector
