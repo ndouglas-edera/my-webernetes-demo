@@ -61,6 +61,9 @@ Confirm the labels are assigned to the pod
 kubectl get pods --show-labels
 ```
 
+<img width="1507" height="765" alt="Screenshot 2026-09-07 at 00 34 40" src="https://github.com/user-attachments/assets/01fdd9a8-0056-4f2b-8bab-8204dd19f63c" />
+
+
 
 ## Working with namespaces
 
