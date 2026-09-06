@@ -185,6 +185,9 @@ kubectl get jobs
 ```
 kubectl get pods
 ```
+<img width="1507" height="765" alt="Screenshot 2026-09-06 at 22 37 22" src="https://github.com/user-attachments/assets/c4fe1213-29a1-4264-b6cf-cb8fe643cf6d" />
+
+
 And:
 ```
 kubectl describe pvc my-app-data
