@@ -153,7 +153,7 @@ sudo protect zone destroy zone-gpu
 
 Edera supports native Kubernetes storage APIs. You can attach persistent storage to pods using standard ```PersistentVolumes``` and ```PersistentVolumeClaims```.
 
-**Step 1: CSI-provisioned block volume**<br/>
+#### Step 1: CSI-provisioned block volume:
 First, create the ```PersistentVolumeClaims```:
 ```
 kubectl apply -f csi-block-pvc.yaml
@@ -199,8 +199,8 @@ kubectl describe job format-block-device
 <img width="1507" height="765" alt="Screenshot 2026-09-06 at 22 39 35" src="https://github.com/user-attachments/assets/1e00caa3-b036-4c43-b9a3-6776dd6ee5f3" />
 
 
-**Step 2. Filesystem-mounted PVC**<br/>
-Create the PVC:
+#### Step 2: Filesystem-mounted PVC:
+Create the ```PersistentVolumeClaims```:
 ```
 kubectl apply -f filesystem-pvc.yaml
 ```
@@ -223,12 +223,12 @@ You can also inspect the deployment:
 kubectl describe deployment my-app
 ```
 
-**3. Local NVMe block device**<br/>
-Create the local PV:
+#### Step 3: Local NVMe block device**
+Create the local ```PersistentVolume```:
 ```
 kubectl apply -f local-nvme-pv.yaml
 ```
-Create the PVC:
+Create the ```PersistentVolumeClaims```:
 ```
 kubectl apply -f local-nvme-pvc.yaml
 ```
