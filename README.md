@@ -10,7 +10,7 @@ This project is a port of a specific subset of the Kubernetes project to make it
 
 ---
 
-| Edera Use-Case | Github Guide | Short Description |
+| Edera Use-Case | Github | Short Description |
 | :---------------- | :------: | ----: |
 | Assign pods to a specific node | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#assign-pods-to-a-specific-node) | Insert Description |
 | Run pods with an assigned label | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#run-pods-with-an-assigned-label) | Insert Description |
