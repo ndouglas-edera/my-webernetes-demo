@@ -195,6 +195,10 @@ kubectl describe pvc my-app-data
 ```
 kubectl describe job format-block-device
 ```
+
+<img width="1507" height="765" alt="Screenshot 2026-09-06 at 22 39 35" src="https://github.com/user-attachments/assets/1e00caa3-b036-4c43-b9a3-6776dd6ee5f3" />
+
+
 **Step 2. Filesystem-mounted PVC**<br/>
 Create the PVC:
 ```
