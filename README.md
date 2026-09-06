@@ -12,7 +12,7 @@ This project is a port of a specific subset of the Kubernetes project to make it
 
 | Edera Use-Case | Github | Short Description |
 | :---------------- | :------: | ----: |
-| Assign pods to a specific node | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#assign-pods-to-a-specific-node) | Insert Description |
+| Assign pods to a specific node | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#assign-pods-to-a-specific-node) | Load the Edera RuntimeClass and assign it to a specific node for workload scheduling |
 | Run pods with an assigned label | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#run-pods-with-an-assigned-label) | Insert Description |
 | Working with namespaces | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#working-with-namespaces) | Insert Description |
 | NVIDIA GPU passthrough |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo#nvidia-gpu-passthrough-to-an-edera-zone)   | Load NVIDIA driver & run GPU-accelerated workload in zone. |
