@@ -76,8 +76,9 @@ kubectl run ubuntu --image=ubuntu:latest --labels="env=prod" -n edera
 
 
 ## NVIDIA GPU passthrough to an Edera zone
-
-Supported GPUs, like the Tesla, should show up in the output of ```lspci```:
+This guide, based on our **[official docs](https://docs.edera.dev/guides/gpu/nvidia-passthrough/)** shows how to passthrough an NVIDIA GPU to an Edera zone using ```protect```, load the NVIDIA driver, and run a GPU-accelerated workload inside the zone.
+<br/><br/>
+Supported GPUs, like the ```Tesla```, should show up in the output of ```lspci```:
 ```
 sudo lspci -Dknn -d ::03xx
 ```
@@ -151,7 +152,8 @@ sudo protect zone destroy zone-gpu
 
 ## Using storage in Kubernetes
 
-Edera supports native Kubernetes storage APIs. You can attach persistent storage to pods using standard ```PersistentVolumes``` and ```PersistentVolumeClaims```.
+Edera supports native Kubernetes storage APIs, as stated in the **[official docs](https://docs.edera.dev/guides/storage/kubernetes-block-devices)**. <br/>
+You can attach persistent storage to pods using standard ```PersistentVolumes``` and ```PersistentVolumeClaims```.
 
 ### Step 1: CSI-provisioned block volume:
 First, create the ```PersistentVolumeClaims```:
