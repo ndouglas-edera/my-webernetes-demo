@@ -148,3 +148,101 @@ sudo protect workload destroy workload-gpu
 ```
 sudo protect zone destroy zone-gpu
 ```
+
+## Using storage in Kubernetes
+
+Edera supports native Kubernetes storage APIs. You can attach persistent storage to pods using standard ```PersistentVolumes``` and ```PersistentVolumeClaims```.
+
+**Step 1: CSI-provisioned block volume**<br/>
+First, create the ```PersistentVolumeClaims```:
+```
+kubectl apply -f csi-block-pvc.yaml
+```
+
+Create the formatter ```Job```:
+```
+kubectl apply -f format-block-device.yaml
+```
+
+Wait for formatting to complete:
+```
+kubectl wait --for=condition=complete job/format-block-device --timeout=120s
+```
+Then deploy the Edera workload:
+```
+kubectl apply -f csi-block-deployment.yaml
+```
+Useful verification:
+```
+kubectl get pvc
+```
+```
+kubectl get pv
+```
+```
+kubectl get jobs
+```
+```
+kubectl get pods
+```
+And:
+```
+kubectl describe pvc my-app-data
+```
+```
+kubectl describe job format-block-device
+```
+**Step 2. Filesystem-mounted PVC**<br/>
+Create the PVC:
+```
+kubectl apply -f filesystem-pvc.yaml
+```
+Then deploy the workload:
+```
+kubectl apply -f filesystem-deployment.yaml
+```
+Verify:
+```
+kubectl get pvc
+```
+```
+kubectl get pv
+```
+```
+kubectl get pods
+```
+You can also inspect the deployment:
+```
+kubectl describe deployment my-app
+```
+
+**3. Local NVMe block device**<br/>
+Create the local PV:
+```
+kubectl apply -f local-nvme-pv.yaml
+```
+Create the PVC:
+```
+kubectl apply -f local-nvme-pvc.yaml
+```
+Then deploy the Edera workload:
+```
+kubectl apply -f local-nvme-deployment.yaml
+```
+Verify:
+```
+kubectl get pv
+```
+```
+kubectl get pvc
+```
+```
+kubectl get pods -o wide
+```
+And:
+```
+kubectl describe pv local-raw-pv
+```
+```
+kubectl describe pvc local-block-pvc
+```
