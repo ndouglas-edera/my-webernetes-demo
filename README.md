@@ -256,3 +256,6 @@ kubectl describe pv local-raw-pv
 ```
 kubectl describe pvc local-block-pvc
 ```
+
+<img width="1507" height="765" alt="Screenshot 2026-09-06 at 22 59 33" src="https://github.com/user-attachments/assets/99db7b26-e5d9-4c46-a858-8d953553d79e" />
+
