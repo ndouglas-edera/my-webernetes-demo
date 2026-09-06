@@ -67,19 +67,29 @@ kubectl get pods --show-labels
 
 ## Working with namespaces
 
-Check for pods in all namespaces
+Read one of the sample manifests
 ```
-kubectl get pods -A
+cat pod-hardened-vessel.yaml
 ```
 
-Check what namespaces exist:
+Try applying it (it should **fail**):
 ```
-kubectl get namespaces
+kubectl apply -f pod-hardened-vessel.yaml
 ```
 
 Create your own custom ```edera``` namespace:
 ```
 kubectl create namespace edera
+```
+
+Try again (this time it should **work**):
+```
+kubectl apply -f pod-hardened-vessel.yaml
+```
+
+Check what namespaces exist:
+```
+kubectl get namespaces
 ```
 
 Run a new workload inside the ```edera``` namespace:
