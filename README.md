@@ -15,7 +15,7 @@ This project is a port of a specific subset of the Kubernetes project to make it
 | Assign pods to a specific node | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#assign-pods-to-a-specific-node) | Insert Description |
 | Run pods with an assigned label | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#run-pods-with-an-assigned-label) | Insert Description |
 | Working with namespaces | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#working-with-namespaces) | Insert Description |
-| NVIDIA GPU passthrough |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo#nvidia-gpu-passthrough-to-an-edera-zone)   | Load the NVIDIA driver and runs a GPU-accelerated workload inside the zone. |
+| NVIDIA GPU passthrough |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo#nvidia-gpu-passthrough-to-an-edera-zone)   | Load NVIDIA driver & run GPU-accelerated workload in zone. |
 | Using storage in Kubernetes |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo#using-storage-in-kubernetes)   | Edera supports native Kubernetes storage APIs. |
 
 ---
