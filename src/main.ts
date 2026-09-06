@@ -197,7 +197,7 @@ const HARDENED_VESSEL_YAML_CONTENT = `apiVersion: v1
 kind: Pod
 metadata:
   name: hardened-vessel
-  namespace: edera
+  namespace: default
 spec:
   runtimeClassName: edera
   containers:
@@ -3044,6 +3044,27 @@ const renderNodes = () => {
     addEvent("Normal", "Completed", `job/${job.name}`, `Job ${job.name} completed successfully`);
   };
 
+  const getManifestNamespace = (fileName: string): string => {
+    const manifest = localFiles[fileName] || "";
+    const match = manifest.match(/^\s+namespace:\s*([A-Za-z0-9][A-Za-z0-9.-]*)\s*$/m);
+    return match?.[1] || "default";
+  };
+
+  const requireManifestNamespace = (fileName: string): string | null => {
+    const namespaceName = getManifestNamespace(fileName);
+
+    if (!namespaces.some((namespace) => namespace.name === namespaceName)) {
+      printHtml(
+        `<span style="color:#ff7373;">Error from server (NotFound): namespaces "${escapeHtml(
+          namespaceName,
+        )}" not found</span>`,
+      );
+      return null;
+    }
+
+    return namespaceName;
+  };
+
   const handleKubectlCommand = async (
     rawCmd: string,
     tokens: string[],
@@ -3302,6 +3323,10 @@ const renderNodes = () => {
 
       if (fileName === "nginx-deployment.yaml") {
         const deploymentName = "nginx";
+        const manifestNamespace = requireManifestNamespace(fileName);
+        if (!manifestNamespace) {
+          return true;
+        }
         const runtimeReady = activeRuntimeClasses.has("edera");
         const existing = deployments.find((deployment) => deployment.name === deploymentName);
 
@@ -3312,7 +3337,7 @@ const renderNodes = () => {
 
         const deployment: LocalDeployment = {
           name: deploymentName,
-          namespace: "default",
+          namespace: manifestNamespace,
           replicas: 2,
           readyReplicas: 0,
           image: "nginx:1.14.2",
@@ -3325,7 +3350,7 @@ const renderNodes = () => {
           const podName = `${deploymentName}-${String(i).padStart(5, "0")}`;
           pods.push({
             name: podName,
-            namespace: "default",
+            namespace: manifestNamespace,
             status: "Pending",
             age: "1s",
             image: deployment.image,
@@ -3352,12 +3377,16 @@ const renderNodes = () => {
 
       if (fileName === "pod-nginx.yaml") {
         const podName = "edera-protect-pod";
+        const manifestNamespace = requireManifestNamespace(fileName);
+        if (!manifestNamespace) {
+          return true;
+        }
         const runtimeReady = activeRuntimeClasses.has("edera");
 
         const existingPod = pods.find(
           (pod) =>
             pod.name === podName &&
-            pod.namespace === "default",
+            pod.namespace === manifestNamespace,
         );
 
         if (existingPod) {
@@ -3382,7 +3411,7 @@ const renderNodes = () => {
 
         pods.push({
           name: podName,
-          namespace: "default",
+          namespace: manifestNamespace,
           status: "Pending",
           age: "1s",
           image: "nginx",
@@ -3479,6 +3508,10 @@ const renderNodes = () => {
 
       if (fileName === "pod-hardened-vessel.yaml") {
         const podName = "hardened-vessel";
+        const manifestNamespace = requireManifestNamespace(fileName);
+        if (!manifestNamespace) {
+          return true;
+        }
 
         const runtimeReady =
           activeRuntimeClasses.has("edera");
@@ -3486,7 +3519,7 @@ const renderNodes = () => {
         const existingPod = pods.find(
           (pod) =>
             pod.name === podName &&
-            pod.namespace === "default",
+            pod.namespace === manifestNamespace,
         );
 
         if (existingPod) {
@@ -3510,7 +3543,7 @@ const renderNodes = () => {
 
         pods.push({
           name: podName,
-          namespace: "default",
+          namespace: manifestNamespace,
           status: "Pending",
           age: "1s",
           image: "denhamparry/leaky-vessel:0.1",
