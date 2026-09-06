@@ -197,7 +197,7 @@ const HARDENED_VESSEL_YAML_CONTENT = `apiVersion: v1
 kind: Pod
 metadata:
   name: hardened-vessel
-  namespace: default
+  namespace: edera
 spec:
   runtimeClassName: edera
   containers:
