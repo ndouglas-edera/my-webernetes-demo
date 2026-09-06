@@ -3668,6 +3668,95 @@ const renderNodes = () => {
         return true;
       }
 
+      if (resource === "deployment" || resource === "deployments" || resource === "deploy") {
+        const deployment = deployments.find(
+          (item) => item.name === name && item.namespace === "default",
+        );
+
+        if (!deployment) {
+          printHtml(
+            `<span style="color:#ff7373;">Error from server (NotFound): deployments.apps "${escapeHtml(
+              name,
+            )}" not found</span>`,
+          );
+          return true;
+        }
+
+        const deploymentPods = pods.filter(
+          (pod) => pod.ownerDeployment === deployment.name,
+        );
+        const runningPods = deploymentPods.filter(
+          (pod) => pod.status === "Running",
+        );
+        const pendingPods = deploymentPods.filter(
+          (pod) => pod.status === "Pending",
+        );
+        const failedPods = deploymentPods.filter(
+          (pod) => pod.status === "Failed",
+        );
+        const deploymentEvents = clusterEvents.filter(
+          (event) => event.object === `deployment/${deployment.name}`,
+        );
+
+        const nodeSelector = deployment.nodeSelector
+          ? formatLabels(deployment.nodeSelector)
+          : "<none>";
+        const storageText = deployment.volumeClaimName
+          ? `${deployment.volumeClaimName} (${deployment.volumeMode || "Filesystem"})`
+          : "<none>";
+        const targetPath = deployment.volumeTargetPath || "<none>";
+        const runtimeClass = deployment.runtimeClassName || "<none>";
+
+        const lines = [
+          `Name:                   ${deployment.name}`,
+          `Namespace:              ${deployment.namespace}`,
+          `CreationTimestamp:      Thu, 06 Sep 2026 21:00:00 +0000`,
+          `Labels:                 ${escapeHtml(deployment.selector)}`,
+          `Annotations:            <none>`,
+          `Selector:               ${escapeHtml(deployment.selector)}`,
+          `Replicas:               ${deployment.replicas} desired | ${deployment.replicas} updated | ${deployment.readyReplicas} total | ${deployment.readyReplicas} available | 0 unavailable`,
+          `StrategyType:           RollingUpdate`,
+          `Pod Template:`,
+          `  Labels:               ${escapeHtml(deployment.selector)}`,
+          `  Containers:`,
+          `    ${escapeHtml(deployment.image.split("/").pop()?.split(":")[0] || deployment.name)}:`,
+          `      Image:            ${escapeHtml(deployment.image)}`,
+          `      Port:             8080/TCP`,
+          `      Host Port:        0/TCP`,
+          `      Environment:      <none>`,
+          `      Mounts:`,
+          `        ${escapeHtml(targetPath)} from ${deployment.volumeClaimName ? escapeHtml(deployment.volumeClaimName) : "<none>"}`,
+          `  Volumes:`,
+          `    ${deployment.volumeClaimName ? escapeHtml(deployment.volumeClaimName) : "<none>"}:`,
+          `      ClaimName:        ${deployment.volumeClaimName ? escapeHtml(deployment.volumeClaimName) : "<none>"}`,
+          `      VolumeMode:       ${deployment.volumeMode || "Filesystem"}`,
+          `  Node-Selectors:       ${escapeHtml(nodeSelector)}`,
+          `  RuntimeClassName:     ${escapeHtml(runtimeClass)}`,
+          `Conditions:`,
+          `  Type           Status  Reason`,
+          `  Available      ${deployment.readyReplicas >= deployment.replicas ? "True" : "False"}    ${deployment.readyReplicas >= deployment.replicas ? "MinimumReplicasAvailable" : "MinimumReplicasUnavailable"}`,
+          `  Progressing    ${pendingPods.length === 0 && failedPods.length === 0 ? "True" : "False"}    ${pendingPods.length === 0 && failedPods.length === 0 ? "NewReplicaSetAvailable" : "ReplicaSetPending"}`,
+          `OldReplicaSets:         <none>`,
+          `NewReplicaSet:          ${deployment.name}-00001`,
+          `Events:`,
+          `  Type     Reason      Age   From                   Message`,
+          `  ----     ------      ----  ----                   -------`,
+          ...(deploymentEvents.length > 0
+            ? deploymentEvents.slice(0, 8).map(
+                (event) =>
+                  `  ${event.type.padEnd(8)} ${event.reason.padEnd(12)} 1m    deployment-controller  ${event.message}`,
+              )
+            : [
+                `  Normal   ScalingReplicaSet  1m    deployment-controller  Scaled up replica set ${deployment.name}-00001 to ${deployment.replicas}`,
+              ]),
+          `Pod Summary:             ${runningPods.length} Running, ${pendingPods.length} Pending, ${failedPods.length} Failed`,
+          `Storage:                 ${escapeHtml(storageText)}`,
+        ];
+
+        printPre(escapeHtml(lines.join("\n")));
+        return true;
+      }
+
       if (resource === "pvc" || resource === "persistentvolumeclaim" || resource === "persistentvolumeclaims") {
         const pvc = persistentVolumeClaims.find((item) => item.name === name && item.namespace === "default");
         if (!pvc) { printHtml(`<span style="color:#ff7373;">Error from server (NotFound): persistentvolumeclaims "${escapeHtml(name)}" not found</span>`); return true; }
