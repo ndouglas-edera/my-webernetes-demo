@@ -10,6 +10,16 @@ This project is a port of a specific subset of the Kubernetes project to make it
 
 ---
 
+| Edera Use-Case | Github Guide | Short Description |
+| :---------------- | :------: | ----: |
+| Assign pods to a specific node | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#assign-pods-to-a-specific-node) | Insert Description |
+| Run pods with an assigned label | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#run-pods-with-an-assigned-label) | Insert Description |
+| Working with namespaces | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#working-with-namespaces) | Insert Description |
+| NVIDIA GPU passthrough |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo#nvidia-gpu-passthrough-to-an-edera-zone)   | Load the NVIDIA driver and runs a GPU-accelerated workload inside the zone. |
+| Using storage in Kubernetes |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo#using-storage-in-kubernetes)   | Edera supports native Kubernetes storage APIs. |
+
+---
+
 ## Assign pods to a specific node
 
 You can list the files in the demo terminal and even simulate reading a manifest file:
