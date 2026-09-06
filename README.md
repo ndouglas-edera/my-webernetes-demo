@@ -36,17 +36,16 @@ Create a ```RuntimeClass``` called ```edera``` and label a specific node with th
 kubectl apply -f runtimeclass-edera.yaml
 ```
 ```
+kubectl get runtimeclass
+```
+```
 kubectl label node node-2 runtime=edera
 ```
-
-Applying the manifest leads to a ```FailedScheduling``` error for (```pod/nginx```) since none of the 3 nodes match the Pod's node selector
 ```
-kubectl apply -f pod-nginx.yaml
-```
-```
-kubectl get pods
+kubectl describe node node-2
 ```
 
+<img width="1507" height="765" alt="Screenshot 2026-09-07 at 00 28 07" src="https://github.com/user-attachments/assets/22027295-e0bb-46eb-8038-af5aeb141a05" />
 
 
 
