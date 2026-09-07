@@ -378,7 +378,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "zone-launch",
     title: "Create an isolated Edera zone",
     description:
-      "Launch a lightweight Edera zone. The --wait flag waits until the zone is ready.",
+      "Launch a lightweight Edera <code class='guide-code'>Zone</code>. The <code class='guide-code'>--wait</code> flag waits until the zone is ready.",
     command:
       "protect zone launch -n test-zone --min-cpus 1 -C 2 -c 2 --wait",
   },
@@ -386,56 +386,56 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "zone-list",
     title: "Inspect the zone",
     description:
-      "List the zones managed by Edera and inspect its networking information.",
+      "List the <code class='guide-code'>Zones</code> managed by Edera and inspect its networking information.",
     command: "protect zone list",
   },
   {
     id: "edera-runtimeclass-apply",
     title: "Apply the Edera RuntimeClass",
     description:
-      "Create the Edera RuntimeClass so Kubernetes recognizes the edera runtime.",
+      "Create the Edera <code class='guide-code'>RuntimeClass</code> so Kubernetes recognises the <code class='guide-code'>edera</code> runtime.",
     command: "kubectl apply -f edera/runtimeclass-edera.yaml",
   },
   {
     id: "edera-runtimeclass-list",
     title: "Verify the Edera RuntimeClass",
     description:
-      "List RuntimeClasses and confirm that edera is available.",
+      "List <code class='guide-code'>RuntimeClass</code> names and confirm that <code class='guide-code'>edera</code> is available.",
     command: "kubectl get runtimeclass",
   },
   {
     id: "edera-node-label",
     title: "Label the Edera node",
     description:
-      "Label <code>node-3</code> with <code>runtime=edera</code>. The Edera <code>RuntimeClass</code> uses this node selector to schedule Edera-protected workloads onto the correct node.",
+      "Label <code class='guide-code'>node-3</code> with <code class='guide-code'>runtime=edera</code>. The Edera <code class='guide-code'>RuntimeClass</code> uses this node selector to schedule Edera-protected workloads onto the correct node.",
     command: "kubectl label node node-3 runtime=edera",
   },
   {
     id: "edera-pod-apply",
     title: "Deploy the CPU-configured Edera pod",
     description:
-      "Apply the nginx manifest. It uses runtimeClassName: edera and requests 4 CPUs with the matching dev.edera/cpu annotation.",
+      "Apply the <code class='guide-code'>nginx</code> manifest. It uses <code class='guide-code'>runtimeClassName: edera</code> and requests 4 CPUs with the matching <code class='guide-code'>dev.edera/cpu</code> annotation.",
     command: "kubectl apply -f edera/pod-nginx.yaml",
   },
   {
     id: "edera-pod-runtimeclass",
     title: "Verify the pod RuntimeClass",
     description:
-      "Confirm that edera-protect-pod is using the edera RuntimeClass.",
+      "Confirm that the <code class='guide-code'>edera-protect-pod</code> is using the Edera <code class='guide-code'>RuntimeClass</code>.",
     command: "kubectl get pod edera-protect-pod -o jsonpath='{.spec.runtimeClassName}'",
   },
   {
     id: "edera-workload-list",
     title: "Prove the pod is Edera protected",
     description:
-      "Before destroying the zone, list Edera workloads and verify edera-protect-pod appears as a running workload attached to test-zone.",
+      "List the Edera workloads and verify <code class='guide-code'>edera-protect-pod</code> appears as a running workload attached to <code class='guide-code'>test-zone</code>.",
     command: "protect workload list",
   },
   {
     id: "deployment-apply",
     title: "Deploy an Edera-backed Deployment",
     description:
-      "Apply an apps/v1 Deployment with two nginx replicas. The pod template uses runtimeClassName: edera, so both replicas remain Pending until the Edera RuntimeClass is available.",
+      "Apply an <code class='guide-code'>apps/v1</code> Deployment with two <code class='guide-code'>nginx</code> replicas. The pod template uses <code class='guide-code'>runtimeClassName: edera</code>, so both replicas remain <code class='guide-code'>Pending</code> until the Edera <code class='guide-code'>RuntimeClass</code> is available.",
     command: "kubectl apply -f edera/nginx-deployment.yaml",
   },
   {
@@ -464,7 +464,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "workload-exec",
     title: "Verify the Edera zone kernel",
     description:
-      "Exec into the Alpine workload and run `uname -r | grep 'edera'`. Expected output: 6.18.44-edera-zone. This demonstrates that the workload is using the dedicated kernel booted for the isolated Edera zone rather than the shared host kernel. In a traditional container, `uname -r` would normally report the host kernel because containers share one kernel.",
+      "Exec into the <code class='guide-code'>Alpine</code> workload and run <code class='guide-code'>uname -r | grep 'edera'</code>. Expected output: <code class='guide-code'>6.18.44-edera-zone</code>. This demonstrates that the workload is using the dedicated kernel booted for the isolated Edera <code class='guide-code'>Zone</code> rather than the shared host kernel. In a traditional container, <code class='guide-code'>uname -r</code> would normally report the host kernel because containers share one kernel.",
     command:
       "protect workload exec alpine-long /bin/sh -c \"uname -r | grep 'edera'\"",
     optional: true,
@@ -473,7 +473,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "host-kernel",
     title: "Compare the host kernel",
     description:
-      "After exiting the workload, run `uname -r` on the host. Expected output: 6.18.44-edera-host. The different kernel suffix proves the workload is not using the host's shared kernel; the Edera zone is running its own isolated kernel in the simulator.",
+      "After exiting the workload, run <code class='guide-code'>uname -r</code> on the host. Expected output: <code class='guide-code'>6.18.44-edera-host</code>. The different kernel suffix proves the workload is not using the host's shared kernel; the Edera <code class='guide-code'>Zone</code> is running its own isolated kernel in the simulator.",
     command: "uname -r",
     optional: true,
   },
@@ -712,6 +712,9 @@ async function initTerminalDemo() {
     document.querySelector<HTMLDivElement>("#guide-step-title")!;
   const guideDescription =
     document.querySelector<HTMLDivElement>("#guide-description")!;
+  const guideCodeStyle = document.createElement("style");
+  guideCodeStyle.textContent = `.guide-code { background: #fff3a3; font-weight: 700; padding: 0.08em 0.3em; border-radius: 4px; }`;
+  document.head.appendChild(guideCodeStyle);
   const suggestedCommand =
     document.querySelector<HTMLElement>("#suggested-command")!;
   const guideStepList =
