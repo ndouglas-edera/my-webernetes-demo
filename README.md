@@ -63,10 +63,13 @@ kubectl apply -f edera/runtimeclass-edera.yaml
 kubectl get runtimeclass
 ```
 ```
-kubectl label node node-2 runtime=edera
+kubectl label node node-3 runtime=edera
 ```
 ```
-kubectl describe node node-2
+kubectl get nodes -l runtime=edera
+```
+```
+kubectl describe node node-3
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-07 at 00 28 07" src="https://github.com/user-attachments/assets/22027295-e0bb-46eb-8038-af5aeb141a05" />
