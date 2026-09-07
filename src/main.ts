@@ -1117,6 +1117,10 @@ vfio_pci`;
 
   let protectZones: ProtectZone[] = [];
   let protectWorkloads: ProtectWorkload[] = [];
+  let cachedProtectImages = new Set<string>([
+    "nginx:latest",
+    "docker.io/library/alpine:latest",
+  ]);
   let clusterEvents: ClusterEvent[] = [];
   const commandHistory: string[] = [];
   let historyIndex = -1;
@@ -1824,8 +1828,8 @@ const renderNodes = () => {
       `<span style="color:#b8ff3c;">${escapeHtml(uuid)}</span>`,
     );
   };
-  const renderProtectZoneList = () => {
-    if (protectZones.length === 0) {
+  const renderProtectZoneList = (zones = protectZones) => {
+    if (zones.length === 0) {
       printHtml(
         `<span style="color:#a8cfca;">No zones have been launched.</span>`,
       );
@@ -1851,7 +1855,7 @@ const renderNodes = () => {
     let html = `<span style="color:#00e5d4;font-weight:700;">${header}</span>\n`;
     html += `<span style="color:#08736d;">${divider}</span>\n`;
 
-    for (const zone of protectZones) {
+    for (const zone of zones) {
       const stateColor =
         zone.state === "ready"
           ? "#b8ff3c"
@@ -2168,8 +2172,8 @@ const renderNodes = () => {
     updateDashboard();
   };
 
-  const renderProtectWorkloadList = () => {
-    if (protectWorkloads.length === 0) {
+  const renderProtectWorkloadList = (workloads = protectWorkloads) => {
+    if (workloads.length === 0) {
       printHtml(
         `<span style="color:#a8cfca;">No workloads have been launched.</span>`,
       );
@@ -2196,7 +2200,7 @@ const renderNodes = () => {
     let html = `<span style="color:#00e5d4;font-weight:700;">${header}</span>\n`;
     html += `<span style="color:#08736d;">${divider}</span>\n`;
 
-    for (const workload of protectWorkloads) {
+    for (const workload of workloads) {
       const stateColor =
         workload.state === "running"
           ? "#b8ff3c"
@@ -2507,8 +2511,13 @@ const renderNodes = () => {
           </div>
 
           <div class="cli-help-command">
-            <code>protect zone list</code>
-            <span>List Edera zones and their networking/state information.</span>
+            <code>protect zone list [ZONE] [--output json-pretty]</code>
+            <span>List Edera zones, or inspect one zone with JSON output.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect zone watch</code>
+            <span>Watch simulated zone state changes in real time.</span>
           </div>
 
           <div class="cli-help-command">
@@ -2522,8 +2531,18 @@ const renderNodes = () => {
           </div>
 
           <div class="cli-help-command">
-            <code>protect workload list</code>
-            <span>List workloads and the Edera zones that contain them.</span>
+            <code>protect workload list [--selector status.state=running]</code>
+            <span>List workloads and optionally filter them by state.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload stop &lt;workload&gt;</code>
+            <span>Stop a running workload.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload start &lt;workload&gt;</code>
+            <span>Start a stopped workload.</span>
           </div>
 
           <div class="cli-help-command">
@@ -2617,8 +2636,13 @@ const renderNodes = () => {
           </div>
 
           <div class="cli-help-command">
-            <code>protect zone list</code>
-            <span>List Edera zones and their networking/state information.</span>
+            <code>protect zone list [ZONE] [--output json-pretty]</code>
+            <span>List Edera zones, or inspect one zone with JSON output.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect zone watch</code>
+            <span>Watch simulated zone state changes in real time.</span>
           </div>
 
           <div class="cli-help-command">
@@ -2651,8 +2675,18 @@ const renderNodes = () => {
           </div>
 
           <div class="cli-help-command">
-            <code>protect workload list</code>
-            <span>List workloads and the Edera zones that contain them.</span>
+            <code>protect workload list [--selector status.state=running]</code>
+            <span>List workloads and optionally filter them by state.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload stop &lt;workload&gt;</code>
+            <span>Stop a running workload.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload start &lt;workload&gt;</code>
+            <span>Start a stopped workload.</span>
           </div>
 
           <div class="cli-help-command">
@@ -2668,6 +2702,21 @@ const renderNodes = () => {
           <div class="cli-help-command">
             <code>protect zone logs &lt;zone&gt;</code>
             <span>Show simulated zone boot and NVIDIA driver logs.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect image list [--output json-pretty]</code>
+            <span>List cached container images.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect image pull [--overwrite-cache] &lt;image&gt;</code>
+            <span>Pull an image into the local cache.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect image remove &lt;digest&gt;</code>
+            <span>Remove a cached image by digest.</span>
           </div>
 
           <div class="cli-help-command">
@@ -2717,6 +2766,72 @@ const renderNodes = () => {
     `;
   };
 
+  const parseProtectOutputFormat = (tokens: string[]): string => {
+    const outputIndex = tokens.findIndex((token) => token === "-o" || token === "--output");
+    if (outputIndex >= 0) return tokens[outputIndex + 1] || "table";
+    const equalsToken = tokens.find((token) => token.startsWith("-o=") || token.startsWith("--output="));
+    return equalsToken ? equalsToken.split("=").slice(1).join("=") : "table";
+  };
+
+  const renderProtectZoneJson = (zones: ProtectZone[], pretty = false) => {
+    const payload = {
+      zones: zones.map((zone) => ({
+        name: zone.name,
+        id: zone.uuid,
+        state: zone.state,
+        resources: { cpus: zone.targetCpus, memory: `${zone.maxCpus * 512}MB` },
+        ipv4: zone.ipv4,
+        ipv6: zone.ipv6,
+        ...(zone.kernelVariant ? { kernelVariant: zone.kernelVariant } : {}),
+      })),
+    };
+    printPre(escapeHtml(JSON.stringify(payload, null, pretty ? 2 : 0)));
+  };
+
+  const renderProtectWorkloadJson = (workloads: ProtectWorkload[], pretty = false) => {
+    const payload = {
+      workloads: workloads.map((workload) => ({
+        name: workload.name,
+        id: workload.uuid,
+        zone: workload.zone,
+        state: workload.state,
+        image: workload.image,
+        command: workload.command,
+      })),
+    };
+    printPre(escapeHtml(JSON.stringify(payload, null, pretty ? 2 : 0)));
+  };
+
+  const renderProtectImageList = (pretty = false) => {
+    const images = Array.from(cachedProtectImages).map((reference, index) => ({
+      reference,
+      digest: `sha256:${"0".repeat(12)}${String(index + 1).padStart(2, "0")}${"a".repeat(50)}`,
+      format: "squashfs",
+    }));
+    if (pretty) {
+      printPre(escapeHtml(JSON.stringify({ images }, null, 2)));
+      return;
+    }
+    if (!images.length) {
+      printHtml(`<span style="color:#a8cfca;">No cached images.</span>`);
+      return;
+    }
+    let output = `<span style="color:#00e5d4;font-weight:700;">REFERENCE                 DIGEST                                                        FORMAT</span>\n`;
+    output += `<span style="color:#08736d;">${"─".repeat(105)}</span>\n`;
+    for (const image of images) {
+      output += `${escapeHtml(image.reference.padEnd(26))}${escapeHtml(image.digest.padEnd(65))}${escapeHtml(image.format)}\n`;
+    }
+    printPre(output.trimEnd());
+  };
+
+  const getZoneByIdentifier = (identifier: string) =>
+    protectZones.find((zone) => zone.name === identifier || zone.uuid === identifier);
+
+  const renderZoneWatchSnapshot = () => {
+    const lines = protectZones.map((zone) => `${zone.name}  ${zone.state}`);
+    printPre(escapeHtml(lines.length ? lines.join("\n") : "No zones."));
+  };
+
   const handleProtectCommand = async (
     rawCmd: string,
     tokens: string[],
@@ -2735,6 +2850,46 @@ const renderNodes = () => {
     }
 
     if (tokens[1] === "image") {
+      if (tokens[2] === "list") {
+        const output = parseProtectOutputFormat(tokens);
+        renderProtectImageList(output === "json-pretty");
+        return true;
+      }
+
+      if (tokens[2] === "pull") {
+        let image = "";
+        let overwrite = false;
+        for (let i = 3; i < tokens.length; i++) {
+          if (tokens[i] === "--overwrite-cache") overwrite = true;
+          else if (!tokens[i].startsWith("-") && !image) image = tokens[i];
+        }
+        if (!image) {
+          printHtml(`<span style="color:#ff7373;">Usage: protect image pull [--overwrite-cache] &lt;image&gt;</span>`);
+          return true;
+        }
+        const existed = cachedProtectImages.has(image);
+        cachedProtectImages.add(image);
+        printHtml(`<span style="color:#b8ff3c;">${existed && !overwrite ? "Image already cached" : "Pulled image"}: ${escapeHtml(image)}</span>`);
+        return true;
+      }
+
+      if (tokens[2] === "remove") {
+        const image = tokens[3] || "";
+        if (!image) {
+          printHtml(`<span style="color:#ff7373;">Usage: protect image remove &lt;digest&gt;</span>`);
+          return true;
+        }
+        const refs = Array.from(cachedProtectImages);
+        const index = refs.findIndex((ref, i) => image === ref || image === `sha256:${"0".repeat(12)}${String(i + 1).padStart(2, "0")}${"a".repeat(50)}`);
+        if (index < 0) {
+          printHtml(`<span style="color:#ff7373;">Error: image digest "${escapeHtml(image)}" not found.</span>`);
+          return true;
+        }
+        cachedProtectImages.delete(refs[index]);
+        printHtml(`<span style="color:#b8ff3c;">Removed image ${escapeHtml(image)}.</span>`);
+        return true;
+      }
+
       if (tokens[2] === "list-kernel-variants") {
         printPre(
           `<span style="color:#dff7f0;">nvidia    ${escapeHtml(
@@ -2808,8 +2963,47 @@ const renderNodes = () => {
         return true;
       }
 
+      if (subcommand === "watch") {
+        printHtml(`<span style="color:#00e5d4;font-weight:700;">Watching Edera zones (simulated live updates).</span>`);
+        renderZoneWatchSnapshot();
+        let ticks = 0;
+        const watchTimer = window.setInterval(() => {
+          ticks += 1;
+          renderZoneWatchSnapshot();
+          if (ticks >= 6) {
+            window.clearInterval(watchTimer);
+            printHtml(`<span style="color:#a8cfca;">Zone watch ended after 6 updates.</span>`);
+          }
+        }, 1000);
+        return true;
+      }
+
       if (subcommand === "list") {
-        renderProtectZoneList();
+        let identifier = "";
+        let selector = "";
+        for (let i = 3; i < tokens.length; i++) {
+          if (tokens[i] === "--selector" || tokens[i] === "-l") selector = tokens[++i] || "";
+          else if (tokens[i].startsWith("--selector=")) selector = tokens[i].slice(11);
+          else if (!tokens[i].startsWith("-") && !identifier) identifier = tokens[i];
+        }
+        let zones = identifier ? protectZones.filter((zone) => zone.name === identifier || zone.uuid === identifier) : [...protectZones];
+        if (selector) {
+          const normalized = normalizeZoneSelector(selector);
+          if (!normalized) {
+            printHtml(`<span style="color:#ff7373;">Invalid selector "${escapeHtml(selector)}".</span>`);
+            return true;
+          }
+          const state = normalized === "created" ? "ready" : normalized;
+          zones = zones.filter((zone) => zone.state === state);
+        }
+        const output = parseProtectOutputFormat(tokens);
+        if (output === "json" || output === "json-pretty") {
+          renderProtectZoneJson(zones, output === "json-pretty");
+        } else if (output === "jsonl") {
+          printPre(zones.map((zone) => escapeHtml(JSON.stringify({ name: zone.name, id: zone.uuid, state: zone.state }))).join("\n"));
+        } else {
+          renderProtectZoneList(zones);
+        }
 
         const hasDestroyedZone = protectZones.some(
           (zone) => zone.state === "destroyed",
@@ -2971,7 +3165,21 @@ const renderNodes = () => {
       const subcommand = tokens[2];
 
       if (subcommand === "list") {
-        renderProtectWorkloadList();
+        let selector = "";
+        for (let i = 3; i < tokens.length; i++) {
+          if (tokens[i] === "--selector" || tokens[i] === "-l") selector = tokens[++i] || "";
+          else if (tokens[i].startsWith("--selector=")) selector = tokens[i].slice(11);
+        }
+        let workloads = [...protectWorkloads];
+        if (selector) {
+          const match = selector.trim().match(/^status\.state\s*=\s*(.+)$/i);
+          if (!match) { printHtml(`<span style="color:#ff7373;">Invalid selector "${escapeHtml(selector)}".</span>`); return true; }
+          const state = match[1].trim().toLowerCase();
+          workloads = workloads.filter((workload) => workload.state === state);
+        }
+        const output = parseProtectOutputFormat(tokens);
+        if (output === "json" || output === "json-pretty") renderProtectWorkloadJson(workloads, output === "json-pretty");
+        else renderProtectWorkloadList(workloads);
 
         if (!completedDemoSteps.has("edera-workload-list")) {
           markDemoStepComplete("edera-workload-list");
@@ -3089,6 +3297,25 @@ const renderNodes = () => {
         return true;
       }
 
+      if (subcommand === "stop" || subcommand === "start") {
+        const identifier = tokens[3] || "";
+        const workload = protectWorkloads.find((item) => item.name === identifier || item.uuid === identifier);
+        if (!workload) { printHtml(`<span style="color:#ff7373;">Error: workload "${escapeHtml(identifier)}" not found.</span>`); return true; }
+        if (subcommand === "stop") {
+          if (workload.state !== "running") { printHtml(`<span style="color:#a8cfca;">Workload "${escapeHtml(workload.name)}" is not running.</span>`); return true; }
+          workload.state = "stopped";
+          addEvent("Normal", "WorkloadStopped", `workload/${workload.name}`, `Workload ${workload.name} stopped`);
+          printHtml(`<span style="color:#b8ff3c;">Workload "${escapeHtml(workload.name)}" stopped.</span>`);
+        } else {
+          if (workload.state !== "stopped") { printHtml(`<span style="color:#a8cfca;">Workload "${escapeHtml(workload.name)}" is not stopped.</span>`); return true; }
+          workload.state = "running";
+          addEvent("Normal", "WorkloadStarted", `workload/${workload.name}`, `Workload ${workload.name} started`);
+          printHtml(`<span style="color:#b8ff3c;">Workload "${escapeHtml(workload.name)}" started.</span>`);
+        }
+        updateDashboard();
+        return true;
+      }
+
       if (subcommand === "destroy") {
         const identifier = tokens[3];
 
@@ -3116,6 +3343,34 @@ const renderNodes = () => {
         )}</span>`,
       );
 
+      return true;
+    }
+
+    if (tokens[1] === "host") {
+      const subcommand = tokens[2];
+      if (subcommand === "status") {
+        printPre(`<span style="color:#dff7f0;">protect-daemon    active (running)
+zones             ${protectZones.filter((zone) => zone.state !== "destroyed").length}
+workloads         ${protectWorkloads.filter((workload) => workload.state !== "destroyed").length}</span>`);
+        return true;
+      }
+      if (subcommand === "cpu-topology") {
+        printPre(`<span style="color:#dff7f0;">CPU TOPOLOGY
+Sockets: 1
+Cores:   4
+Threads: 8
+
+0 1 2 3 4 5 6 7</span>`);
+        return true;
+      }
+      if (subcommand === "hv-debug-info") {
+        printPre(`<span style="color:#dff7f0;">Hypervisor: simulated-kvm
+Edera isolation: enabled
+Zones: ${protectZones.filter((zone) => zone.state !== "destroyed").length}
+Kernel isolation: enabled</span>`);
+        return true;
+      }
+      printHtml(`<span style="color:#ff7373;">Unknown protect host command: ${escapeHtml(tokens.slice(2).join(" "))}</span>`);
       return true;
     }
 
