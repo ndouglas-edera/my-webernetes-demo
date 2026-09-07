@@ -320,3 +320,121 @@ kubectl describe pvc local-block-pvc
 
 <img width="1507" height="765" alt="Screenshot 2026-09-06 at 22 59 33" src="https://github.com/user-attachments/assets/99db7b26-e5d9-4c46-a858-8d953553d79e" />
 
+
+## Using the Protect CLI
+
+Launch a basic zone
+```
+protect zone launch --name my-test-zone --wait
+```
+
+List all zones in table format
+```
+protect zone list
+```
+
+List zones in JSON format for automation
+```
+protect zone list --output json
+```
+
+Watch zone changes in real-time
+```
+protect zone watch
+```
+Get detailed info about a specific zone
+```
+protect zone list my-test-zone --output json-pretty
+```
+Launch a simple workload in an existing zone
+```
+protect workload launch --zone my-test-zone --name web-server nginx:latest
+```
+Launch with custom command and wait for it to start
+```
+protect workload launch --zone my-test-zone --name debug-shell --wait ubuntu:latest /bin/bash
+```
+Run a basic command in a workload (works with minimal containers)
+```
+protect workload exec web-server /bin/sh -c "ls /"
+```
+Run system commands in full containers
+```
+protect workload exec debug-shell ps aux
+```
+Get an interactive shell
+```
+protect workload exec --tty debug-shell /bin/bash
+```
+List all workloads
+```
+protect workload list
+```
+Stop a workload
+```
+protect workload stop web-server
+```
+Start a stopped workload
+```
+protect workload start web-server
+```
+Destroy a workload permanently
+```
+protect workload destroy web-server --wait
+```
+View all cached images
+```
+protect image list
+```
+Get detailed JSON output
+```
+protect image list --output json-pretty
+```
+Kernel variants are alternate zone kernel images with different features or extra capabilities or drivers. The daemon resolves from its ```[zone.kernel-variants]``` configuration.
+```
+protect image list-kernel-variants
+```
+Pull an image into the cache
+```
+protect image pull nginx:latest
+```
+Force overwrite existing cached image
+```
+protect image pull --overwrite-cache redis:alpine
+```
+First, list images to get the digest
+```
+protect image list --output table
+```
+Remove the image by ```SHA256``` digest:
+```
+protect image remove sha256:abc123...def456
+```
+Machine-readable JSON
+```
+protect zone list --output json-pretty
+```
+Check if the Edera daemon is running
+```
+protect host status
+```
+View system topology
+```
+protect host cpu-topology
+```
+Viewing logs in real-time
+```
+protect zone logs my-test-zone --follow
+```
+View hypervisor debug information
+```
+protect host hv-debug-info
+```
+Using selectors for filtering resources by state:
+```
+protect zone list --selector status.state=failed
+```
+List only running workloads
+```
+protect workload list --selector status.state=running
+```
