@@ -20,6 +20,30 @@ This project is a port of a specific subset of the Kubernetes project to make it
 
 ---
 
+## virtual read-only filesystem
+
+```
+~
+├── edera/
+│   ├── nginx-deployment.yaml
+│   ├── pod-hardened-vessel.yaml
+│   ├── pod-nginx.yaml
+│   └── runtimeclass-edera.yaml
+│
+└── storage/
+    ├── csi/
+    │   ├── csi-block-deployment.yaml
+    │   ├── csi-block-pvc.yaml
+    │   └── format-block-device.yaml
+    ├── filesystem/
+    │   ├── filesystem-deployment.yaml
+    │   └── filesystem-pvc.yaml
+    └── local-nvme/
+        ├── local-nvme-deployment.yaml
+        ├── local-nvme-pv.yaml
+        └── local-nvme-pvc.yaml
+```
+
 ## Assign pods to a specific node
 
 You can list the files in the demo terminal and even simulate reading a manifest file:
@@ -28,12 +52,12 @@ You can list the files in the demo terminal and even simulate reading a manifest
 ls -la
 ```
 ```
-cat runtimeclass-edera.yaml
+cat edera/runtimeclass-edera.yaml
 ```
 
 Create a ```RuntimeClass``` called ```edera``` and label a specific node with the runtime context.
 ```
-kubectl apply -f runtimeclass-edera.yaml
+kubectl apply -f edera/runtimeclass-edera.yaml
 ```
 ```
 kubectl get runtimeclass
@@ -69,12 +93,12 @@ kubectl get pods --show-labels
 
 Read one of the sample manifests
 ```
-cat pod-hardened-vessel.yaml
+cat edera/pod-hardened-vessel.yaml
 ```
 
 Try applying it (it should **fail**):
 ```
-kubectl apply -f pod-hardened-vessel.yaml
+kubectl apply -f edera/pod-hardened-vessel.yaml
 ```
 
 Create your own custom ```edera``` namespace:
@@ -84,7 +108,7 @@ kubectl create namespace edera
 
 Try again (this time it should **work**):
 ```
-kubectl apply -f pod-hardened-vessel.yaml
+kubectl apply -f edera/pod-hardened-vessel.yaml
 ```
 
 Check what namespaces exist:
@@ -189,12 +213,12 @@ You can attach persistent storage to pods using standard ```PersistentVolumes```
 ### Step 1: CSI-provisioned block volume:
 First, create the ```PersistentVolumeClaims```:
 ```
-kubectl apply -f csi-block-pvc.yaml
+kubectl apply -f storage/csi/csi-block-pvc.yaml
 ```
 
 Create the formatter ```Job```:
 ```
-kubectl apply -f format-block-device.yaml
+kubectl apply -f storage/csi/format-block-device.yaml
 ```
 
 Wait for formatting to complete:
@@ -203,7 +227,7 @@ kubectl wait --for=condition=complete job/format-block-device --timeout=120s
 ```
 Then deploy the Edera workload:
 ```
-kubectl apply -f csi-block-deployment.yaml
+kubectl apply -f storage/csi/csi-block-deployment.yaml
 ```
 Useful verification:
 ```
@@ -235,11 +259,11 @@ kubectl describe job format-block-device
 ### Step 2: Filesystem-mounted PVC:
 Create the ```PersistentVolumeClaims```:
 ```
-kubectl apply -f filesystem-pvc.yaml
+kubectl apply -f storage/filesystem/filesystem-pvc.yaml
 ```
 Then deploy the workload:
 ```
-kubectl apply -f filesystem-deployment.yaml
+kubectl apply -f storage/filesystem/filesystem-deployment.yaml
 ```
 Verify:
 ```
@@ -262,15 +286,15 @@ kubectl describe deployment my-app
 ### Step 3: Local NVMe block device:
 Create the local ```PersistentVolume```:
 ```
-kubectl apply -f local-nvme-pv.yaml
+kubectl apply -f storage/local-nvme/local-nvme-pv.yaml
 ```
 Create the ```PersistentVolumeClaims```:
 ```
-kubectl apply -f local-nvme-pvc.yaml
+kubectl apply -f storage/local-nvme/local-nvme-pvc.yaml
 ```
 Then deploy the Edera workload:
 ```
-kubectl apply -f local-nvme-deployment.yaml
+kubectl apply -f storage/local-nvme/local-nvme-deployment.yaml
 ```
 Verify:
 ```
