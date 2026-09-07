@@ -394,7 +394,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     title: "Apply the Edera RuntimeClass",
     description:
       "Create the Edera RuntimeClass so Kubernetes recognizes the edera runtime.",
-    command: "kubectl apply -f runtimeclass-edera.yaml",
+    command: "kubectl apply -f edera/runtimeclass-edera.yaml",
   },
   {
     id: "edera-runtimeclass-list",
@@ -415,7 +415,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     title: "Deploy the CPU-configured Edera pod",
     description:
       "Apply the nginx manifest. It uses runtimeClassName: edera and requests 4 CPUs with the matching dev.edera/cpu annotation.",
-    command: "kubectl apply -f pod-nginx.yaml",
+    command: "kubectl apply -f edera/pod-nginx.yaml",
   },
   {
     id: "edera-pod-runtimeclass",
@@ -436,7 +436,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     title: "Deploy an Edera-backed Deployment",
     description:
       "Apply an apps/v1 Deployment with two nginx replicas. The pod template uses runtimeClassName: edera, so both replicas remain Pending until the Edera RuntimeClass is available.",
-    command: "kubectl apply -f nginx-deployment.yaml",
+    command: "kubectl apply -f edera/nginx-deployment.yaml",
   },
   {
     id: "deployment-list",
@@ -690,6 +690,12 @@ async function initTerminalDemo() {
 
   const output = document.querySelector<HTMLDivElement>("#output")!;
   const input = document.querySelector<HTMLInputElement>("#cmd")!;
+  const terminalPrompt =
+    document.querySelector<HTMLSpanElement>("#terminal-prompt")!;
+
+  const updateTerminalPrompt = () => {
+    terminalPrompt.innerText = `user@webernetes:${virtualDisplayPath(currentDirectory)}$`;
+  };
 
   const podGrid = document.querySelector<HTMLDivElement>("#pod-grid")!;
   const podCount = document.querySelector<HTMLSpanElement>("#pod-count")!;
@@ -768,19 +774,25 @@ async function initTerminalDemo() {
 
   let cluster: Cluster;
 
+  // The demo exposes a small read-only virtual filesystem for manifests. Keeping
+  // paths here (rather than making the terminal itself aware of every manifest)
+  // lets `ls`, `cd`, `cat`, and `kubectl -f` all share the same path resolution.
   const localFiles: Record<string, string> = {
-    "pod-nginx.yaml": NGINX_YAML_CONTENT,
-    "runtimeclass-edera.yaml": RUNTIMECLASS_EDERA_YAML_CONTENT,
-    "pod-hardened-vessel.yaml": HARDENED_VESSEL_YAML_CONTENT,
-    "nginx-deployment.yaml": NGINX_DEPLOYMENT_YAML_CONTENT,
-    "csi-block-pvc.yaml": CSI_BLOCK_PVC_YAML_CONTENT,
-    "format-block-device.yaml": FORMAT_BLOCK_DEVICE_YAML_CONTENT,
-    "csi-block-deployment.yaml": CSI_BLOCK_DEPLOYMENT_YAML_CONTENT,
-    "filesystem-pvc.yaml": FILESYSTEM_PVC_YAML_CONTENT,
-    "filesystem-deployment.yaml": FILESYSTEM_DEPLOYMENT_YAML_CONTENT,
-    "local-nvme-pv.yaml": LOCAL_NVME_PV_YAML_CONTENT,
-    "local-nvme-pvc.yaml": LOCAL_NVME_PVC_YAML_CONTENT,
-    "local-nvme-deployment.yaml": LOCAL_NVME_DEPLOYMENT_YAML_CONTENT,
+    "/edera/pod-nginx.yaml": NGINX_YAML_CONTENT,
+    "/edera/runtimeclass-edera.yaml": RUNTIMECLASS_EDERA_YAML_CONTENT,
+    "/edera/pod-hardened-vessel.yaml": HARDENED_VESSEL_YAML_CONTENT,
+    "/edera/nginx-deployment.yaml": NGINX_DEPLOYMENT_YAML_CONTENT,
+
+    "/storage/csi/csi-block-pvc.yaml": CSI_BLOCK_PVC_YAML_CONTENT,
+    "/storage/csi/format-block-device.yaml": FORMAT_BLOCK_DEVICE_YAML_CONTENT,
+    "/storage/csi/csi-block-deployment.yaml": CSI_BLOCK_DEPLOYMENT_YAML_CONTENT,
+
+    "/storage/filesystem/filesystem-pvc.yaml": FILESYSTEM_PVC_YAML_CONTENT,
+    "/storage/filesystem/filesystem-deployment.yaml": FILESYSTEM_DEPLOYMENT_YAML_CONTENT,
+
+    "/storage/local-nvme/local-nvme-pv.yaml": LOCAL_NVME_PV_YAML_CONTENT,
+    "/storage/local-nvme/local-nvme-pvc.yaml": LOCAL_NVME_PVC_YAML_CONTENT,
+    "/storage/local-nvme/local-nvme-deployment.yaml": LOCAL_NVME_DEPLOYMENT_YAML_CONTENT,
   };
   const GPU_PCI_LOCATION = "0000:18:00.0";
   const GPU_PCI_ID = "10de:1eb8";
@@ -851,34 +863,144 @@ vfio_pci`;
     string,
     { size: number; modified: string }
   > = {
-    "pod-nginx.yaml": {
+    "/edera/pod-nginx.yaml": {
       size: NGINX_YAML_CONTENT.length,
       modified: "Apr  9 07:48",
     },
-    "runtimeclass-edera.yaml": {
+    "/edera/runtimeclass-edera.yaml": {
       size: RUNTIMECLASS_EDERA_YAML_CONTENT.length,
       modified: "Apr  9 07:48",
     },
-    "pod-hardened-vessel.yaml": {
+    "/edera/pod-hardened-vessel.yaml": {
       size: HARDENED_VESSEL_YAML_CONTENT.length,
       modified: "Apr  9 07:48",
     },
-    "nginx-deployment.yaml": {
+    "/edera/nginx-deployment.yaml": {
       size: NGINX_DEPLOYMENT_YAML_CONTENT.length,
       modified: "Apr  9 07:47",
     },
-    "csi-block-pvc.yaml": { size: CSI_BLOCK_PVC_YAML_CONTENT.length, modified: "Sep  6 09:00" },
-    "format-block-device.yaml": { size: FORMAT_BLOCK_DEVICE_YAML_CONTENT.length, modified: "Sep  6 09:00" },
-    "csi-block-deployment.yaml": { size: CSI_BLOCK_DEPLOYMENT_YAML_CONTENT.length, modified: "Sep  6 09:00" },
-    "filesystem-pvc.yaml": { size: FILESYSTEM_PVC_YAML_CONTENT.length, modified: "Sep  6 09:00" },
-    "filesystem-deployment.yaml": { size: FILESYSTEM_DEPLOYMENT_YAML_CONTENT.length, modified: "Sep  6 09:00" },
-    "local-nvme-pv.yaml": { size: LOCAL_NVME_PV_YAML_CONTENT.length, modified: "Sep  6 09:00" },
-    "local-nvme-pvc.yaml": { size: LOCAL_NVME_PVC_YAML_CONTENT.length, modified: "Sep  6 09:00" },
-    "local-nvme-deployment.yaml": { size: LOCAL_NVME_DEPLOYMENT_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "/storage/csi/csi-block-pvc.yaml": { size: CSI_BLOCK_PVC_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "/storage/csi/format-block-device.yaml": { size: FORMAT_BLOCK_DEVICE_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "/storage/csi/csi-block-deployment.yaml": { size: CSI_BLOCK_DEPLOYMENT_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "/storage/filesystem/filesystem-pvc.yaml": { size: FILESYSTEM_PVC_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "/storage/filesystem/filesystem-deployment.yaml": { size: FILESYSTEM_DEPLOYMENT_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "/storage/local-nvme/local-nvme-pv.yaml": { size: LOCAL_NVME_PV_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "/storage/local-nvme/local-nvme-pvc.yaml": { size: LOCAL_NVME_PVC_YAML_CONTENT.length, modified: "Sep  6 09:00" },
+    "/storage/local-nvme/local-nvme-deployment.yaml": { size: LOCAL_NVME_DEPLOYMENT_YAML_CONTENT.length, modified: "Sep  6 09:00" },
   };
 
   const READ_ONLY_FILE_MODE = "-r--r--r--";
   const READ_ONLY_DIRECTORY_MODE = "dr-xr-xr-x";
+
+  let currentDirectory = "/";
+
+  const normalizeVirtualPath = (path: string): string => {
+    const parts = path.split("/");
+    const normalized: string[] = [];
+
+    for (const part of parts) {
+      if (!part || part === ".") {
+        continue;
+      }
+      if (part === "..") {
+        normalized.pop();
+        continue;
+      }
+      normalized.push(part);
+    }
+
+    return normalized.length > 0 ? `/${normalized.join("/")}` : "/";
+  };
+
+  const resolveVirtualPath = (path: string): string => {
+    if (!path || path === "~") {
+      return currentDirectory;
+    }
+
+    if (path === "~/" || path.startsWith("~/")) {
+      return normalizeVirtualPath(
+        path === "~/" ? "/" : `/${path.slice(2)}`,
+      );
+    }
+
+    return normalizeVirtualPath(
+      path.startsWith("/") ? path : `${currentDirectory}/${path}`,
+    );
+  };
+
+  const virtualBasename = (path: string): string => {
+    const normalized = normalizeVirtualPath(path);
+    if (normalized === "/") {
+      return "/";
+    }
+    return normalized.split("/").pop() || "/";
+  };
+
+  const virtualDisplayPath = (path: string): string => {
+    const normalized = normalizeVirtualPath(path);
+    return normalized === "/"
+      ? "~"
+      : `~${normalized}`;
+  };
+
+  const isVirtualDirectory = (path: string): boolean => {
+    const normalized = normalizeVirtualPath(path);
+    if (normalized === "/") {
+      return true;
+    }
+
+    const prefix = `${normalized}/`;
+    return Object.keys(localFiles).some((file) => file.startsWith(prefix));
+  };
+
+  const getVirtualFile = (path: string): string | undefined =>
+    localFiles[normalizeVirtualPath(path)];
+
+  const listVirtualDirectory = (path: string): Array<{
+    name: string;
+    path: string;
+    isDirectory: boolean;
+  }> => {
+    const directory = normalizeVirtualPath(path);
+    const prefix = directory === "/" ? "/" : `${directory}/`;
+    const entries = new Map<string, { path: string; isDirectory: boolean }>();
+
+    for (const filePath of Object.keys(localFiles)) {
+      if (!filePath.startsWith(prefix)) {
+        continue;
+      }
+
+      const remainder = filePath.slice(prefix.length);
+      const slashIndex = remainder.indexOf("/");
+
+      if (slashIndex === -1) {
+        entries.set(remainder, {
+          path: filePath,
+          isDirectory: false,
+        });
+      } else {
+        const directoryName = remainder.slice(0, slashIndex);
+        const childPath = normalizeVirtualPath(`${prefix}${directoryName}`);
+        entries.set(directoryName, {
+          path: childPath,
+          isDirectory: true,
+        });
+      }
+    }
+
+    return [...entries.entries()]
+      .map(([name, entry]) => ({
+        name,
+        path: entry.path,
+        isDirectory: entry.isDirectory,
+      }))
+      .sort((a, b) => {
+        if (a.isDirectory !== b.isDirectory) {
+          return a.isDirectory ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
+  };
 
   const startNewDemoSession = () => {
     completedDemoSteps = new Set<string>();
@@ -1066,7 +1188,7 @@ vfio_pci`;
 
   const printCommand = (command: string) => {
     printHtml(
-      `<div class="terminal-command"><span class="terminal-prompt">user@webernetes:~$</span> ${escapeHtml(command)}</div>`,
+      `<div class="terminal-command"><span class="terminal-prompt">user@webernetes:${escapeHtml(virtualDisplayPath(currentDirectory))}$</span> ${escapeHtml(command)}</div>`,
     );
   };
 
@@ -2363,12 +2485,12 @@ const renderNodes = () => {
           </div>
 
           <div class="cli-help-command">
-            <code>kubectl apply -f nginx-deployment.yaml</code>
+            <code>kubectl apply -f edera/nginx-deployment.yaml</code>
             <span>Create an Edera-backed Deployment with two replicas.</span>
           </div>
 
           <div class="cli-help-command">
-            <code>kubectl delete -f nginx-deployment.yaml</code>
+            <code>kubectl delete -f edera/nginx-deployment.yaml</code>
             <span>Delete the Edera-backed Deployment and its managed pods.</span>
           </div>
         </div>
@@ -3044,20 +3166,20 @@ const renderNodes = () => {
     addEvent("Normal", "Completed", `job/${job.name}`, `Job ${job.name} completed successfully`);
   };
 
-  const getManifestKind = (fileName: string): string => {
-    const manifest = localFiles[fileName] || "";
+  const getManifestKind = (manifestPath: string): string => {
+    const manifest = getVirtualFile(manifestPath) || "";
     const match = manifest.match(/^\s*kind:\s*([A-Za-z0-9]+)\s*$/m);
     return match?.[1] || "";
   };
 
-  const getManifestNamespace = (fileName: string): string => {
-    const manifest = localFiles[fileName] || "";
+  const getManifestNamespace = (manifestPath: string): string => {
+    const manifest = getVirtualFile(manifestPath) || "";
     const match = manifest.match(/^\s+namespace:\s*([A-Za-z0-9][A-Za-z0-9.-]*)\s*$/m);
     return match?.[1] || "default";
   };
 
-  const requireManifestNamespace = (fileName: string): string | null => {
-    const namespaceName = getManifestNamespace(fileName);
+  const requireManifestNamespace = (manifestPath: string): string | null => {
+    const namespaceName = getManifestNamespace(manifestPath);
 
     if (!namespaces.some((namespace) => namespace.name === namespaceName)) {
       printHtml(
@@ -3230,12 +3352,14 @@ const renderNodes = () => {
       return true;
     }
     if (tokens[1] === "apply" && tokens[2] === "-f") {
-      const fileName = tokens[3];
+      const requestedPath = tokens[3];
+      const manifestPath = requestedPath ? resolveVirtualPath(requestedPath) : "";
+      const fileName = manifestPath ? virtualBasename(manifestPath) : "";
 
-      if (!fileName || !localFiles[fileName]) {
+      if (!requestedPath || !getVirtualFile(manifestPath)) {
         printHtml(
           `<span style="color:#ff7373;">error: the path "${escapeHtml(
-            fileName || "",
+            requestedPath || "",
           )}" does not exist</span>`,
         );
         return true;
@@ -3245,7 +3369,7 @@ const renderNodes = () => {
       // namespace. Validate that before simulating creation so an apply of a
       // manifest with `metadata.namespace` cannot report a misleading
       // successful create. Cluster-scoped resources do not require this check.
-      const manifestKind = getManifestKind(fileName);
+      const manifestKind = getManifestKind(manifestPath);
       const clusterScopedKinds = new Set([
         "Namespace",
         "Node",
@@ -3257,7 +3381,7 @@ const renderNodes = () => {
         "CustomResourceDefinition",
       ]);
       if (!clusterScopedKinds.has(manifestKind)) {
-        const manifestNamespace = requireManifestNamespace(fileName);
+        const manifestNamespace = requireManifestNamespace(manifestPath);
         if (!manifestNamespace) {
           return true;
         }
@@ -3321,7 +3445,7 @@ const renderNodes = () => {
 
       if (fileName === "csi-block-deployment.yaml" || fileName === "filesystem-deployment.yaml" || fileName === "local-nvme-deployment.yaml") {
         const deploymentName = "my-app";
-        const manifestNamespace = getManifestNamespace(fileName);
+        const manifestNamespace = getManifestNamespace(manifestPath);
         const existing = deployments.find((deployment) => deployment.name === deploymentName && deployment.namespace === manifestNamespace);
         if (existing) {
           printHtml(`<span style="color:#a8cfca;">deployment.apps/${deploymentName} unchanged</span>`);
@@ -3352,7 +3476,7 @@ const renderNodes = () => {
 
       if (fileName === "nginx-deployment.yaml") {
         const deploymentName = "nginx";
-        const manifestNamespace = requireManifestNamespace(fileName);
+        const manifestNamespace = requireManifestNamespace(manifestPath);
         if (!manifestNamespace) {
           return true;
         }
@@ -3406,7 +3530,7 @@ const renderNodes = () => {
 
       if (fileName === "pod-nginx.yaml") {
         const podName = "edera-protect-pod";
-        const manifestNamespace = requireManifestNamespace(fileName);
+        const manifestNamespace = requireManifestNamespace(manifestPath);
         if (!manifestNamespace) {
           return true;
         }
@@ -3537,7 +3661,7 @@ const renderNodes = () => {
 
       if (fileName === "pod-hardened-vessel.yaml") {
         const podName = "hardened-vessel";
-        const manifestNamespace = requireManifestNamespace(fileName);
+        const manifestNamespace = requireManifestNamespace(manifestPath);
         if (!manifestNamespace) {
           return true;
         }
@@ -4559,12 +4683,14 @@ const renderNodes = () => {
       return true;
     }
     if (tokens[1] === "delete" && tokens[2] === "-f") {
-      const fileName = tokens[3];
+      const requestedPath = tokens[3];
+      const manifestPath = requestedPath ? resolveVirtualPath(requestedPath) : "";
+      const fileName = manifestPath ? virtualBasename(manifestPath) : "";
 
-      if (!fileName || !localFiles[fileName]) {
+      if (!requestedPath || !getVirtualFile(manifestPath)) {
         printHtml(
           `<span style="color:#ff7373;">error: the path "${escapeHtml(
-            fileName || "",
+            requestedPath || "",
           )}" does not exist</span>`,
         );
         return true;
@@ -5169,8 +5295,37 @@ const renderNodes = () => {
           markDemoStepComplete("gpu-vfio-load");
           return;
         }
+        if (tokens[0] === "pwd") {
+          printHtml(
+            `<span style="color:#dff7f0;">${escapeHtml(
+              currentDirectory,
+            )}</span>`,
+          );
+          return;
+        }
+
+        if (tokens[0] === "cd") {
+          const requestedPath = tokens[1] || "~";
+          const targetPath = resolveVirtualPath(requestedPath);
+
+          if (!isVirtualDirectory(targetPath)) {
+            printHtml(
+              `<span style="color:#ff7373;">cd: ${escapeHtml(
+                requestedPath,
+              )}: No such file or directory</span>`,
+            );
+            return;
+          }
+
+          currentDirectory = targetPath;
+          updateTerminalPrompt();
+          return;
+        }
+
         if (tokens[0] === "ls") {
-          const requestedFlags = tokens.slice(1);
+          const args = tokens.slice(1);
+          const requestedFlags = args.filter((arg) => arg.startsWith("-"));
+          const pathArgs = args.filter((arg) => !arg.startsWith("-"));
           const supportedLongListing =
             requestedFlags.length > 0 &&
             requestedFlags.every(
@@ -5187,56 +5342,94 @@ const renderNodes = () => {
                 flag === "-al",
             );
 
-          if (requestedFlags.length === 0) {
-            const files = Object.keys(localFiles)
+          const hasUnsupportedFlags = requestedFlags.some(
+            (flag) =>
+              flag !== "-l" &&
+              flag !== "-a" &&
+              flag !== "-la" &&
+              flag !== "-al",
+          );
+
+          if (hasUnsupportedFlags || (requestedFlags.length > 0 && !supportedLongListing)) {
+            printHtml(
+              `<span style="color:#ff7373;">ls: unsupported option. Try: ls, ls -la, or ls &lt;directory&gt;</span>`,
+            );
+            return;
+          }
+
+          if (pathArgs.length > 1) {
+            printHtml(
+              `<span style="color:#ff7373;">ls: too many arguments</span>`,
+            );
+            return;
+          }
+
+          const targetPath = resolveVirtualPath(pathArgs[0] || currentDirectory);
+
+          if (!isVirtualDirectory(targetPath)) {
+            printHtml(
+              `<span style="color:#ff7373;">ls: cannot access '${escapeHtml(
+                pathArgs[0] || targetPath,
+              )}': No such file or directory</span>`,
+            );
+            return;
+          }
+
+          const entries = listVirtualDirectory(targetPath);
+
+          if (!supportedLongListing) {
+            const renderedEntries = entries
               .map(
-                (file) =>
-                  `<span style="color:#5e9f2d;font-weight:600;">${escapeHtml(
-                    file,
-                  )}</span>`,
+                (entry) =>
+                  `<span style="color:${
+                    entry.isDirectory ? "#00e5d4" : "#5e9f2d"
+                  };font-weight:600;">${escapeHtml(entry.name)}${
+                    entry.isDirectory ? "/" : ""
+                  }</span>`,
               )
               .join("  ");
 
-            printHtml(files);
+            printHtml(
+              renderedEntries ||
+                `<span style="color:#a8cfca;">(empty)</span>`,
+            );
             return;
           }
 
-          if (supportedLongListing) {
-            const fileNames = Object.keys(localFiles);
+          const fileEntries = entries.filter((entry) => !entry.isDirectory);
+          const totalSize = fileEntries.reduce(
+            (sum, entry) =>
+              sum +
+              (localFileMetadata[entry.path]?.size ||
+                getVirtualFile(entry.path)?.length ||
+                0),
+            0,
+          );
 
-            const totalSize = fileNames.reduce(
-              (sum, file) =>
-                sum + (localFileMetadata[file]?.size || localFiles[file].length),
-              0,
-            );
+          const longListing = [
+            `total ${totalSize}`,
+            `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:53 ./`,
+            `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:42 ../`,
+            ...entries.map((entry) => {
+              if (entry.isDirectory) {
+                return `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:42 ${entry.name}/`;
+              }
 
-            const longListing = [
-              `total ${totalSize}`,
-              `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:53 ./`,
-              `dr-xr-xr-x 1 user 197609        0 Apr  9 07:42 ../`,
-              ...fileNames.map((file) => {
-                const metadata = localFileMetadata[file] || {
-                  size: localFiles[file].length,
-                  modified: "Apr  9 07:48",
-                };
+              const metadata = localFileMetadata[entry.path] || {
+                size: getVirtualFile(entry.path)?.length || 0,
+                modified: "Apr  9 07:48",
+              };
 
-                return `${READ_ONLY_FILE_MODE} 1 user 197609 ${String(
-                  metadata.size,
-                ).padStart(8, " ")} ${metadata.modified} ${file}`;
-              }),
-            ].join("\n");
+              return `${READ_ONLY_FILE_MODE} 1 user 197609 ${String(
+                metadata.size,
+              ).padStart(8, " ")} ${metadata.modified} ${entry.name}`;
+            }),
+          ].join("\n");
 
-            printPre(
-              `<span style="color:#dff7f0;">${escapeHtml(
-                longListing,
-              )}</span>`,
-            );
-
-            return;
-          }
-
-          printHtml(
-            `<span style="color:#ff7373;">ls: unsupported option. Try: ls or ls -la</span>`,
+          printPre(
+            `<span style="color:#dff7f0;">${escapeHtml(
+              longListing,
+            )}</span>`,
           );
 
           return;
@@ -5281,16 +5474,19 @@ const renderNodes = () => {
             printHtml(
               `<span style="color:#ff7373;">cat: missing file operand</span>`,
             );
-          } else if (localFiles[fileName]) {
-            printPre(
-              escapeHtml(localFiles[fileName]),
-            );
           } else {
-            printHtml(
-              `<span style="color:#ff7373;">cat: ${escapeHtml(
-                fileName,
-              )}: No such file or directory</span>`,
-            );
+            const manifestPath = resolveVirtualPath(fileName);
+            const manifest = getVirtualFile(manifestPath);
+
+            if (manifest) {
+              printPre(escapeHtml(manifest));
+            } else {
+              printHtml(
+                `<span style="color:#ff7373;">cat: ${escapeHtml(
+                  fileName,
+                )}: No such file or directory</span>`,
+              );
+            }
           }
 
           return;
