@@ -407,7 +407,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "edera-node-label",
     title: "Label the Edera node",
     description:
-      "Label node-3 with runtime=edera. The Edera RuntimeClass uses this node selector to schedule Edera-protected workloads onto the correct node.",
+      "Label <code>node-3</code> with <code>runtime=edera</code>. The Edera <code>RuntimeClass</code> uses this node selector to schedule Edera-protected workloads onto the correct node.",
     command: "kubectl label node node-3 runtime=edera",
   },
   {
@@ -1482,7 +1482,7 @@ const renderNodes = () => {
           ? `<span class="optional-badge">OPTIONAL</span>`
           : ""
       }`;
-    guideDescription.innerText = currentStep.description;
+    guideDescription.innerHTML = currentStep.description;
     suggestedCommand.innerText = currentStep.command;
     guideStepList.innerHTML = PROTECT_DEMO_STEPS.map((step, index) => {
       const done = completedDemoSteps.has(step.id);
