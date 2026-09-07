@@ -378,7 +378,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "zone-launch",
     title: "Create an isolated Edera zone",
     description:
-      "Launch a lightweight Edera <code class='guide-code'>Zone</code>. The <code class='guide-code'>--wait</code> flag waits until the zone is ready.",
+      "Launch a lightweight Edera <code class='guide-code'>Zone</code>. The <code class='guide-code'>--wait</code> flag waits until the zone is <code class='guide-code'>READY</code>.",
     command:
       "protect zone launch -n test-zone --min-cpus 1 -C 2 -c 2 --wait",
   },
@@ -442,7 +442,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "deployment-list",
     title: "Inspect the Deployment",
     description:
-      "List the Deployment and verify its two replicas become ready once the Edera RuntimeClass is enabled.",
+      "List the Deployment and verify its two replicas become <code class='guide-code'>READY/v1</code> once the Edera <code class='guide-code'>RuntimeClass/v1</code> is enabled.",
     command: "kubectl get deployments",
   },
   {
@@ -481,21 +481,21 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "workload-destroy",
     title: "Destroy the workload",
     description:
-      "Remove the workload from the Edera zone.",
+      "Remove the workload from the Edera <code class='guide-code'>Zone</code>.",
     command: "protect workload destroy alpine-long --wait",
   },
   {
     id: "zone-destroy",
     title: "Destroy the zone",
     description:
-      "Tear down the isolated Edera zone.",
+      "Tear down the isolated Edera <code class='guide-code'>Zone</code>.",
     command: "protect zone destroy test-zone",
   },
   {
     id: "final-list",
     title: "Verify the zone lifecycle",
     description:
-      "List the zones one final time and observe the destroyed tombstone.",
+      "List the <code class='guide-code'>Zones</code> one final time and observe the destroyed tombstone.",
     command: "protect zone list",
   },
 ];
