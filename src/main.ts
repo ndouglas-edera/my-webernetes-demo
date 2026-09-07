@@ -580,7 +580,7 @@ async function initTerminalDemo() {
           ></div>
 
           <div class="terminal-input-row">
-            <span>user@webernetes:~$</span>
+            <span id="terminal-prompt">user@webernetes:~$</span>
             <input
               id="cmd"
               type="text"
