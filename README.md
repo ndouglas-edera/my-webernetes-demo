@@ -65,6 +65,7 @@ kubectl get runtimeclass
 ```
 kubectl label node node-3 runtime=edera
 ```
+Verify the **[Edera RuntimeClass](https://docs.edera.dev/guides/validate/#verify-the-edera-runtimeclass)**:
 ```
 kubectl get nodes -l runtime=edera
 ```
