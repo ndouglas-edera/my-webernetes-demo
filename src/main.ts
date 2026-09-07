@@ -442,14 +442,14 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "deployment-list",
     title: "Inspect the Deployment",
     description:
-      "List the Deployment and verify its two replicas become <code class='guide-code'>READY/v1</code> once the Edera <code class='guide-code'>RuntimeClass/v1</code> is enabled.",
+      "List the Deployment and verify its two replicas become <code class='guide-code'>READY</code> once the Edera <code class='guide-code'>RuntimeClass</code> is enabled.",
     command: "kubectl get deployments",
   },
   {
     id: "workload-launch",
     title: "Launch a workload inside the zone",
     description:
-      "Start an Alpine container inside the isolated test-zone.",
+      "Start an Alpine container inside the isolated <code class='guide-code'>test-zone</code>.",
     command:
       "protect workload launch --zone test-zone --name alpine-long -- docker.io/library/alpine:latest sleep 3600",
   },
