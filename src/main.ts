@@ -407,8 +407,8 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "edera-node-label",
     title: "Label the Edera node",
     description:
-      "Label node-2 with runtime=edera. The Edera RuntimeClass uses this node selector to schedule Edera-protected workloads onto the correct node.",
-    command: "kubectl label node node-2 runtime=edera",
+      "Label node-3 with runtime=edera. The Edera RuntimeClass uses this node selector to schedule Edera-protected workloads onto the correct node.",
+    command: "kubectl label node node-3 runtime=edera",
   },
   {
     id: "edera-pod-apply",
