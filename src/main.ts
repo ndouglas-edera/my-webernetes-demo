@@ -1520,7 +1520,7 @@ const renderNodes = () => {
       selectedDemoStepIndex === null
         ? undefined
         : PROTECT_DEMO_STEPS[selectedDemoStepIndex];
-    if (selectedStep?.id === stepId) {
+    if (selectedStep === undefined || selectedStep.id === stepId) {
       const nextIndex = PROTECT_DEMO_STEPS.findIndex(
         (step) => !completedDemoSteps.has(step.id),
       );
@@ -4364,6 +4364,50 @@ const renderNodes = () => {
       ) {
         const showLabels = tokens.includes("--show-labels");
 
+        // Support Kubernetes-style label selectors such as `-l runtime=edera`
+        // so `kubectl get nodes -l runtime=edera` only returns matching nodes.
+        let labelSelector = "";
+        for (let i = 3; i < tokens.length; i++) {
+          if (tokens[i] === "-l" || tokens[i] === "--selector") {
+            labelSelector = tokens[i + 1] || "";
+            break;
+          }
+          if (tokens[i].startsWith("-l=")) {
+            labelSelector = tokens[i].slice(3);
+            break;
+          }
+          if (tokens[i].startsWith("--selector=")) {
+            labelSelector = tokens[i].slice("--selector=".length);
+            break;
+          }
+        }
+
+        const selectedNodes = labelSelector
+          ? nodes.filter((node) => {
+              return labelSelector.split(",").every((selector) => {
+                const expression = selector.trim();
+                if (!expression) return true;
+
+                const equalsIndex = expression.indexOf("=");
+                if (equalsIndex >= 0) {
+                  const key = expression.slice(0, equalsIndex).trim();
+                  const value = expression.slice(equalsIndex + 1).trim();
+                  return key.length > 0 && node.labels[key] === value;
+                }
+
+                return Object.prototype.hasOwnProperty.call(
+                  node.labels,
+                  expression,
+                );
+              });
+            })
+          : nodes;
+
+        if (selectedNodes.length === 0) {
+          printHtml(`<span style="color:#a8cfca;">No resources found.</span>`);
+          return true;
+        }
+
         const outputFormatIndex = tokens.findIndex(
           (token) => token === "-o" || token === "--output",
         );
@@ -4379,47 +4423,47 @@ const renderNodes = () => {
 
         const nameWidth = Math.max(
           11,
-          ...nodes.map((node) => node.name.length + 2),
+          ...selectedNodes.map((node) => node.name.length + 2),
         );
         const statusWidth = Math.max(
           11,
-          ...nodes.map((node) => node.status.length + 2),
+          ...selectedNodes.map((node) => node.status.length + 2),
         );
         const rolesWidth = Math.max(
           15,
-          ...nodes.map((node) => getNodeRoles(node).length + 2),
+          ...selectedNodes.map((node) => getNodeRoles(node).length + 2),
         );
         const ageWidth = Math.max(
           7,
-          ...nodes.map((node) => node.age.length + 2),
+          ...selectedNodes.map((node) => node.age.length + 2),
         );
         const versionWidth = Math.max(
           20,
-          ...nodes.map((node) => node.version.length + 2),
+          ...selectedNodes.map((node) => node.version.length + 2),
         );
         const internalIpWidth = Math.max(
           16,
-          ...nodes.map((node) => node.internalIp.length + 2),
+          ...selectedNodes.map((node) => node.internalIp.length + 2),
         );
         const externalIpWidth = Math.max(
           16,
-          ...nodes.map((node) => node.externalIp.length + 2),
+          ...selectedNodes.map((node) => node.externalIp.length + 2),
         );
         const osImageWidth = Math.max(
           18,
-          ...nodes.map((node) => node.osImage.length + 2),
+          ...selectedNodes.map((node) => node.osImage.length + 2),
         );
         const kernelWidth = Math.max(
           22,
-          ...nodes.map((node) => node.kernelVersion.length + 2),
+          ...selectedNodes.map((node) => node.kernelVersion.length + 2),
         );
         const runtimeWidth = Math.max(
           22,
-          ...nodes.map((node) => node.containerRuntime.length + 2),
+          ...selectedNodes.map((node) => node.containerRuntime.length + 2),
         );
         const labelWidth = Math.max(
           40,
-          ...nodes.map(
+          ...selectedNodes.map(
             (node) => formatLabels(node.labels).length + 2,
           ),
         );
@@ -4470,7 +4514,7 @@ const renderNodes = () => {
           Math.max(70, tableWidth),
         )}</span>\n`;
 
-        for (const node of nodes) {
+        for (const node of selectedNodes) {
           const rowParts = [
             escapeHtml(node.name.padEnd(nameWidth)),
             `<span style="color:#b8ff3c;">${escapeHtml(
@@ -4690,7 +4734,7 @@ const renderNodes = () => {
       updateDashboard();
 
       if (
-        node.name === "node-2" &&
+        node.name === "node-3" &&
         labelExpression === "runtime=edera"
       ) {
         markDemoStepComplete("edera-node-label");
