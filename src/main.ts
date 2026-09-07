@@ -3635,6 +3635,19 @@ const renderNodes = () => {
       }
 
       if (fileName === "runtimeclass-edera.yaml") {
+        // `kubectl apply` is declarative: re-applying an identical manifest
+        // leaves the object untouched and reports "unchanged". The RuntimeClass
+        // is cluster-scoped with no mutable fields in this demo, so an existing
+        // "edera" entry always means the desired state is already met.
+        if (activeRuntimeClasses.has("edera")) {
+          printHtml(
+            `<span style="color:#a8cfca;">runtimeclass.node.k8s.io/edera unchanged</span>`,
+          );
+
+          markDemoStepComplete("edera-runtimeclass-apply");
+          return true;
+        }
+
         activeRuntimeClasses.add("edera");
 
         addEvent(
