@@ -456,3 +456,6 @@ Pretty-print the JSON output for the running pod:
 ```
 protect workload list edera-protect-pod --output json-pretty
 ```
+
+## Falco on Edera
+The **[official Falco docs](https://docs.edera.dev/guides/observability/falco-integration/)** for Edera shows you how to configure the **Edera plugin for Falco** and start monitoring zone activity with custom security rules.
