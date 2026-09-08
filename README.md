@@ -428,6 +428,10 @@ Check if the Edera daemon is running
 ```
 protect host status
 ```
+
+<img width="1507" height="765" alt="Screenshot 2026-09-08 at 10 08 02" src="https://github.com/user-attachments/assets/00b543d4-6478-4918-99ad-75188ca99646" />
+
+
 View system topology
 ```
 protect host cpu-topology
