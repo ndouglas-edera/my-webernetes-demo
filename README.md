@@ -336,7 +336,7 @@ protect zone list
 
 List zones in JSON format for automation
 ```
-protect zone list --output json
+protect zone list my-test-zone --output json
 ```
 
 Watch zone changes in real-time
