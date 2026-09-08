@@ -496,3 +496,6 @@ Observe the Falco event
 ```
 kubectl logs -n falco -l app.kubernetes.io/name=falco -f
 ```
+
+<img width="1507" height="765" alt="Screenshot 2026-09-08 at 11 52 10" src="https://github.com/user-attachments/assets/8e643115-e561-4edb-94aa-db98226e1663" />
+
