@@ -17,7 +17,8 @@ This project is a port of a specific subset of the Kubernetes project to make it
 | Working with namespaces | [Link](https://github.com/ndouglas-edera/my-webernetes-demo#working-with-namespaces) | Create a workload on-the-fly into an assigned namespace  |
 | NVIDIA GPU passthrough |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo#nvidia-gpu-passthrough-to-an-edera-zone)   | Load NVIDIA driver & run GPU-accelerated workload in zone. |
 | Using storage in Kubernetes |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo#using-storage-in-kubernetes)   | Edera supports native Kubernetes storage APIs. |
-| Using the Protect CLI |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo/tree/main#using-the-protect-cli)   | This guide teaches you how to effectively use the Edera CLI. |
+| Using the Edera CLI |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo/tree/main#using-the-protect-cli)   | This guide teaches you how to effectively use the Edera CLI. |
+| Enabling the Falco Plugin |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo/tree/main#falco-on-edera)   | This guide shows you how to configure the Edera plugin for Falco. |
 
 ---
 
