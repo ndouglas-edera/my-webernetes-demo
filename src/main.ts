@@ -2802,19 +2802,20 @@ const renderNodes = () => {
     printPre(escapeHtml(JSON.stringify(payload, null, pretty ? 2 : 0)));
   };
 
-  const getProtectImageDigest = (index: number): string => {
-    const demoDigests = [
-      "sha256:demo01a7",
-      "sha256:demo02b4",
-      "sha256:demo03c9",
-    ];
-    return demoDigests[index] ?? `sha256:demo${String(index + 1).padStart(2, "0")}`;
+  const PROTECT_IMAGE_DIGESTS: Record<string, string> = {
+    "nginx:latest": "sha256:demo01a7",
+    "docker.io/library/alpine:latest": "sha256:demo02b4",
+    "ubuntu:latest": "sha256:demo03c9",
   };
+
+  const getProtectImageDigest = (reference: string, index: number): string =>
+    PROTECT_IMAGE_DIGESTS[reference] ??
+    `sha256:demo${String(index + 4).padStart(2, "0")}`;
 
   const renderProtectImageList = (pretty = false) => {
     const images = Array.from(cachedProtectImages).map((reference, index) => ({
       reference,
-      digest: getProtectImageDigest(index),
+      digest: getProtectImageDigest(reference, index),
       format: "squashfs",
     }));
     if (pretty) {
@@ -2825,11 +2826,39 @@ const renderNodes = () => {
       printHtml(`<span style="color:#a8cfca;">No cached images.</span>`);
       return;
     }
-    let output = `<span style="color:#00e5d4;font-weight:700;">REFERENCE                 DIGEST                                                        FORMAT</span>\n`;
-    output += `<span style="color:#08736d;">${"─".repeat(105)}</span>\n`;
+
+    // Size each column from the longest value actually being displayed so
+    // shorter demo digests do not make the FORMAT column drift.
+    const referenceWidth = Math.max(
+      "REFERENCE".length,
+      ...images.map((image) => image.reference.length),
+    ) + 4;
+    const digestWidth = Math.max(
+      "DIGEST".length,
+      ...images.map((image) => image.digest.length),
+    ) + 4;
+    const formatWidth = Math.max(
+      "FORMAT".length,
+      ...images.map((image) => image.format.length),
+    );
+    const tableWidth = referenceWidth + digestWidth + formatWidth;
+
+    let output =
+      `<span style="color:#00e5d4;font-weight:700;">` +
+      `REFERENCE`.padEnd(referenceWidth) +
+      `DIGEST`.padEnd(digestWidth) +
+      `FORMAT` +
+      `</span>\n`;
+    output += `<span style="color:#08736d;">${"─".repeat(tableWidth)}</span>\n`;
+
     for (const image of images) {
-      output += `${escapeHtml(image.reference.padEnd(26))}${escapeHtml(image.digest.padEnd(65))}${escapeHtml(image.format)}\n`;
+      output +=
+        escapeHtml(image.reference.padEnd(referenceWidth)) +
+        escapeHtml(image.digest.padEnd(digestWidth)) +
+        escapeHtml(image.format) +
+        "\n";
     }
+
     printPre(output.trimEnd());
   };
 
@@ -2890,7 +2919,7 @@ const renderNodes = () => {
         }
         const refs = Array.from(cachedProtectImages);
         const index = refs.findIndex(
-          (ref, i) => image === ref || image === getProtectImageDigest(i),
+          (ref, i) => image === ref || image === getProtectImageDigest(ref, i),
         );
         if (index < 0) {
           printHtml(`<span style="color:#ff7373;">Error: image digest "${escapeHtml(image)}" not found.</span>`);
