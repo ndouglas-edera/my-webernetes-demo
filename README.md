@@ -481,13 +481,16 @@ Launch a monitored zone
 ```
 protect zone launch --name falco-zone
 ```
+```
+protect workload launch --zone falco-zone --name llm-app qwen3:latest
+```
 Generate an event
 ```
-protect workload exec falco-test /bin/sh
+protect workload exec llm-app /bin/sh
 ```
 Trigger a detection
 ```
-protect workload exec falco-test cat /proc/1/environ
+protect workload exec llm-app cat /proc/1/environ
 ```
 Observe the Falco event
 ```
