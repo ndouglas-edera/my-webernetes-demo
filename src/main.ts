@@ -1331,6 +1331,57 @@ vfio_pci`;
       });
   };
 
+  const listVirtualTree = (path: string) => {
+    const root = normalizeVirtualPath(path);
+    const directories = new Set<string>([root]);
+
+    for (const filePath of Object.keys(localFiles)) {
+      if (filePath === root || !filePath.startsWith(root === "/" ? "/" : `${root}/`)) {
+        continue;
+      }
+
+      const relative = filePath.slice(root === "/" ? 1 : root.length + 1);
+      const parts = relative.split("/");
+      let cursor = root;
+
+      for (let i = 0; i < parts.length - 1; i++) {
+        cursor = normalizeVirtualPath(`${cursor}/${parts[i]}`);
+        directories.add(cursor);
+      }
+    }
+
+    const orderedDirectories = [...directories].sort((a, b) => {
+      const depthA = a === "/" ? 0 : a.split("/").length;
+      const depthB = b === "/" ? 0 : b.split("/").length;
+      return depthA - depthB || a.localeCompare(b);
+    });
+
+    return orderedDirectories.map((directory) => ({
+      directory,
+      entries: listVirtualDirectory(directory),
+    }));
+  };
+
+  const formatVirtualLongEntry = (entry: {
+    name: string;
+    path: string;
+    isDirectory: boolean;
+  }) => {
+    if (entry.isDirectory) {
+      return `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:42 ${entry.name}/`;
+    }
+
+    const metadata = localFileMetadata[entry.path] || {
+      size: getVirtualFile(entry.path)?.length || 0,
+      modified: "Apr  9 07:48",
+    };
+
+    return `${READ_ONLY_FILE_MODE} 1 user 197609 ${String(metadata.size).padStart(8, " ")} ${metadata.modified} ${entry.name}`;
+  };
+
+  const formatVirtualDirectoryHeader = (directory: string) =>
+    directory === "/" ? ".:" : `${virtualDisplayPath(directory)}:`;
+
   const startNewDemoSession = () => {
     completedDemoSteps = new Set<string>();
     selectedDemoStepIndex = null;
@@ -3114,6 +3165,26 @@ const renderNodes = () => {
           <div class="cli-help-command">
             <code>curl &lt;url&gt;</code>
             <span>Send a simulated HTTP GET request through the cluster.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>ls -laR [directory]</code>
+            <span>Recursively list files and directories with permissions and hidden entries.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>tree -a [directory]</code>
+            <span>Show a recursive branch-style directory tree, including hidden entries.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>find . -type f</code>
+            <span>Recursively list files using paths relative to the starting directory.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>find . -ls</code>
+            <span>Recursively list files with simulated detailed metadata.</span>
           </div>
 
           <div class="cli-help-command">
@@ -6344,41 +6415,29 @@ Kernel isolation: enabled</span>`);
           const args = tokens.slice(1);
           const requestedFlags = args.filter((arg) => arg.startsWith("-"));
           const pathArgs = args.filter((arg) => !arg.startsWith("-"));
-          const supportedLongListing =
-            requestedFlags.length > 0 &&
-            requestedFlags.every(
-              (flag) =>
-                flag === "-l" ||
-                flag === "-a" ||
-                flag === "-la" ||
-                flag === "-al",
-            ) &&
-            requestedFlags.some(
-              (flag) =>
-                flag === "-l" ||
-                flag === "-la" ||
-                flag === "-al",
-            );
+          const expandedFlags = requestedFlags
+            .filter((flag) => flag.startsWith("-") && !flag.startsWith("--"))
+            .flatMap((flag) => flag.slice(1).split(""));
+          const longForm = requestedFlags.some((flag) => flag === "--all" || flag === "--long");
+          const showAll = expandedFlags.includes("a") || longForm;
+          const longListing = expandedFlags.includes("l") || longForm;
+          const recursive = expandedFlags.includes("R");
+          const supportedLongListing = requestedFlags.length === 0 ||
+            requestedFlags.every((flag) => {
+              if (flag === "--all" || flag === "--long") return true;
+              if (!flag.startsWith("-") || flag.startsWith("--")) return false;
+              return [...flag.slice(1)].every((char) => "laR".includes(char));
+            });
 
-          const hasUnsupportedFlags = requestedFlags.some(
-            (flag) =>
-              flag !== "-l" &&
-              flag !== "-a" &&
-              flag !== "-la" &&
-              flag !== "-al",
-          );
-
-          if (hasUnsupportedFlags || (requestedFlags.length > 0 && !supportedLongListing)) {
+          if (!supportedLongListing) {
             printHtml(
-              `<span style="color:#ff7373;">ls: unsupported option. Try: ls, ls -la, or ls &lt;directory&gt;</span>`,
+              `<span style="color:#ff7373;">ls: unsupported option. Try: ls, ls -la, ls -laR, or ls &lt;directory&gt;</span>`,
             );
             return;
           }
 
           if (pathArgs.length > 1) {
-            printHtml(
-              `<span style="color:#ff7373;">ls: too many arguments</span>`,
-            );
+            printHtml(`<span style="color:#ff7373;">ls: too many arguments</span>`);
             return;
           }
 
@@ -6393,63 +6452,186 @@ Kernel isolation: enabled</span>`);
             return;
           }
 
-          const entries = listVirtualDirectory(targetPath);
+          const filterHidden = (entries: ReturnType<typeof listVirtualDirectory>) =>
+            showAll ? entries : entries.filter((entry) => !entry.name.startsWith("."));
 
-          if (!supportedLongListing) {
-            const renderedEntries = entries
-              .map(
-                (entry) =>
-                  `<span style="color:${
-                    entry.isDirectory ? "#00e5d4" : "#5e9f2d"
-                  };font-weight:600;">${escapeHtml(entry.name)}${
-                    entry.isDirectory ? "/" : ""
-                  }</span>`,
-              )
-              .join("  ");
+          if (!recursive) {
+            const entries = filterHidden(listVirtualDirectory(targetPath));
 
-            printHtml(
-              renderedEntries ||
-                `<span style="color:#a8cfca;">(empty)</span>`,
+            if (!longListing) {
+              const renderedEntries = entries
+                .map(
+                  (entry) =>
+                    `<span style="color:${
+                      entry.isDirectory ? "#00e5d4" : "#5e9f2d"
+                    };font-weight:600;">${escapeHtml(entry.name)}${
+                      entry.isDirectory ? "/" : ""
+                    }</span>`,
+                )
+                .join("  ");
+
+              printHtml(
+                renderedEntries || `<span style="color:#a8cfca;">(empty)</span>`,
+              );
+              return;
+            }
+
+            const fileEntries = entries.filter((entry) => !entry.isDirectory);
+            const totalSize = fileEntries.reduce(
+              (sum, entry) =>
+                sum +
+                (localFileMetadata[entry.path]?.size ||
+                  getVirtualFile(entry.path)?.length ||
+                  0),
+              0,
             );
+
+            const listing = [
+              `total ${totalSize}`,
+              `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:53 ./`,
+              `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:42 ../`,
+              ...entries.map(formatVirtualLongEntry),
+            ].join("\n");
+
+            printPre(`<span style="color:#dff7f0;">${escapeHtml(listing)}</span>`);
             return;
           }
 
-          const fileEntries = entries.filter((entry) => !entry.isDirectory);
-          const totalSize = fileEntries.reduce(
-            (sum, entry) =>
-              sum +
-              (localFileMetadata[entry.path]?.size ||
-                getVirtualFile(entry.path)?.length ||
-                0),
-            0,
+          const sections = listVirtualTree(targetPath);
+          const renderedSections: string[] = [];
+
+          for (const section of sections) {
+            const entries = filterHidden(section.entries);
+            renderedSections.push(formatVirtualDirectoryHeader(section.directory));
+
+            if (longListing) {
+              const fileEntries = entries.filter((entry) => !entry.isDirectory);
+              const totalSize = fileEntries.reduce(
+                (sum, entry) =>
+                  sum +
+                  (localFileMetadata[entry.path]?.size ||
+                    getVirtualFile(entry.path)?.length ||
+                    0),
+                0,
+              );
+              renderedSections.push(`total ${totalSize}`);
+              renderedSections.push(...entries.map(formatVirtualLongEntry));
+            } else {
+              renderedSections.push(
+                entries
+                  .map((entry) => `${entry.name}${entry.isDirectory ? "/" : ""}`)
+                  .join("  "),
+              );
+            }
+
+            renderedSections.push("");
+          }
+
+          printPre(`<span style="color:#dff7f0;">${escapeHtml(
+            renderedSections.join("\n").trimEnd(),
+          )}</span>`);
+          return;
+        }
+        if (tokens[0] === "tree") {
+          const args = tokens.slice(1);
+          const pathArgs = args.filter((arg) => !arg.startsWith("-"));
+          const flags = args.filter((arg) => arg.startsWith("-"));
+          const showAll = flags.some((flag) =>
+            flag === "--all" || (flag.startsWith("-") && flag.slice(1).includes("a")),
           );
 
-          const longListing = [
-            `total ${totalSize}`,
-            `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:53 ./`,
-            `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:42 ../`,
-            ...entries.map((entry) => {
+          if (flags.some((flag) => flag !== "-a" && flag !== "--all")) {
+            printHtml(`<span style="color:#ff7373;">tree: unsupported option. Try: tree -a or tree &lt;directory&gt;</span>`);
+            return;
+          }
+          if (pathArgs.length > 1) {
+            printHtml(`<span style="color:#ff7373;">tree: too many arguments</span>`);
+            return;
+          }
+
+          const targetPath = resolveVirtualPath(pathArgs[0] || currentDirectory);
+          if (!isVirtualDirectory(targetPath)) {
+            printHtml(`<span style="color:#ff7373;">tree: '${escapeHtml(pathArgs[0] || targetPath)}': No such file or directory</span>`);
+            return;
+          }
+
+          const visible = (entries: ReturnType<typeof listVirtualDirectory>) =>
+            showAll ? entries : entries.filter((entry) => !entry.name.startsWith("."));
+          const lines: string[] = [targetPath === "/" ? "." : virtualBasename(targetPath)];
+
+          const walk = (directory: string, prefix: string) => {
+            const entries = visible(listVirtualDirectory(directory));
+            entries.forEach((entry, index) => {
+              const last = index === entries.length - 1;
+              lines.push(`${prefix}${last ? "└── " : "├── "}${entry.name}${entry.isDirectory ? "/" : ""}`);
               if (entry.isDirectory) {
-                return `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:42 ${entry.name}/`;
+                walk(entry.path, `${prefix}${last ? "    " : "│   "}`);
               }
+            });
+          };
 
-              const metadata = localFileMetadata[entry.path] || {
-                size: getVirtualFile(entry.path)?.length || 0,
-                modified: "Apr  9 07:48",
-              };
+          walk(targetPath, "");
+          printPre(`<span style="color:#dff7f0;">${escapeHtml(lines.join("\n"))}</span>`);
+          return;
+        }
 
-              return `${READ_ONLY_FILE_MODE} 1 user 197609 ${String(
-                metadata.size,
-              ).padStart(8, " ")} ${metadata.modified} ${entry.name}`;
-            }),
-          ].join("\n");
+        if (tokens[0] === "find") {
+          const args = tokens.slice(1);
+          const startArg = args.find((arg) => !arg.startsWith("-")) || ".";
+          const targetPath = resolveVirtualPath(startArg);
+          const typeIndex = args.indexOf("-type");
+          const type = typeIndex >= 0 ? args[typeIndex + 1] : "";
+          const lsMode = args.includes("-ls");
+          const allowed = args.every((arg, index) => {
+            if (index === typeIndex + 1) return arg === "f" || arg === "d";
+            return !arg.startsWith("-") || arg === "-type" || arg === "-ls";
+          });
 
-          printPre(
-            `<span style="color:#dff7f0;">${escapeHtml(
-              longListing,
-            )}</span>`,
-          );
+          if (!allowed || (type && type !== "f" && type !== "d")) {
+            printHtml(`<span style="color:#ff7373;">find: unsupported expression. Try: find . -type f or find . -ls</span>`);
+            return;
+          }
+          if (!isVirtualDirectory(targetPath)) {
+            printHtml(`<span style="color:#ff7373;">find: '${escapeHtml(startArg)}': No such file or directory</span>`);
+            return;
+          }
 
+          const results: string[] = [];
+          const rootPrefix = targetPath === "/" ? "/" : targetPath;
+          const walkFind = (directory: string) => {
+            for (const entry of listVirtualDirectory(directory)) {
+              if (entry.isDirectory) {
+                if (type === "d" || (!type && lsMode)) {
+                  const relativeDir = entry.path.slice(rootPrefix.length).replace(/^\//, "");
+                  results.push(`./${relativeDir || entry.name}`);
+                }
+                walkFind(entry.path);
+              } else if (type !== "d") {
+                const relative = entry.path.slice(rootPrefix.length).replace(/^\//, "");
+                const display = relative ? `./${relative}` : `./${entry.name}`;
+                if (lsMode) {
+                  const metadata = localFileMetadata[entry.path] || { size: getVirtualFile(entry.path)?.length || 0, modified: "Apr  9 07:48" };
+                  results.push(`197609 ${READ_ONLY_FILE_MODE} 1 user user ${String(metadata.size).padStart(8, " ")} ${metadata.modified} ${display}`);
+                } else {
+                  results.push(display);
+                }
+              }
+            }
+          };
+
+          if (lsMode) {
+            const rootDisplay = ".";
+            results.unshift(
+              `197609 ${READ_ONLY_DIRECTORY_MODE} 1 user user ${String(0).padStart(8, " ")} Apr  9 07:53 ${rootDisplay}`,
+            );
+          }
+          walkFind(targetPath);
+          if (type === "d" && !lsMode) results.unshift(".");
+          if (!results.length) {
+            printHtml(`<span style="color:#a8cfca;">(no matches)</span>`);
+          } else {
+            printPre(`<span style="color:#dff7f0;">${escapeHtml(results.join("\n"))}</span>`);
+          }
           return;
         }
         if (tokens[0] === "cat") {
