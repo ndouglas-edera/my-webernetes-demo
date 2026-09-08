@@ -411,10 +411,6 @@ Remove the image by ```SHA256``` digest:
 ```
 protect image remove sha256:abc123...def456
 ```
-Machine-readable JSON
-```
-protect zone list --output json-pretty
-```
 Check if the Edera daemon is running
 ```
 protect host status
