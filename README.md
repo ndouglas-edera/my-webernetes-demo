@@ -452,3 +452,7 @@ protect workload list --selector status.state=running
 
 <img width="1507" height="765" alt="Screenshot 2026-09-08 at 10 09 27" src="https://github.com/user-attachments/assets/dd3c476f-fc7f-4b63-9564-d880979a1ff8" />
 
+Pretty-print the JSON output for the running pod:
+```
+protect workload list edera-protect-pod --output json-pretty
+```
