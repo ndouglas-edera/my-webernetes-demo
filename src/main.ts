@@ -519,7 +519,7 @@ async function initTerminalDemo() {
         <div class="hero-eyebrow">ARE YOU READY TO CYA?</div>
         <h2 id="hero-title">CONTAIN YOUR<br />ARCHITECTURE</h2>
         <p>
-          Edera is the secure execution platform for all software — built so every
+          Edera is the secure execution platform for all software. Built so every
           untrusted workload runs trusted, and free to move at the speed of your business.
         </p>
         <button id="hero-run-btn" class="hero-cta" type="button">Try it Out</button>
@@ -830,12 +830,12 @@ vfio_pci`;
 
   const NVIDIA_ZONE_LOGS = `[2026-07-16T16:32:21.011030Z INFO  edera_protect_zone::hooks] running setup hook: load modules [nvidia, nvidia_drm, nvidia_uvm] and execute [/usr/bin/nvidia-smi, -pm, 1]
 [    1.403876] nvidia: loading out-of-tree module taints kernel.
-[    1.515369] nvidia-nvlink: Nvlink Core is being initialized, major device number 239
+[    1.515369] nvidia-nvlink: Nvlink Core is being initialised, major device number 239
 [    1.516039]
 [    1.568563] NVRM: loading NVIDIA UNIX Open Kernel Module for x86_64  610.43.02  Release Build  (build@01c4f9ab348e)  Mon Jul 13 01:02:13 UTC 2026
 [    1.619087] nvidia-modeset: Loading NVIDIA UNIX Open Kernel Mode Setting Driver for x86_64  610.43.02  Release Build  (build@01c4f9ab348e)  Mon Jul 13 01:02:08 UTC 2026
 [    1.676402] [drm] [nvidia-drm] [GPU ID 0x00000007] Loading driver
-[    3.362604] [drm] Initialized nvidia-drm 0.0.0 for 0000:00:07.0 on minor 0`;
+[    3.362604] [drm] Initialised nvidia-drm 0.0.0 for 0000:00:07.0 on minor 0`;
 
   const NVIDIA_WORKLOAD_LSPCI = `0000:00:07.0 3D controller [0302]: NVIDIA Corporation TU104GL [Tesla T4] [10de:1eb8] (rev a1)
     Subsystem: NVIDIA Corporation Device [10de:12a2]
@@ -2996,7 +2996,7 @@ const renderNodes = () => {
           "Normal",
           "NvidiaDriverVerified",
           `zone/${zone.name}`,
-          "NVIDIA driver initialized successfully",
+          "NVIDIA driver initialised successfully",
         );
 
         markDemoStepComplete("gpu-zone-logs");
