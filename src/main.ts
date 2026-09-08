@@ -415,8 +415,7 @@ const FALCO_EDERA_RULES_YAML = `- rule: Edera Proc Environ Read
 - rule: Edera Namespace Escape Attempt
   desc: >
     Detect nsenter execution inside an Edera zone.
-    nsenter is commonly used in container escape and privilege
-    escalation attacks to enter host or other container namespaces.
+    nsenter is commonly used in container escape and privilege escalation attacks.
   source: edera_zone
   output: >
     Namespace escape attempt in zone
@@ -454,7 +453,71 @@ const FALCO_EDERA_RULES_YAML = `- rule: Edera Proc Environ Read
   condition: >
     evt.pluginname == "edera" and
     evt.type == connect and
-    fd.type == ipv4`;
+    fd.type == ipv4
+
+- rule: Edera Shell Command Execution
+  desc: Detect shell command execution with an explicit command string inside an Edera zone.
+  source: edera_zone
+  output: >
+    Shell command execution in zone
+    (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
+  priority: NOTICE
+  condition: >
+    evt.pluginname == "edera" and
+    evt.type in (execve, execveat) and
+    proc.name in (sh, bash, dash, zsh) and
+    proc.cmdline contains "-c"
+
+- rule: Edera Privilege Escalation Tool
+  desc: Detect common privilege escalation tools inside an Edera zone.
+  source: edera_zone
+  output: >
+    Privilege escalation tool executed in zone
+    (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
+  priority: WARNING
+  condition: >
+    evt.pluginname == "edera" and
+    evt.type in (execve, execveat) and
+    proc.name in (sudo, su, doas)
+
+- rule: Edera Kubernetes Service Account Access
+  desc: Detect access to Kubernetes service-account credentials inside an Edera zone.
+  source: edera_zone
+  output: >
+    Kubernetes service-account credential access in zone
+    (zone_id=%edera.zone.id proc=%proc.exe file=%fd.name)
+  priority: WARNING
+  condition: >
+    evt.pluginname == "edera" and
+    evt.type in (open, openat) and
+    fd.name startswith /var/run/secrets/kubernetes.io/serviceaccount/
+
+- rule: Edera Sensitive File Write
+  desc: Detect writes to sensitive system configuration locations inside an Edera zone.
+  source: edera_zone
+  output: >
+    Sensitive file write in zone
+    (zone_id=%edera.zone.id proc=%proc.exe file=%fd.name)
+  priority: WARNING
+  condition: >
+    evt.pluginname == "edera" and
+    evt.type in (open, openat, creat) and
+    evt.arg.flags contains O_WRONLY and
+    (fd.name startswith /etc/ or
+     fd.name startswith /var/run/)
+
+- rule: Edera Executable Download
+  desc: Detect common download tools fetching executable content inside an Edera zone.
+  source: edera_zone
+  output: >
+    Executable download attempt in zone
+    (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
+  priority: NOTICE
+  condition: >
+    evt.pluginname == "edera" and
+    evt.type in (execve, execveat) and
+    proc.name in (curl, wget) and
+    (proc.cmdline contains "http://" or proc.cmdline contains "https://")`;
 
 const FALCO_HELM_VALUES_YAML = `# Mount Edera plugin and daemon socket from host into Falco pods
 mounts:
@@ -498,16 +561,127 @@ customRules:
         evt.type in (open, openat) and
         fd.name glob /proc/*/environ
 
-    - rule: Edera Process Execution
-      desc: Logs process executions inside Edera zones
+    - rule: Edera Reverse Shell Tool
+      desc: >
+        Detect execution of common reverse shell tools inside an Edera zone.
+        Legitimate workloads rarely invoke netcat, socat, or similar tools.
       source: edera_zone
       output: >
-        Process executed in zone
+        Reverse shell tool executed in zone
+        (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
+      priority: CRITICAL
+      condition: >
+        evt.pluginname == "edera" and
+        evt.type in (execve, execveat) and
+        proc.name in (nc, ncat, netcat, socat, telnet)
+
+    - rule: Edera Namespace Escape Attempt
+      desc: >
+        Detect nsenter execution inside an Edera zone.
+        nsenter is commonly used in container escape and privilege escalation attacks.
+      source: edera_zone
+      output: >
+        Namespace escape attempt in zone
+        (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
+      priority: CRITICAL
+      condition: >
+        evt.pluginname == "edera" and
+        evt.type in (execve, execveat) and
+        proc.name == nsenter
+
+    - rule: Edera Sensitive File Read
+      desc: >
+        Detect reads of sensitive system files inside an Edera zone,
+        including credential stores and security-critical configuration.
+      source: edera_zone
+      output: >
+        Sensitive file read in zone
+        (zone_id=%edera.zone.id proc=%proc.exe file=%fd.name)
+      priority: WARNING
+      condition: >
+        evt.pluginname == "edera" and
+        evt.type in (open, openat) and
+        (fd.name startswith /etc/shadow or
+         fd.name startswith /etc/kubernetes or
+         fd.name startswith /run/secrets)
+
+    - rule: Edera Outbound Connection
+      desc: Detect outbound network connections from Edera zones
+      source: edera_zone
+      output: >
+        Outbound connection from zone
+        (zone_id=%edera.zone.id proc=%proc.exe dest=%fd.rip:%fd.rport
+        proto=%fd.l4proto)
+      priority: NOTICE
+      condition: >
+        evt.pluginname == "edera" and
+        evt.type == connect and
+        fd.type == ipv4
+
+    - rule: Edera Shell Command Execution
+      desc: Detect shell command execution with an explicit command string inside an Edera zone.
+      source: edera_zone
+      output: >
+        Shell command execution in zone
         (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
       priority: NOTICE
       condition: >
         evt.pluginname == "edera" and
-        evt.type in (execve, execveat)`;
+        evt.type in (execve, execveat) and
+        proc.name in (sh, bash, dash, zsh) and
+        proc.cmdline contains "-c"
+
+    - rule: Edera Privilege Escalation Tool
+      desc: Detect common privilege escalation tools inside an Edera zone.
+      source: edera_zone
+      output: >
+        Privilege escalation tool executed in zone
+        (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
+      priority: WARNING
+      condition: >
+        evt.pluginname == "edera" and
+        evt.type in (execve, execveat) and
+        proc.name in (sudo, su, doas)
+
+    - rule: Edera Kubernetes Service Account Access
+      desc: Detect access to Kubernetes service-account credentials inside an Edera zone.
+      source: edera_zone
+      output: >
+        Kubernetes service-account credential access in zone
+        (zone_id=%edera.zone.id proc=%proc.exe file=%fd.name)
+      priority: WARNING
+      condition: >
+        evt.pluginname == "edera" and
+        evt.type in (open, openat) and
+        fd.name startswith /var/run/secrets/kubernetes.io/serviceaccount/
+
+    - rule: Edera Sensitive File Write
+      desc: Detect writes to sensitive system configuration locations inside an Edera zone.
+      source: edera_zone
+      output: >
+        Sensitive file write in zone
+        (zone_id=%edera.zone.id proc=%proc.exe file=%fd.name)
+      priority: WARNING
+      condition: >
+        evt.pluginname == "edera" and
+        evt.type in (open, openat, creat) and
+        evt.arg.flags contains O_WRONLY and
+        (fd.name startswith /etc/ or
+         fd.name startswith /var/run/)
+
+    - rule: Edera Executable Download
+      desc: Detect common download tools fetching executable content inside an Edera zone.
+      source: edera_zone
+      output: >
+        Executable download attempt in zone
+        (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
+      priority: NOTICE
+      condition: >
+        evt.pluginname == "edera" and
+        evt.type in (execve, execveat) and
+        proc.name in (curl, wget) and
+        (proc.cmdline contains "http://" or proc.cmdline contains "https://")
+`;
 
 const PROTECT_DEMO_STEPS: DemoStep[] = [
   {
@@ -2567,7 +2741,27 @@ const renderNodes = () => {
     if (falcoRunning && ederaFalcoPluginLoaded && falcoZone) {
       const lowerCommand = commandText.toLowerCase();
       const processName = command[0]?.split("/").pop() || "sh";
+      const isShell = /^(sh|bash|dash|zsh)$/.test(processName);
+      const hasExplicitShellCommand = /(^|\s)-c(\s|$)/i.test(commandText);
+      const hasHttpUrl = /https?:\/\//i.test(commandText);
+      const isDownloadTool = /(^|\s)(curl|wget)(\s|$)/i.test(commandText);
+      const isPrivilegeTool = /(^|\s)(sudo|su|doas)(\s|$)/i.test(commandText);
+      const isReverseShellTool = /(^|\s)(nc|ncat|netcat|socat|telnet)(\s|$)/i.test(commandText);
+      const isNsenter = /(^|\s|\/)nsenter(\s|$)/i.test(commandText);
+      const isSensitivePath =
+        lowerCommand.includes("/etc/shadow") ||
+        lowerCommand.includes("/etc/kubernetes") ||
+        lowerCommand.includes("/run/secrets");
+      const isServiceAccountPath = lowerCommand.includes(
+        "/var/run/secrets/kubernetes.io/serviceaccount/",
+      );
+      const isSensitiveWrite =
+        (lowerCommand.includes("/etc/") || lowerCommand.includes("/var/run/")) &&
+        /(?:>|>>|\btee\b|\binstall\b)/i.test(commandText);
 
+      // Each rule is evaluated independently, just as Falco can report multiple
+      // rules for a single underlying event. In particular, curl/wget may
+      // legitimately produce both a network-connection and download detection.
       if (lowerCommand.includes("/proc/") && lowerCommand.includes("/environ")) {
         emitFalcoEvent(
           "Warning",
@@ -2575,25 +2769,27 @@ const renderNodes = () => {
           falcoZone,
           `evt.type=open proc.exe=${processName} file=${commandText.match(/\/proc\/[^ ]+\/environ/)?.[0] || "/proc/1/environ"}`,
         );
-      } else if (/(^|\s)(nc|ncat|netcat|socat|telnet)(\s|$)/i.test(commandText)) {
+      }
+
+      if (isReverseShellTool) {
         emitFalcoEvent(
           "Critical",
           "Edera Reverse Shell Tool",
           falcoZone,
           `evt.type=execve proc.exe=${processName} cmdline=${commandText}`,
         );
-      } else if (/(^|\s|\/)nsenter(\s|$)/i.test(commandText)) {
+      }
+
+      if (isNsenter) {
         emitFalcoEvent(
           "Critical",
           "Edera Namespace Escape Attempt",
           falcoZone,
           `evt.type=execve proc.exe=nsenter cmdline=${commandText}`,
         );
-      } else if (
-        lowerCommand.includes("/etc/shadow") ||
-        lowerCommand.includes("/etc/kubernetes") ||
-        lowerCommand.includes("/run/secrets")
-      ) {
+      }
+
+      if (isSensitivePath) {
         emitFalcoEvent(
           "Warning",
           "Edera Sensitive File Read",
@@ -2602,12 +2798,62 @@ const renderNodes = () => {
         );
       }
 
-      if (lowerCommand.includes("connect") || lowerCommand.includes("curl ")) {
+      if (isServiceAccountPath) {
+        emitFalcoEvent(
+          "Warning",
+          "Edera Kubernetes Service Account Access",
+          falcoZone,
+          `evt.type=open proc.exe=${processName} file=${commandText}`,
+        );
+      }
+
+      if (isSensitiveWrite) {
+        emitFalcoEvent(
+          "Warning",
+          "Edera Sensitive File Write",
+          falcoZone,
+          `evt.type=open proc.exe=${processName} file=${commandText}`,
+        );
+      }
+
+      if (isShell && hasExplicitShellCommand) {
+        emitFalcoEvent(
+          "Notice",
+          "Edera Shell Command Execution",
+          falcoZone,
+          `evt.type=execve proc.exe=${processName} cmdline=${commandText}`,
+        );
+      }
+
+      if (isPrivilegeTool) {
+        emitFalcoEvent(
+          "Warning",
+          "Edera Privilege Escalation Tool",
+          falcoZone,
+          `evt.type=execve proc.exe=${processName} cmdline=${commandText}`,
+        );
+      }
+
+      const isNetworkCommand =
+        lowerCommand.includes("connect") ||
+        (isDownloadTool && hasHttpUrl) ||
+        isReverseShellTool;
+
+      if (isNetworkCommand) {
         emitFalcoEvent(
           "Notice",
           "Edera Outbound Connection",
           falcoZone,
           `evt.type=connect proc.exe=${processName} dest=203.0.113.10:443 proto=tcp`,
+        );
+      }
+
+      if (isDownloadTool && hasHttpUrl) {
+        emitFalcoEvent(
+          "Notice",
+          "Edera Executable Download",
+          falcoZone,
+          `evt.type=execve proc.exe=${processName} cmdline=${commandText}`,
         );
       }
     }
@@ -2927,7 +3173,7 @@ const renderNodes = () => {
 
           <div class="cli-help-command">
             <code>sudo falco -o "log_level=debug"</code>
-            <span>Show simulated Falco plugin discovery and zone events.</span>
+            <span>Start the simulated node-based Falco stream and show accumulated Edera detections.</span>
           </div>
 
           <div class="cli-help-command">
@@ -2942,7 +3188,52 @@ const renderNodes = () => {
 
           <div class="cli-help-command">
             <code>kubectl logs -n falco -l app.kubernetes.io/name=falco -f</code>
-            <span>Stream simulated Falco logs.</span>
+            <span>Stream accumulated simulated Falco logs from the Helm deployment.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec llm-app cat /proc/1/environ</code>
+            <span>Trigger Edera Proc Environ Read (WARNING).</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec llm-app cat /etc/shadow</code>
+            <span>Trigger Edera Sensitive File Read (WARNING).</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec llm-app nsenter -t 1 -m -u -i -n -p</code>
+            <span>Trigger Edera Namespace Escape Attempt (CRITICAL).</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec llm-app nc 203.0.113.10 4444</code>
+            <span>Trigger Edera Reverse Shell Tool (CRITICAL).</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec llm-app curl https://example.com/payload</code>
+            <span>Trigger Edera Outbound Connection and Executable Download detections.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec llm-app /bin/sh -c "id"</code>
+            <span>Trigger Edera Shell Command Execution (NOTICE); plain /bin/sh remains non-detecting.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec llm-app sudo id</code>
+            <span>Trigger Edera Privilege Escalation Tool (WARNING).</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec llm-app cat /var/run/secrets/kubernetes.io/serviceaccount/token</code>
+            <span>Trigger Edera Kubernetes Service Account Access (WARNING).</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>protect workload exec llm-app /bin/sh -c "echo demo &gt; /etc/demo.conf"</code>
+            <span>Trigger Edera Sensitive File Write (WARNING).</span>
           </div>
         </div>
 
