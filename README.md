@@ -488,7 +488,8 @@ Generate an event
 ```
 protect workload exec llm-app /bin/sh
 ```
-Trigger a detection
+
+**[Detect credential harvesting via procfs](https://docs.edera.dev/guides/observability/falco-integration/#detect-credential-harvesting-via-procfs)**:
 ```
 protect workload exec llm-app cat /proc/1/environ
 ```
@@ -499,3 +500,33 @@ kubectl logs -n falco -l app.kubernetes.io/name=falco -f
 
 <img width="1507" height="765" alt="Screenshot 2026-09-08 at 11 54 13" src="https://github.com/user-attachments/assets/483ee7c9-7c04-41ab-8326-96b18d50b5b1" />
 
+| Command | Current rule | Detection? |
+| :---------------- | :------: | :------: |
+| ```cat /proc/1/environ``` | Edera Proc Environ Read | ✅ |
+| ```/bin/sh``` | None | ❌ |
+| ```nc ...``` | Edera Reverse Shell Tool | ✅ |
+| ```nsenter ...``` | Edera Namespace Escape Attempt | ✅ |
+| ```cat /etc/shadow``` | Edera Sensitive File Read | ✅ |
+| ```cat /etc/kubernetes/...``` | Edera Sensitive File Read | ✅ |
+| ```curl ...``` | Edera Outbound Connection | ✅ |
+
+
+**[Detect sensitive file reads](https://docs.edera.dev/guides/observability/falco-integration/#detect-sensitive-file-reads)**
+```
+protect workload exec llm-app cat /etc/shadow
+```
+
+**[Detect namespace escape attempts](https://docs.edera.dev/guides/observability/falco-integration/#detect-namespace-escape-attempts)**
+```
+protect workload exec llm-app nsenter -t 1 -m -u -i -n -p
+```
+
+**[Detect reverse shells and suspicious network tools](https://docs.edera.dev/guides/observability/falco-integration/#detect-reverse-shells-and-suspicious-network-tools)**
+```
+protect workload exec llm-app nc 203.0.113.10 4444
+```
+
+**[Detect outbound network connections](https://docs.edera.dev/guides/observability/falco-integration/#detect-outbound-network-connections)**
+```
+protect workload exec llm-app curl https://example.com
+```
