@@ -400,7 +400,7 @@ Get detailed JSON output
 protect image list --output json-pretty
 ```
 
-<img width="1507" height="765" alt="Screenshot 2026-09-08 at 09 39 24" src="https://github.com/user-attachments/assets/7887d42a-ac32-4179-9e31-d705c97d73b6" />
+<img width="1507" height="765" alt="Screenshot 2026-09-08 at 10 05 03" src="https://github.com/user-attachments/assets/75edeb83-d093-4e27-b04b-dbcba368c5ef" />
 
 
 Kernel variants are alternate zone kernel images with different features or extra capabilities or drivers.<br/>
