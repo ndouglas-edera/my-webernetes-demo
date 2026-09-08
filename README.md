@@ -19,6 +19,7 @@ This project is a port of a specific subset of the Kubernetes project to make it
 | Using storage in Kubernetes |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo#using-storage-in-kubernetes)   | Edera supports native Kubernetes storage APIs. |
 | Using the Edera CLI |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo/tree/main#using-the-protect-cli)   | This guide teaches you how to effectively use the Edera CLI. |
 | Enabling the Falco Plugin |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo/tree/main#falco-on-edera)   | This guide shows you how to configure the Edera plugin for Falco. |
+| Understand the Filesystem |  [Link](https://github.com/ndouglas-edera/my-webernetes-demo/tree/main#understanding-the-filesystem)   | This guide shows you how to interact with the virtual filesystem. |
 
 ---
 
