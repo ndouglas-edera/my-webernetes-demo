@@ -26,24 +26,23 @@ This project is a port of a specific subset of the Kubernetes project to make it
 
 ```
 ~
+.
 ├── edera/
 │   ├── nginx-deployment.yaml
-│   ├── pod-hardened-vessel.yaml
 │   ├── pod-nginx.yaml
 │   └── runtimeclass-edera.yaml
-│
+├── etc/
+│   └── falco/
+│       ├── config.d/
+│       │   └── falco-edera-config.yaml
+│       └── rules.d/
+│           └── falco-edera-rules.yaml
 └── storage/
     ├── csi/
     │   ├── csi-block-deployment.yaml
     │   ├── csi-block-pvc.yaml
     │   └── format-block-device.yaml
-    ├── filesystem/
-    │   ├── filesystem-deployment.yaml
-    │   └── filesystem-pvc.yaml
-    └── local-nvme/
-        ├── local-nvme-deployment.yaml
-        ├── local-nvme-pv.yaml
-        └── local-nvme-pvc.yaml
+    └── ...
 ```
 
 ## Assign pods to a specific node
