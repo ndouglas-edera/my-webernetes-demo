@@ -383,6 +383,10 @@ Start a stopped workload
 ```
 protect workload start web-server
 ```
+
+<img width="1507" height="765" alt="Screenshot 2026-09-08 at 09 36 21" src="https://github.com/user-attachments/assets/b8a2b8dd-d70b-4d03-88f8-efc61d5b9a7d" />
+
+
 Destroy a workload permanently
 ```
 protect workload destroy web-server --wait
