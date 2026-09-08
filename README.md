@@ -399,7 +399,12 @@ Get detailed JSON output
 ```
 protect image list --output json-pretty
 ```
-Kernel variants are alternate zone kernel images with different features or extra capabilities or drivers. The daemon resolves from its ```[zone.kernel-variants]``` configuration.
+
+<img width="1507" height="765" alt="Screenshot 2026-09-08 at 09 39 24" src="https://github.com/user-attachments/assets/7887d42a-ac32-4179-9e31-d705c97d73b6" />
+
+
+Kernel variants are alternate zone kernel images with different features or extra capabilities or drivers.<br/>
+The daemon resolves from its ```[zone.kernel-variants]``` config.
 ```
 protect image list-kernel-variants
 ```
