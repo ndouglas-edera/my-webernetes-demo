@@ -460,3 +460,36 @@ protect workload list edera-protect-pod --output json-pretty
 
 ## Falco on Edera
 The **[official Falco docs](https://docs.edera.dev/guides/observability/falco-integration/)** for Edera shows you how to configure the **Edera plugin for Falco** and start monitoring zone activity with custom security rules.
+<br/><br/>
+Configure the Edera Falco plugin
+```
+sudo cat /etc/falco/config.d/falco-edera-config.yaml
+```
+Install Edera detection rules
+```
+sudo cat /etc/falco/rules.d/falco-edera-rules.yaml
+```
+Restart Falco
+```
+sudo systemctl restart falco
+```
+Verify the Edera plugin
+```
+sudo falco -o "log_level=debug"
+```
+Launch a monitored zone
+```
+protect zone launch --name falco-zone
+```
+Generate an event
+```
+protect workload exec falco-test /bin/sh
+```
+Trigger a detection
+```
+protect workload exec falco-test cat /proc/1/environ
+```
+Observe the Falco event
+```
+kubectl logs -n falco -l app.kubernetes.io/name=falco -f
+```
