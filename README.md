@@ -549,3 +549,37 @@ The accumulated detections continue to appear in the logs:
 ```
 kubectl logs -n falco -l app.kubernetes.io/name=falco -f
 ```
+
+## Understanding the filesystem
+
+Recursive ```ls```
+```
+ls -laR
+```
+Also supports:
+```
+ls -R
+```
+```
+ls -aR
+```
+```
+ls -laR /etc
+```
+
+It recursively prints each directory and its contents, with the ```-l``` form showing the simulated permissions, ownership, size, and timestamps.
+
+### Visual tree
+```
+tree -a
+```
+or:
+```
+tree -a /etc
+```
+The ```-a``` flag is honoured so hidden entries will be included if/when they're present in the virtual filesystem.
+<br/><br/>
+Whereas, the ```find``` command produces clean relative paths:
+```
+find . -type f
+```
