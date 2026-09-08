@@ -1176,6 +1176,8 @@ vfio_pci`;
     falcoRulesLoaded = false;
     falcoRunning = false;
     ederaFalcoPluginLoaded = false;
+    falcoLogLines = [];
+    falcoStreamMode = null;
 
     closeCompletionModal();
     window.location.reload();
@@ -1188,6 +1190,8 @@ vfio_pci`;
   let falcoRulesLoaded = false;
   let falcoRunning = false;
   let ederaFalcoPluginLoaded = false;
+  let falcoLogLines: string[] = [];
+  let falcoStreamMode: "node" | "helm" | null = null;
 
   const activeRuntimeClasses = new Set<string>();
 
@@ -2441,7 +2445,43 @@ const renderNodes = () => {
   const getFalcoZoneForWorkload = (workload: ProtectWorkload) =>
     protectZones.find((zone) => zone.uuid === workload.zone);
 
-  const renderFalcoDebugOutput = () => {
+  const getFalcoTimestamp = () =>
+    new Date().toLocaleString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      year: "numeric",
+    });
+
+  const getFalcoStartupLines = (zone: ProtectZone | undefined) => {
+    if (!zone) {
+      return [
+        `${getFalcoTimestamp()}: [libs]: edera: [INFO] waiting for zones`,
+      ];
+    }
+
+    return [
+      `${getFalcoTimestamp()}: [libs]: edera: [INFO] waiting for zones`,
+      `${getFalcoTimestamp()}: [libs]: edera: [INFO] got zone ZoneMetadata { domid: 3, uuid: ${zone.uuid} }`,
+      `${getFalcoTimestamp()}: [libs]: edera: [INFO] pushing handle for zone ${zone.uuid}`,
+      `${getFalcoTimestamp()}: [libs]: edera: [INFO] starting zone event pump for zone ${zone.uuid}`,
+      `${getFalcoTimestamp()}: [libs]: edera: [INFO] Listening for kernel events from zone ${zone.uuid}`,
+    ];
+  };
+
+  const getFalcoDetectionLine = (
+    severity: "Notice" | "Warning" | "Critical",
+    rule: string,
+    zone: ProtectZone,
+    details: string,
+  ) =>
+    `${getFalcoTimestamp()}: Falco Detection [${severity.toUpperCase()}] ${rule} | zone_id=${zone.uuid} ${details}`;
+
+  const renderFalcoDebugOutput = (mode: "node" | "helm" = "node") => {
     if (!falcoRunning || !ederaFalcoPluginLoaded) {
       printHtml(
         `<span style="color:#ff7373;">Falco is not running with the Edera plugin loaded. Run: sudo systemctl restart falco</span>`,
@@ -2449,21 +2489,13 @@ const renderNodes = () => {
       return;
     }
 
-    const zone = protectZones.find((item) => item.state === "ready");
+    falcoStreamMode = mode;
 
-    if (!zone) {
-      printPre(
-        `<span style="color:#dff7f0;">Thu Sep  8 09:00:00 2026: [libs]: edera: [INFO] waiting for zones</span>`,
-      );
-      return;
-    }
+    const zone = protectZones.find((item) => item.state === "ready");
+    const lines = [...getFalcoStartupLines(zone), ...falcoLogLines];
 
     printPre(
-      `<span style="color:#dff7f0;">Thu Sep  8 09:00:10 2026: [libs]: edera: [INFO] waiting for zones\n` +
-        `Thu Sep  8 09:00:20 2026: [libs]: edera: [INFO] got zone ZoneMetadata { domid: 3, uuid: ${escapeHtml(zone.uuid)} }\n` +
-        `Thu Sep  8 09:00:20 2026: [libs]: edera: [INFO] pushing handle for zone ${escapeHtml(zone.uuid)}\n` +
-        `Thu Sep  8 09:00:20 2026: [libs]: edera: [INFO] starting zone event pump for zone ${escapeHtml(zone.uuid)}\n` +
-        `Thu Sep  8 09:00:20 2026: [libs]: edera: [INFO] Listening for kernel events from zone ${escapeHtml(zone.uuid)}</span>`,
+      `<span style="color:#dff7f0;">${escapeHtml(lines.join("\n"))}</span>`,
     );
   };
 
@@ -2477,6 +2509,9 @@ const renderNodes = () => {
 
     const lifecycleType =
       type === "Critical" ? "Warning" : type === "Warning" ? "Warning" : "Info";
+    const detectionLine = getFalcoDetectionLine(type, rule, zone, details);
+
+    falcoLogLines.push(detectionLine);
 
     addEvent(
       lifecycleType,
@@ -2490,6 +2525,12 @@ const renderNodes = () => {
         `${escapeHtml(type)} EDERA Event | zone_id=${escapeHtml(zone.uuid)} ${escapeHtml(details)}` +
         `</span>`,
     );
+
+    if (falcoStreamMode) {
+      printPre(
+        `<span style="color:#ff9f43;">${escapeHtml(detectionLine)}</span>`,
+      );
+    }
   };
 
   const execProtectWorkload = (
@@ -5940,6 +5981,8 @@ Kernel isolation: enabled</span>`);
           falcoRulesLoaded = true;
           falcoRunning = true;
           ederaFalcoPluginLoaded = true;
+          falcoLogLines = [];
+          falcoStreamMode = null;
 
           printHtml(
             `<span style="color:#b8ff3c;">Falco restarted successfully.</span>`,
@@ -6214,7 +6257,7 @@ Kernel isolation: enabled</span>`);
           falcoInstalled = true;
           falcoRunning = true;
           ederaFalcoPluginLoaded = true;
-          renderFalcoDebugOutput();
+          renderFalcoDebugOutput("node");
           markDemoStepComplete("falco-debug");
           return;
         }
@@ -6230,6 +6273,8 @@ Kernel isolation: enabled</span>`);
             falcoRulesLoaded = true;
             falcoRunning = true;
             ederaFalcoPluginLoaded = true;
+            falcoLogLines = [];
+            falcoStreamMode = null;
 
             printHtml(
               `<span style="color:#b8ff3c;">Release "falco" upgraded successfully.</span>`,
@@ -6311,7 +6356,7 @@ falco-edera-node-7d8f9                   1/1     Running   0          2m</span>`
             falcoInstalled = true;
             falcoRunning = true;
             ederaFalcoPluginLoaded = true;
-            renderFalcoDebugOutput();
+            renderFalcoDebugOutput("helm");
             markDemoStepComplete("falco-logs");
             return;
           }
