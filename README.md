@@ -75,8 +75,7 @@ kubectl describe node node-3
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-07 at 00 28 07" src="https://github.com/user-attachments/assets/22027295-e0bb-46eb-8038-af5aeb141a05" />
-
-
+<br/>
 
 ## Run pods with an assigned label
 
@@ -91,8 +90,7 @@ kubectl get pods --show-labels
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-07 at 00 34 40" src="https://github.com/user-attachments/assets/01fdd9a8-0056-4f2b-8bab-8204dd19f63c" />
-
-
+<br/>
 
 ## Working with namespaces
 
@@ -132,8 +130,7 @@ kubectl run ubuntu --image=ubuntu:latest --labels="env=prod" -n edera
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-07 at 00 44 51" src="https://github.com/user-attachments/assets/ceab8c0e-8229-4b6a-b52d-fcc9c60f14d7" />
-
-
+<br/>
 
 ## NVIDIA GPU passthrough to an Edera zone
 This guide, based on our **[official docs](https://docs.edera.dev/guides/gpu/nvidia-passthrough/)** shows how to passthrough an NVIDIA GPU to an Edera zone using ```protect```, load the NVIDIA driver, and run a GPU-accelerated workload inside the zone.
@@ -178,7 +175,7 @@ sudo protect zone logs zone-gpu
 ```
 
 <img width="1506" height="765" alt="Screenshot 2026-09-03 at 18 06 22" src="https://github.com/user-attachments/assets/fce4f293-d2f9-47d7-847d-e7741c3f3f20" />
-
+<br/>
 
 Launch a workload with the NVIDIA GPU:
 ```
@@ -198,7 +195,7 @@ sudo protect workload exec workload-gpu nvidia-smi
 ```
 
 <img width="1506" height="765" alt="Screenshot 2026-09-03 at 18 08 04" src="https://github.com/user-attachments/assets/4d816b5f-f104-414f-a066-623973cce37c" />
-
+<br/>
 
 Success!! We’ve configured the GPU and have launched a workload in an isolated zone.
 <br/><br/>
@@ -248,7 +245,7 @@ kubectl get jobs
 kubectl get pods
 ```
 <img width="1507" height="765" alt="Screenshot 2026-09-06 at 22 37 22" src="https://github.com/user-attachments/assets/c4fe1213-29a1-4264-b6cf-cb8fe643cf6d" />
-
+<br/>
 
 And:
 ```
@@ -259,7 +256,7 @@ kubectl describe job format-block-device
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-06 at 22 39 35" src="https://github.com/user-attachments/assets/1e00caa3-b036-4c43-b9a3-6776dd6ee5f3" />
-
+<br/>
 
 ### Step 2: Filesystem-mounted PVC:
 Create the ```PersistentVolumeClaims```:
@@ -286,7 +283,7 @@ kubectl describe deployment my-app
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-06 at 22 57 22" src="https://github.com/user-attachments/assets/6628796e-2489-4ecf-9a3e-12c8fd9a7fea" />
-
+<br/>
 
 ### Step 3: Local NVMe block device:
 Create the local ```PersistentVolume```:
@@ -320,7 +317,7 @@ kubectl describe pvc local-block-pvc
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-06 at 22 59 33" src="https://github.com/user-attachments/assets/99db7b26-e5d9-4c46-a858-8d953553d79e" />
-
+<br/>
 
 ## Using the Protect CLI
 
@@ -349,7 +346,7 @@ protect zone list my-test-zone --output json-pretty
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-08 at 09 33 15" src="https://github.com/user-attachments/assets/6bb8bf85-060e-47ca-aecb-3a40952c6a02" />
-
+<br/>
 
 Launch a simple workload in an existing zone
 ```
@@ -385,7 +382,7 @@ protect workload start web-server
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-08 at 09 36 21" src="https://github.com/user-attachments/assets/b8a2b8dd-d70b-4d03-88f8-efc61d5b9a7d" />
-
+<br/>
 
 Destroy a workload permanently
 ```
@@ -401,7 +398,7 @@ protect image list --output json-pretty
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-08 at 10 05 03" src="https://github.com/user-attachments/assets/75edeb83-d093-4e27-b04b-dbcba368c5ef" />
-
+<br/>
 
 Kernel variants are alternate zone kernel images with different features or extra capabilities or drivers.<br/>
 The daemon resolves from its ```[zone.kernel-variants]``` config.
@@ -430,7 +427,7 @@ protect host status
 ```
 
 <img width="1507" height="765" alt="Screenshot 2026-09-08 at 10 08 02" src="https://github.com/user-attachments/assets/00b543d4-6478-4918-99ad-75188ca99646" />
-
+<br/>
 
 View system topology
 ```
