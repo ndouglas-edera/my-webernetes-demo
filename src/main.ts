@@ -373,6 +373,142 @@ spec:
         persistentVolumeClaim:
           claimName: local-block-pvc`;
 
+const FALCO_EDERA_CONFIG_YAML = `plugins:
+  - name: container
+    library_path: libcontainer.so
+    init_config:
+      label_max_len: 100
+      with_size: false
+  - name: edera
+    library_path: /var/lib/edera/protect/falco/libedera_falco_plugin.so
+load_plugins: [edera]`;
+
+const FALCO_EDERA_RULES_YAML = `- rule: Edera Proc Environ Read
+  desc: >
+    Detect reads of /proc/*/environ inside an Edera zone.
+    Credential harvesting via procfs is a common post-exploitation
+    technique for extracting secrets from neighboring workloads.
+  source: edera_zone
+  output: >
+    Credential harvesting attempt in zone
+    (zone_id=%edera.zone.id proc=%proc.exe file=%fd.name)
+  priority: WARNING
+  condition: >
+    evt.pluginname == "edera" and
+    evt.type in (open, openat) and
+    fd.name glob /proc/*/environ
+
+- rule: Edera Reverse Shell Tool
+  desc: >
+    Detect execution of common reverse shell tools inside an Edera zone.
+    Legitimate workloads rarely invoke netcat, socat, or similar tools.
+  source: edera_zone
+  output: >
+    Reverse shell tool executed in zone
+    (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
+  priority: CRITICAL
+  condition: >
+    evt.pluginname == "edera" and
+    evt.type in (execve, execveat) and
+    proc.name in (nc, ncat, netcat, socat, telnet)
+
+- rule: Edera Namespace Escape Attempt
+  desc: >
+    Detect nsenter execution inside an Edera zone.
+    nsenter is commonly used in container escape and privilege
+    escalation attacks to enter host or other container namespaces.
+  source: edera_zone
+  output: >
+    Namespace escape attempt in zone
+    (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
+  priority: CRITICAL
+  condition: >
+    evt.pluginname == "edera" and
+    evt.type in (execve, execveat) and
+    proc.name == nsenter
+
+- rule: Edera Sensitive File Read
+  desc: >
+    Detect reads of sensitive system files inside an Edera zone,
+    including credential stores and security-critical configuration.
+  source: edera_zone
+  output: >
+    Sensitive file read in zone
+    (zone_id=%edera.zone.id proc=%proc.exe file=%fd.name)
+  priority: WARNING
+  condition: >
+    evt.pluginname == "edera" and
+    evt.type in (open, openat) and
+    (fd.name startswith /etc/shadow or
+     fd.name startswith /etc/kubernetes or
+     fd.name startswith /run/secrets)
+
+- rule: Edera Outbound Connection
+  desc: Detect outbound network connections from Edera zones
+  source: edera_zone
+  output: >
+    Outbound connection from zone
+    (zone_id=%edera.zone.id proc=%proc.exe dest=%fd.rip:%fd.rport
+    proto=%fd.l4proto)
+  priority: NOTICE
+  condition: >
+    evt.pluginname == "edera" and
+    evt.type == connect and
+    fd.type == ipv4`;
+
+const FALCO_HELM_VALUES_YAML = `# Mount Edera plugin and daemon socket from host into Falco pods
+mounts:
+  volumes:
+    - name: edera-plugin
+      hostPath:
+        path: /var/lib/edera/protect/falco
+    - name: edera-daemon-socket
+      hostPath:
+        path: /var/lib/edera/protect
+
+  volumeMounts:
+    - name: edera-plugin
+      mountPath: /var/lib/edera/protect/falco
+      readOnly: true
+    - name: edera-daemon-socket
+      mountPath: /var/lib/edera/protect
+      readOnly: false
+
+falco:
+  plugins:
+    - name: edera
+      library_path: /var/lib/edera/protect/falco/libedera_falco_plugin.so
+
+  load_plugins: [edera]
+
+customRules:
+  edera-rules.yaml: |-
+    - rule: Edera Proc Environ Read
+      desc: >
+        Detect reads of /proc/*/environ inside an Edera zone.
+        Credential harvesting via procfs is a common post-exploitation
+        technique for extracting secrets from neighboring workloads.
+      source: edera_zone
+      output: >
+        Credential harvesting attempt in zone
+        (zone_id=%edera.zone.id proc=%proc.exe file=%fd.name)
+      priority: WARNING
+      condition: >
+        evt.pluginname == "edera" and
+        evt.type in (open, openat) and
+        fd.name glob /proc/*/environ
+
+    - rule: Edera Process Execution
+      desc: Logs process executions inside Edera zones
+      source: edera_zone
+      output: >
+        Process executed in zone
+        (zone_id=%edera.zone.id proc=%proc.exe cmdline=%proc.cmdline)
+      priority: NOTICE
+      condition: >
+        evt.pluginname == "edera" and
+        evt.type in (execve, execveat)`;
+
 const PROTECT_DEMO_STEPS: DemoStep[] = [
   {
     id: "zone-launch",
@@ -498,6 +634,103 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
       "List the <code class='guide-code'>Zones</code> one final time and observe the destroyed tombstone.",
     command: "protect zone list",
   },
+  {
+    id: "falco-config",
+    title: "Inspect the Edera Falco plugin configuration",
+    description:
+      "Inspect the simulated node-based Falco configuration. It loads the Edera plugin from <code class='guide-code'>/var/lib/edera/protect/falco/libedera_falco_plugin.so</code>.",
+    command: "sudo cat /etc/falco/config.d/falco-edera-config.yaml",
+    optional: true,
+  },
+  {
+    id: "falco-rules",
+    title: "Inspect the Edera detection rules",
+    description:
+      "Inspect the simulated Edera Falco rules for procfs credential harvesting, reverse shells, namespace escape attempts, sensitive file reads, and outbound connections.",
+    command: "sudo cat /etc/falco/rules.d/falco-edera-rules.yaml",
+    optional: true,
+  },
+  {
+    id: "falco-restart",
+    title: "Restart Falco",
+    description:
+      "Restart the simulated Falco service so the Edera plugin and detection rules become active.",
+    command: "sudo systemctl restart falco",
+    optional: true,
+  },
+  {
+    id: "falco-debug",
+    title: "Start Falco debug logging",
+    description:
+      "Run Falco in the foreground with debug logging to observe the Edera plugin discovering zones and receiving kernel events.",
+    command: "sudo falco -o \"log_level=debug\"",
+    optional: true,
+  },
+  {
+    id: "falco-zone-launch",
+    title: "Launch a monitored Edera zone",
+    description:
+      "Launch a test Edera zone named <code class='guide-code'>falco-zone</code> so the simulated plugin can discover it.",
+    command: "protect zone launch --name falco-zone --kernel-verbose",
+    optional: true,
+  },
+  {
+    id: "falco-workload-launch",
+    title: "Launch a workload for Falco to monitor",
+    description:
+      "Start an Alpine workload inside <code class='guide-code'>falco-zone</code>.",
+    command:
+      "protect workload launch --zone falco-zone --name falco-test docker.io/library/alpine:latest sleep 3600",
+    optional: true,
+  },
+  {
+    id: "falco-event",
+    title: "Generate a Falco process event",
+    description:
+      "Execute a command inside the Edera workload. The simulated Falco plugin reports the process execution as an <code class='guide-code'>edera_zone</code> event.",
+    command: "protect workload exec falco-test /bin/sh",
+    optional: true,
+  },
+  {
+    id: "falco-detection",
+    title: "Trigger a credential-harvesting detection",
+    description:
+      "Read <code class='guide-code'>/proc/1/environ</code> inside the zone to trigger the Edera procfs detection rule.",
+    command: "protect workload exec falco-test cat /proc/1/environ",
+    optional: true,
+  },
+  {
+    id: "falco-helm-values",
+    title: "Inspect the Helm configuration",
+    description:
+      "Inspect the simulated Helm values file used to mount the Edera plugin and daemon socket and load Edera detection rules.",
+    command: "cat falco-edera-values.yaml",
+    optional: true,
+  },
+  {
+    id: "falco-helm-upgrade",
+    title: "Upgrade Falco with the Edera configuration",
+    description:
+      "Apply the simulated Helm-based Falco configuration using the supplied Edera plugin and rules.",
+    command: "helm upgrade falco falcosecurity/falco -n falco -f falco-edera-values.yaml",
+    optional: true,
+  },
+  {
+    id: "falco-pods",
+    title: "Verify Falco pods",
+    description:
+      "Check that the simulated Falco DaemonSet pods are running.",
+    command: "kubectl get pods -n falco",
+    optional: true,
+  },
+  {
+    id: "falco-logs",
+    title: "Stream Falco events",
+    description:
+      "Stream simulated Falco logs and observe the Edera plugin waiting for and discovering zones.",
+    command: "kubectl logs -n falco -l app.kubernetes.io/name=falco -f",
+    optional: true,
+  },
 ];
 
 async function initTerminalDemo() {
@@ -516,10 +749,10 @@ async function initTerminalDemo() {
       </header>
 
       <section class="brand-hero" aria-labelledby="hero-title">
-        <div class="hero-eyebrow">ARE YOU READY TO CYA?</div>
-        <h2 id="hero-title">CONTAIN YOUR<br />ARCHITECTURE</h2>
+        <div class="hero-eyebrow">ARE YOU READY TO CYW?</div>
+        <h2 id="hero-title">CONTAIN YOUR<br />WORKLOADS</h2>
         <p>
-          Edera is the secure execution platform for all software. Built so every
+          Edera is the secure execution platform for all software — built so every
           untrusted workload runs trusted, and free to move at the speed of your business.
         </p>
         <button id="hero-run-btn" class="hero-cta" type="button">Try it Out</button>
@@ -786,6 +1019,10 @@ async function initTerminalDemo() {
     "/edera/pod-hardened-vessel.yaml": HARDENED_VESSEL_YAML_CONTENT,
     "/edera/nginx-deployment.yaml": NGINX_DEPLOYMENT_YAML_CONTENT,
 
+    "/etc/falco/config.d/falco-edera-config.yaml": FALCO_EDERA_CONFIG_YAML,
+    "/etc/falco/rules.d/falco-edera-rules.yaml": FALCO_EDERA_RULES_YAML,
+    "/falco-edera-values.yaml": FALCO_HELM_VALUES_YAML,
+
     "/storage/csi/csi-block-pvc.yaml": CSI_BLOCK_PVC_YAML_CONTENT,
     "/storage/csi/format-block-device.yaml": FORMAT_BLOCK_DEVICE_YAML_CONTENT,
     "/storage/csi/csi-block-deployment.yaml": CSI_BLOCK_DEPLOYMENT_YAML_CONTENT,
@@ -830,12 +1067,12 @@ vfio_pci`;
 
   const NVIDIA_ZONE_LOGS = `[2026-07-16T16:32:21.011030Z INFO  edera_protect_zone::hooks] running setup hook: load modules [nvidia, nvidia_drm, nvidia_uvm] and execute [/usr/bin/nvidia-smi, -pm, 1]
 [    1.403876] nvidia: loading out-of-tree module taints kernel.
-[    1.515369] nvidia-nvlink: Nvlink Core is being initialised, major device number 239
+[    1.515369] nvidia-nvlink: Nvlink Core is being initialized, major device number 239
 [    1.516039]
 [    1.568563] NVRM: loading NVIDIA UNIX Open Kernel Module for x86_64  610.43.02  Release Build  (build@01c4f9ab348e)  Mon Jul 13 01:02:13 UTC 2026
 [    1.619087] nvidia-modeset: Loading NVIDIA UNIX Open Kernel Mode Setting Driver for x86_64  610.43.02  Release Build  (build@01c4f9ab348e)  Mon Jul 13 01:02:08 UTC 2026
 [    1.676402] [drm] [nvidia-drm] [GPU ID 0x00000007] Loading driver
-[    3.362604] [drm] Initialised nvidia-drm 0.0.0 for 0000:00:07.0 on minor 0`;
+[    3.362604] [drm] Initialized nvidia-drm 0.0.0 for 0000:00:07.0 on minor 0`;
 
   const NVIDIA_WORKLOAD_LSPCI = `0000:00:07.0 3D controller [0302]: NVIDIA Corporation TU104GL [Tesla T4] [10de:1eb8] (rev a1)
     Subsystem: NVIDIA Corporation Device [10de:12a2]
@@ -881,6 +1118,18 @@ vfio_pci`;
     "/edera/nginx-deployment.yaml": {
       size: NGINX_DEPLOYMENT_YAML_CONTENT.length,
       modified: "Apr  9 07:47",
+    },
+    "/etc/falco/config.d/falco-edera-config.yaml": {
+      size: FALCO_EDERA_CONFIG_YAML.length,
+      modified: "Sep  8 09:00",
+    },
+    "/etc/falco/rules.d/falco-edera-rules.yaml": {
+      size: FALCO_EDERA_RULES_YAML.length,
+      modified: "Sep  8 09:00",
+    },
+    "/falco-edera-values.yaml": {
+      size: FALCO_HELM_VALUES_YAML.length,
+      modified: "Sep  8 09:00",
     },
     "/storage/csi/csi-block-pvc.yaml": { size: CSI_BLOCK_PVC_YAML_CONTENT.length, modified: "Sep  6 09:00" },
     "/storage/csi/format-block-device.yaml": { size: FORMAT_BLOCK_DEVICE_YAML_CONTENT.length, modified: "Sep  6 09:00" },
@@ -1019,6 +1268,11 @@ vfio_pci`;
     clusterEvents = [];
     gpuVfioBound = false;
     protectDaemonRestarted = false;
+    falcoInstalled = false;
+    falcoConfigured = false;
+    falcoRulesLoaded = false;
+    falcoRunning = false;
+    ederaFalcoPluginLoaded = false;
 
     closeCompletionModal();
     window.location.reload();
@@ -1026,6 +1280,11 @@ vfio_pci`;
 
   let gpuVfioBound = false;
   let protectDaemonRestarted = false;
+  let falcoInstalled = false;
+  let falcoConfigured = false;
+  let falcoRulesLoaded = false;
+  let falcoRunning = false;
+  let ederaFalcoPluginLoaded = false;
 
   const activeRuntimeClasses = new Set<string>();
 
@@ -2276,6 +2535,60 @@ const renderNodes = () => {
     updateDashboard();
   };
 
+  const getFalcoZoneForWorkload = (workload: ProtectWorkload) =>
+    protectZones.find((zone) => zone.uuid === workload.zone);
+
+  const renderFalcoDebugOutput = () => {
+    if (!falcoRunning || !ederaFalcoPluginLoaded) {
+      printHtml(
+        `<span style="color:#ff7373;">Falco is not running with the Edera plugin loaded. Run: sudo systemctl restart falco</span>`,
+      );
+      return;
+    }
+
+    const zone = protectZones.find((item) => item.state === "ready");
+
+    if (!zone) {
+      printPre(
+        `<span style="color:#dff7f0;">Thu Sep  8 09:00:00 2026: [libs]: edera: [INFO] waiting for zones</span>`,
+      );
+      return;
+    }
+
+    printPre(
+      `<span style="color:#dff7f0;">Thu Sep  8 09:00:10 2026: [libs]: edera: [INFO] waiting for zones\n` +
+        `Thu Sep  8 09:00:20 2026: [libs]: edera: [INFO] got zone ZoneMetadata { domid: 3, uuid: ${escapeHtml(zone.uuid)} }\n` +
+        `Thu Sep  8 09:00:20 2026: [libs]: edera: [INFO] pushing handle for zone ${escapeHtml(zone.uuid)}\n` +
+        `Thu Sep  8 09:00:20 2026: [libs]: edera: [INFO] starting zone event pump for zone ${escapeHtml(zone.uuid)}\n` +
+        `Thu Sep  8 09:00:20 2026: [libs]: edera: [INFO] Listening for kernel events from zone ${escapeHtml(zone.uuid)}</span>`,
+    );
+  };
+
+  const emitFalcoEvent = (
+    type: "Notice" | "Warning" | "Critical",
+    rule: string,
+    zone: ProtectZone,
+    details: string,
+  ) => {
+    if (!falcoRunning || !ederaFalcoPluginLoaded) return;
+
+    const lifecycleType =
+      type === "Critical" ? "Warning" : type === "Warning" ? "Warning" : "Info";
+
+    addEvent(
+      lifecycleType,
+      `FalcoDetection: ${rule}`,
+      `zone/${zone.name}`,
+      `${details} (zone_id=${zone.uuid})`,
+    );
+
+    printPre(
+      `<span style="color:${type === "Critical" ? "#ff7373" : type === "Warning" ? "#ffd166" : "#00e5d4"};">` +
+        `${escapeHtml(type)} EDERA Event | zone_id=${escapeHtml(zone.uuid)} ${escapeHtml(details)}` +
+        `</span>`,
+    );
+  };
+
   const execProtectWorkload = (
     identifier: string,
     command: string[],
@@ -2305,6 +2618,55 @@ const renderNodes = () => {
     }
 
     const commandText = command.join(" ");
+    const falcoZone = getFalcoZoneForWorkload(workload);
+
+    if (falcoRunning && ederaFalcoPluginLoaded && falcoZone) {
+      const lowerCommand = commandText.toLowerCase();
+      const processName = command[0]?.split("/").pop() || "sh";
+
+      if (lowerCommand.includes("/proc/") && lowerCommand.includes("/environ")) {
+        emitFalcoEvent(
+          "Warning",
+          "Edera Proc Environ Read",
+          falcoZone,
+          `evt.type=open proc.exe=${processName} file=${commandText.match(/\/proc\/[^ ]+\/environ/)?.[0] || "/proc/1/environ"}`,
+        );
+      } else if (/(^|\s)(nc|ncat|netcat|socat|telnet)(\s|$)/i.test(commandText)) {
+        emitFalcoEvent(
+          "Critical",
+          "Edera Reverse Shell Tool",
+          falcoZone,
+          `evt.type=execve proc.exe=${processName} cmdline=${commandText}`,
+        );
+      } else if (/(^|\s|\/)nsenter(\s|$)/i.test(commandText)) {
+        emitFalcoEvent(
+          "Critical",
+          "Edera Namespace Escape Attempt",
+          falcoZone,
+          `evt.type=execve proc.exe=nsenter cmdline=${commandText}`,
+        );
+      } else if (
+        lowerCommand.includes("/etc/shadow") ||
+        lowerCommand.includes("/etc/kubernetes") ||
+        lowerCommand.includes("/run/secrets")
+      ) {
+        emitFalcoEvent(
+          "Warning",
+          "Edera Sensitive File Read",
+          falcoZone,
+          `evt.type=open proc.exe=${processName} file=${commandText}`,
+        );
+      }
+
+      if (lowerCommand.includes("connect") || lowerCommand.includes("curl ")) {
+        emitFalcoEvent(
+          "Notice",
+          "Edera Outbound Connection",
+          falcoZone,
+          `evt.type=connect proc.exe=${processName} dest=203.0.113.10:443 proto=tcp`,
+        );
+      }
+    }
 
     addEvent(
       "Info",
@@ -2602,6 +2964,41 @@ const renderNodes = () => {
           <div class="cli-help-command">
             <code>sudo modprobe vfio_iommu_type1 && sudo modprobe vfio_pci</code>
             <span>Simulate loading VFIO modules for KVM GPU passthrough.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>sudo cat /etc/falco/config.d/falco-edera-config.yaml</code>
+            <span>Inspect the simulated node-based Edera Falco plugin configuration.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>sudo cat /etc/falco/rules.d/falco-edera-rules.yaml</code>
+            <span>Inspect simulated Edera Falco detection rules.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>sudo systemctl restart falco</code>
+            <span>Restart the simulated Falco service with the Edera plugin.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>sudo falco -o "log_level=debug"</code>
+            <span>Show simulated Falco plugin discovery and zone events.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>helm upgrade falco falcosecurity/falco -n falco -f falco-edera-values.yaml</code>
+            <span>Simulate upgrading a Helm-based Falco deployment with Edera configuration.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl get pods -n falco</code>
+            <span>List simulated Falco pods.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl logs -n falco -l app.kubernetes.io/name=falco -f</code>
+            <span>Stream simulated Falco logs.</span>
           </div>
         </div>
 
@@ -2996,7 +3393,7 @@ const renderNodes = () => {
           "Normal",
           "NvidiaDriverVerified",
           `zone/${zone.name}`,
-          "NVIDIA driver initialised successfully",
+          "NVIDIA driver initialized successfully",
         );
 
         markDemoStepComplete("gpu-zone-logs");
@@ -5631,6 +6028,35 @@ Kernel isolation: enabled</span>`);
         }
 
         if (
+          tokens[0] === "systemctl" &&
+          tokens[1] === "restart" &&
+          tokens[2] === "falco"
+        ) {
+          falcoInstalled = true;
+          falcoConfigured = true;
+          falcoRulesLoaded = true;
+          falcoRunning = true;
+          ederaFalcoPluginLoaded = true;
+
+          printHtml(
+            `<span style="color:#b8ff3c;">Falco restarted successfully.</span>`,
+          );
+          printHtml(
+            `<span style="color:#00e5d4;">Loaded plugin: edera</span>`,
+          );
+
+          addEvent(
+            "Normal",
+            "FalcoPluginLoaded",
+            "falco/edera",
+            "Edera Falco plugin loaded successfully and is waiting for zones",
+          );
+
+          markDemoStepComplete("falco-restart");
+          return;
+        }
+
+        if (
           tokens[0] === "modprobe" &&
           (tokens.includes("vfio_pci") || tokens.includes("vfio-pci"))
         ) {
@@ -5792,6 +6218,32 @@ Kernel isolation: enabled</span>`);
         if (tokens[0] === "cat") {
           const fileName = tokens[1];
 
+          if (fileName === "/etc/falco/config.d/falco-edera-config.yaml") {
+            printPre(
+              `<span style="color:#dff7f0;">${escapeHtml(FALCO_EDERA_CONFIG_YAML)}</span>`,
+            );
+            falcoConfigured = true;
+            markDemoStepComplete("falco-config");
+            return;
+          }
+
+          if (fileName === "/etc/falco/rules.d/falco-edera-rules.yaml") {
+            printPre(
+              `<span style="color:#dff7f0;">${escapeHtml(FALCO_EDERA_RULES_YAML)}</span>`,
+            );
+            falcoRulesLoaded = true;
+            markDemoStepComplete("falco-rules");
+            return;
+          }
+
+          if (fileName === "falco-edera-values.yaml" || fileName === "/falco-edera-values.yaml") {
+            printPre(
+              `<span style="color:#dff7f0;">${escapeHtml(FALCO_HELM_VALUES_YAML)}</span>`,
+            );
+            markDemoStepComplete("falco-helm-values");
+            return;
+          }
+
           if (fileName === "/var/lib/edera/protect/daemon.toml") {
             printPre(
               `<span style="color:#dff7f0;">${escapeHtml(
@@ -5846,6 +6298,60 @@ Kernel isolation: enabled</span>`);
 
           return;
         }
+        if (tokens[0] === "falco") {
+          const debug = rawCmd.includes('log_level=debug');
+
+          if (!debug) {
+            printHtml(
+              `<span style="color:#ff7373;">falco: this simulator supports only -o "log_level=debug".</span>`,
+            );
+            return;
+          }
+
+          falcoInstalled = true;
+          falcoRunning = true;
+          ederaFalcoPluginLoaded = true;
+          renderFalcoDebugOutput();
+          markDemoStepComplete("falco-debug");
+          return;
+        }
+
+        if (tokens[0] === "helm") {
+          if (
+            tokens[1] === "upgrade" &&
+            tokens[2] === "falco" &&
+            tokens.includes("falcosecurity/falco")
+          ) {
+            falcoInstalled = true;
+            falcoConfigured = true;
+            falcoRulesLoaded = true;
+            falcoRunning = true;
+            ederaFalcoPluginLoaded = true;
+
+            printHtml(
+              `<span style="color:#b8ff3c;">Release "falco" upgraded successfully.</span>`,
+            );
+            printHtml(
+              `<span style="color:#00e5d4;">Edera plugin mounted and configured.</span>`,
+            );
+
+            addEvent(
+              "Normal",
+              "FalcoHelmConfigured",
+              "helm/falco",
+              "Falco Helm release updated with Edera plugin and detection rules",
+            );
+
+            markDemoStepComplete("falco-helm-upgrade");
+            return;
+          }
+
+          printHtml(
+            `<span style="color:#ff7373;">helm: unsupported command in this demo.</span>`,
+          );
+          return;
+        }
+
         if (tokens[0] === "uname") {
           const requestsRelease =
             tokens.length === 1 ||
@@ -5889,6 +6395,24 @@ Kernel isolation: enabled</span>`);
           return;
         }
         if (tokens[0] === "kubectl") {
+          if (tokens[1] === "get" && tokens[2] === "pods" && tokens.includes("-n") && tokens[tokens.indexOf("-n") + 1] === "falco") {
+            printPre(
+              `<span style="color:#dff7f0;">NAME                                      READY   STATUS    RESTARTS   AGE
+falco-edera-node-7d8f9                   1/1     Running   0          2m</span>`,
+            );
+            markDemoStepComplete("falco-pods");
+            return;
+          }
+
+          if (tokens[1] === "logs" && tokens.includes("-n") && tokens[tokens.indexOf("-n") + 1] === "falco") {
+            falcoInstalled = true;
+            falcoRunning = true;
+            ederaFalcoPluginLoaded = true;
+            renderFalcoDebugOutput();
+            markDemoStepComplete("falco-logs");
+            return;
+          }
+
           const handled =
             await handleKubectlCommand(
               rawCmd,
