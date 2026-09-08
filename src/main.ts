@@ -2802,10 +2802,19 @@ const renderNodes = () => {
     printPre(escapeHtml(JSON.stringify(payload, null, pretty ? 2 : 0)));
   };
 
+  const getProtectImageDigest = (index: number): string => {
+    const demoDigests = [
+      "sha256:demo01a7",
+      "sha256:demo02b4",
+      "sha256:demo03c9",
+    ];
+    return demoDigests[index] ?? `sha256:demo${String(index + 1).padStart(2, "0")}`;
+  };
+
   const renderProtectImageList = (pretty = false) => {
     const images = Array.from(cachedProtectImages).map((reference, index) => ({
       reference,
-      digest: `sha256:${"0".repeat(12)}${String(index + 1).padStart(2, "0")}${"a".repeat(50)}`,
+      digest: getProtectImageDigest(index),
       format: "squashfs",
     }));
     if (pretty) {
@@ -2880,7 +2889,9 @@ const renderNodes = () => {
           return true;
         }
         const refs = Array.from(cachedProtectImages);
-        const index = refs.findIndex((ref, i) => image === ref || image === `sha256:${"0".repeat(12)}${String(i + 1).padStart(2, "0")}${"a".repeat(50)}`);
+        const index = refs.findIndex(
+          (ref, i) => image === ref || image === getProtectImageDigest(i),
+        );
         if (index < 0) {
           printHtml(`<span style="color:#ff7373;">Error: image digest "${escapeHtml(image)}" not found.</span>`);
           return true;
