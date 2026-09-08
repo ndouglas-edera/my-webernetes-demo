@@ -347,6 +347,10 @@ Get detailed info about a specific zone
 ```
 protect zone list my-test-zone --output json-pretty
 ```
+
+<img width="1507" height="765" alt="Screenshot 2026-09-08 at 09 33 15" src="https://github.com/user-attachments/assets/6bb8bf85-060e-47ca-aecb-3a40952c6a02" />
+
+
 Launch a simple workload in an existing zone
 ```
 protect workload launch --zone my-test-zone --name web-server nginx:latest
