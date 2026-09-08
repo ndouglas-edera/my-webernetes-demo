@@ -516,8 +516,8 @@ async function initTerminalDemo() {
       </header>
 
       <section class="brand-hero" aria-labelledby="hero-title">
-        <div class="hero-eyebrow">ARE YOU READY TO CYW?</div>
-        <h2 id="hero-title">CONTAIN YOUR<br />WORKLOADS</h2>
+        <div class="hero-eyebrow">ARE YOU READY TO CYA?</div>
+        <h2 id="hero-title">CONTAIN YOUR<br />ARCHITECTURE</h2>
         <p>
           Edera is the secure execution platform for all software — built so every
           untrusted workload runs trusted, and free to move at the speed of your business.
