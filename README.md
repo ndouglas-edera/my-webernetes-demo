@@ -553,17 +553,19 @@ kubectl logs -n falco -l app.kubernetes.io/name=falco -f
 
 ## Understanding the filesystem
 
-Recursive ```ls```
+Recursive ```ls```. Adding the ```-R``` (**recursive**) flag to ```ls -la``` lists all files, permissions, and **hidden dotfiles** for the current directory and every subdirectory beneath it.
 ```
 ls -laR
 ```
-Also supports:
+Lists all **non-hidden files** and directories in your current directory, recursively expanding every subdirectory.
 ```
 ls -R
 ```
+Lists all files and subdirectories. **Includes hidden dotfiles** (```.gitignore```, ```.env```, etc.) and hidden directories recursively starting from your current directory.
 ```
 ls -aR
 ```
+Performs a long format recursive list of every file, hidden file, and folder inside ```/etc```, which is where system-wide configs live on Unix-like OS.
 ```
 ls -laR /etc
 ```
@@ -574,13 +576,13 @@ It recursively prints each directory and its contents, with the ```-l``` form sh
 ```
 tree -a
 ```
-or:
+or again, a specific directory:
 ```
 tree -a /etc
 ```
 The ```-a``` flag is honoured so hidden entries will be included if/when they're present in the virtual filesystem.
 <br/><br/>
-Whereas, the ```find``` command produces clean relative paths:
+Whereas, the ```find``` command produces the clean relative paths:
 ```
 find . -type f
 ```
