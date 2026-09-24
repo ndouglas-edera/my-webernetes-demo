@@ -890,7 +890,7 @@ async function initTerminalDemo() {
           ></div>
 
           <div class="terminal-input-row">
-            <span id="terminal-prompt">user@webernetes:~$</span>
+            <span id="terminal-prompt">ivy@webernetes:~$</span>
             <input
               id="cmd"
               type="text"
@@ -1004,7 +1004,7 @@ async function initTerminalDemo() {
     document.querySelector<HTMLSpanElement>("#terminal-prompt")!;
 
   const updateTerminalPrompt = () => {
-    terminalPrompt.innerText = `user@webernetes:${virtualDisplayPath(currentDirectory)}$`;
+    terminalPrompt.innerText = `ivy@webernetes:${virtualDisplayPath(currentDirectory)}$`;
   };
 
   const podGrid = document.querySelector<HTMLDivElement>("#pod-grid")!;
@@ -1368,7 +1368,7 @@ vfio_pci`;
     isDirectory: boolean;
   }) => {
     if (entry.isDirectory) {
-      return `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:42 ${entry.name}/`;
+      return `${READ_ONLY_DIRECTORY_MODE} 1 ivy 197609        0 Apr  9 07:42 ${entry.name}/`;
     }
 
     const metadata = localFileMetadata[entry.path] || {
@@ -1376,7 +1376,7 @@ vfio_pci`;
       modified: "Apr  9 07:48",
     };
 
-    return `${READ_ONLY_FILE_MODE} 1 user 197609 ${String(metadata.size).padStart(8, " ")} ${metadata.modified} ${entry.name}`;
+    return `${READ_ONLY_FILE_MODE} 1 ivy 197609 ${String(metadata.size).padStart(8, " ")} ${metadata.modified} ${entry.name}`;
   };
 
   const formatVirtualDirectoryHeader = (directory: string) =>
@@ -1586,7 +1586,7 @@ vfio_pci`;
 
   const printCommand = (command: string) => {
     printHtml(
-      `<div class="terminal-command"><span class="terminal-prompt">user@webernetes:${escapeHtml(virtualDisplayPath(currentDirectory))}$</span> ${escapeHtml(command)}</div>`,
+      `<div class="terminal-command"><span class="terminal-prompt">ivy@webernetes:${escapeHtml(virtualDisplayPath(currentDirectory))}$</span> ${escapeHtml(command)}</div>`,
     );
   };
 
@@ -6488,8 +6488,8 @@ Kernel isolation: enabled</span>`);
 
             const listing = [
               `total ${totalSize}`,
-              `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:53 ./`,
-              `${READ_ONLY_DIRECTORY_MODE} 1 user 197609        0 Apr  9 07:42 ../`,
+              `${READ_ONLY_DIRECTORY_MODE} 1 ivy 197609        0 Apr  9 07:53 ./`,
+              `${READ_ONLY_DIRECTORY_MODE} 1 ivy 197609        0 Apr  9 07:42 ../`,
               ...entries.map(formatVirtualLongEntry),
             ].join("\n");
 
@@ -6611,7 +6611,7 @@ Kernel isolation: enabled</span>`);
                 const display = relative ? `./${relative}` : `./${entry.name}`;
                 if (lsMode) {
                   const metadata = localFileMetadata[entry.path] || { size: getVirtualFile(entry.path)?.length || 0, modified: "Apr  9 07:48" };
-                  results.push(`197609 ${READ_ONLY_FILE_MODE} 1 user user ${String(metadata.size).padStart(8, " ")} ${metadata.modified} ${display}`);
+                  results.push(`197609 ${READ_ONLY_FILE_MODE} 1 ivy ivy ${String(metadata.size).padStart(8, " ")} ${metadata.modified} ${display}`);
                 } else {
                   results.push(display);
                 }
@@ -6622,7 +6622,7 @@ Kernel isolation: enabled</span>`);
           if (lsMode) {
             const rootDisplay = ".";
             results.unshift(
-              `197609 ${READ_ONLY_DIRECTORY_MODE} 1 user user ${String(0).padStart(8, " ")} Apr  9 07:53 ${rootDisplay}`,
+              `197609 ${READ_ONLY_DIRECTORY_MODE} 1 ivy ivy ${String(0).padStart(8, " ")} Apr  9 07:53 ${rootDisplay}`,
             );
           }
           walkFind(targetPath);
