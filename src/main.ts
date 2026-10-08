@@ -899,7 +899,7 @@ async function initTerminalDemo() {
           rel="noopener noreferrer"
           class="edera-free-cta"
           style="justify-self:end;align-self:center;display:inline-flex;align-items:center;padding:12px 22px;border-radius:999px;background:var(--edera-lime);color:var(--edera-ink);font-weight:800;text-decoration:none;white-space:nowrap;"
-        >Try out Edera for free →</a>
+        >Try Edera for free →</a>
       </header>
 
       <section class="brand-hero" aria-labelledby="hero-title">
