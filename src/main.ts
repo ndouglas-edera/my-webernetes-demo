@@ -909,7 +909,7 @@ async function initTerminalDemo() {
           Edera is the secure execution platform for all software — built so every
           untrusted workload runs trusted, and free to move at the speed of your business.
         </p>
-        <button id="hero-run-btn" class="hero-cta" type="button">Try it Out</button>
+        <button id="hero-run-btn" class="hero-cta" type="button">Jump to Terminal</button>
       </section>
 
       <div class="demo-kicker">Web­ernetes × Edera - interactive isolation demo</div>
