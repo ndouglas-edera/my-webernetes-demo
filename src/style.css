@@ -896,6 +896,22 @@ input {
   font-weight: 700;
 }
 
+/* Show about ten steps at a time; the rest scroll. JS sets the exact
+   max-height from the rendered rows (titles wrap on narrow screens), so
+   this is only the fallback. */
+#guide-step-list {
+  position: relative;
+  max-height: 290px;
+
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  padding-right: 4px;
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 90, 87, 0.28) transparent;
+}
+
 .guide-step-mini {
   width: 100%;
 
