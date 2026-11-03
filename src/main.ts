@@ -1104,6 +1104,7 @@ async function initTerminalDemo() {
   };
 
   const podGrid = document.querySelector<HTMLDivElement>("#pod-grid")!;
+  const podsBodyForLimit = document.querySelector<HTMLDivElement>("#pods-body")!;
   const podCount = document.querySelector<HTMLSpanElement>("#pod-count")!;
 
   const nodeGrid = document.querySelector<HTMLDivElement>("#node-grid")!;
@@ -1830,8 +1831,12 @@ vfio_pci`;
       podGrid.innerHTML = `
         <div class="empty-state">No pods running</div>
       `;
+      applyPodGridLimit();
       return;
     }
+
+    // Keep the reader's place in the list across re-renders.
+    const previousScrollTop = podGrid.scrollTop;
 
     podGrid.innerHTML = pods
       .map((pod) => {
@@ -1868,7 +1873,48 @@ vfio_pci`;
         `;
       })
       .join("");
+
+    applyPodGridLimit();
+    podGrid.scrollTop = previousScrollTop;
   };
+
+  // Show at most this many pod cards; the rest scroll inside the panel.
+  const MAX_VISIBLE_POD_CARDS = 3;
+
+  // Cap the pod list at MAX_VISIBLE_POD_CARDS cards, measured from the
+  // rendered cards so the limit follows the real card height and gap.
+  const applyPodGridLimit = () => {
+    const cards = Array.from(podGrid.children) as HTMLElement[];
+
+    if (cards.length <= MAX_VISIBLE_POD_CARDS) {
+      podGrid.style.maxHeight = "";
+      podGrid.style.overflowY = "";
+      podGrid.style.paddingTop = "";
+      podGrid.style.paddingRight = "";
+      return;
+    }
+
+    const first = cards[0];
+    const last = cards[MAX_VISIBLE_POD_CARDS - 1];
+    const visibleHeight = last.offsetTop + last.offsetHeight - first.offsetTop;
+
+    // The panel may be hidden (no layout yet). Leave the list uncapped and
+    // let the ResizeObserver below re-measure once it becomes visible.
+    if (visibleHeight <= 0) return;
+
+    // +2px so the hover lift on the top card isn't clipped.
+    podGrid.style.maxHeight = `${visibleHeight + 2}px`;
+    podGrid.style.overflowY = "auto";
+    podGrid.style.overscrollBehavior = "contain";
+    podGrid.style.paddingTop = "2px";
+    podGrid.style.paddingRight = "4px";
+  };
+
+  if (typeof ResizeObserver === "function") {
+    // Re-measure when the panel is shown again or its width changes (cards
+    // can wrap onto two lines on narrow layouts).
+    new ResizeObserver(() => applyPodGridLimit()).observe(podsBodyForLimit);
+  }
 
 const renderNodes = () => {
   nodeCount.innerText =
@@ -2057,7 +2103,42 @@ const renderNodes = () => {
         </button>
       `;
     }).join("");
+    fitGuideStepList(currentIndex);
   };
+
+  // Cap the demo flow at GUIDE_VISIBLE_STEPS rows and keep the selected step
+  // in view with a little context above it, so users see where they've been
+  // and what's next without all the steps at once.
+  const GUIDE_VISIBLE_STEPS = 10;
+  const GUIDE_STEPS_ABOVE_CURRENT = 2;
+  let lastScrolledGuideIndex: number | null = null;
+
+  const fitGuideStepList = (currentIndex: number) => {
+    const rows = guideStepList.querySelectorAll<HTMLElement>(".guide-step-mini");
+    if (rows.length === 0 || guideStepList.offsetParent === null) {
+      return;
+    }
+
+    const limitRow = rows[Math.min(GUIDE_VISIBLE_STEPS, rows.length) - 1];
+    const listTop = rows[0].offsetTop;
+    guideStepList.style.maxHeight =
+      `${limitRow.offsetTop + limitRow.offsetHeight - listTop}px`;
+
+    // Only auto-scroll when the selected step changes, so a user browsing
+    // ahead isn't yanked back on every re-render.
+    if (currentIndex === lastScrolledGuideIndex) {
+      return;
+    }
+    lastScrolledGuideIndex = currentIndex;
+    const anchor = rows[Math.max(0, currentIndex - GUIDE_STEPS_ABOVE_CURRENT)];
+    guideStepList.scrollTop = anchor.offsetTop - listTop;
+  };
+
+  window.addEventListener("resize", () => {
+    lastScrolledGuideIndex = null;
+    fitGuideStepList(getSelectedDemoStepIndex());
+  });
+
   const markDemoStepComplete = (stepId: string) => {
     const wasComplete = isDemoComplete();
     completedDemoSteps.add(stepId);
